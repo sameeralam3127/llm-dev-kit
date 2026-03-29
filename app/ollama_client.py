@@ -3,41 +3,31 @@ import os
 from functools import lru_cache
 
 OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
-
 session = requests.Session()
 
 
-# ------------------ MODEL HELPERS ------------------
+# ------------------ MODELS ------------------
 
 def get_models():
     try:
         res = session.get(f"{OLLAMA_HOST}/api/tags", timeout=5)
         res.raise_for_status()
-
-        data = res.json()
-        models = [m["name"] for m in data.get("models", [])]
-
-        if not models:
-            print("⚠️ No models found in Ollama")
-        return models
-
+        return [m["name"] for m in res.json().get("models", [])]
     except Exception as e:
-        print(f"❌ Error fetching models: {e}")
+        print(f"❌ Failed to fetch models: {e}")
         return []
 
 
-def model_exists(model_name):
-    models = get_models()
-    return model_name in models
+def model_exists(model):
+    return model in get_models()
 
 
 def get_embedding_model():
-    models = get_models()
-    for m in models:
+    for m in get_models():
         if "embed" in m:
             return m
 
-    print("❌ No embedding model found in Ollama.")
+    print("❌ No embedding model found")
     print("👉 Run: ollama pull nomic-embed-text")
     return None
 
@@ -46,19 +36,16 @@ def get_embedding_model():
 
 @lru_cache(maxsize=512)
 def embed(text, model=None):
-    if not text or not text.strip():
-        print("⚠️ Empty text received for embedding")
+    if not text.strip():
         return None
 
-    if model is None:
-        model = get_embedding_model()
+    model = model or get_embedding_model()
 
     if not model:
         return None
 
     if not model_exists(model):
-        print(f"❌ Embedding model '{model}' not found.")
-        print("👉 Install with: ollama pull nomic-embed-text")
+        print(f"❌ Embedding model '{model}' not found")
         return None
 
     try:
@@ -67,31 +54,29 @@ def embed(text, model=None):
             json={"model": model, "prompt": text},
             timeout=30
         )
-
         res.raise_for_status()
-        data = res.json()
 
-        embedding = data.get("embedding")
+        embedding = res.json().get("embedding")
 
         if not embedding:
-            print("❌ Empty embedding returned:", data)
+            print("❌ Empty embedding returned")
             return None
 
-        return tuple(embedding)  # for caching
+        return list(embedding)  # ✅ FIX (no tuple)
 
     except Exception as e:
-        print(f"❌ Embedding failed: {e}")
+        print(f"❌ Embedding error: {e}")
         return None
 
 
 # ------------------ GENERATION ------------------
 
 def generate(prompt, model):
-    if not prompt or not prompt.strip():
-        return "⚠️ Empty prompt."
+    if not prompt.strip():
+        return "⚠️ Empty prompt"
 
     if not model_exists(model):
-        return f"❌ Model '{model}' not found. Check 'ollama list'."
+        return f"❌ Model '{model}' not found"
 
     try:
         res = session.post(
@@ -111,10 +96,7 @@ def generate(prompt, model):
         res.raise_for_status()
         data = res.json()
 
-        if "response" not in data:
-            return f"❌ Ollama error: {data}"
-
-        return data["response"]
+        return data.get("response", f"❌ Ollama error: {data}")
 
     except Exception as e:
-        return f"❌ Request failed: {str(e)}"
+        return f"❌ Request failed: {e}"

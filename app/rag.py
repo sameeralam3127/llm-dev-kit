@@ -1,8 +1,8 @@
 from pypdf import PdfReader
-from app.ollama_client import embed, generate
-from app.vector_store import add_documents, query
-from app.prompts import build_prompt
-from app.cache import get_cached, set_cache
+from ollama_client import embed, generate
+from vector_store import add_documents, query
+from prompts import build_prompt
+from cache import get_cached, set_cache
 
 
 def load_pdf(file):

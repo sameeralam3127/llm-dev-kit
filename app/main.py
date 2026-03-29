@@ -1,39 +1,80 @@
 import streamlit as st
-from app.ollama_client import generate
-from app.rag import rag_query, ingest_pdf
+from ollama_client import generate, get_models
+from rag import rag_query, ingest_pdf
 
-st.set_page_config(page_title="LLM Dev Kit", layout="wide")
-
-st.title("LLM Dev Kit")
-
-# Sidebar
-mode = st.sidebar.selectbox("Mode", ["Chat", "RAG"])
-
-model = st.sidebar.selectbox(
-    "Model",
-    ["llama3", "mistral", "phi3"]
+# ------------------ PAGE CONFIG ------------------
+st.set_page_config(
+    page_title="LLM Dev Kit",
+    page_icon="🧠",
+    layout="wide"
 )
 
-uploaded_file = st.sidebar.file_uploader("Upload PDF")
+# ------------------ SIDEBAR ------------------
+with st.sidebar:
+    st.title("⚙️ Settings")
 
-if uploaded_file:
-    chunks = ingest_pdf(uploaded_file)
-    st.sidebar.success(f"Ingested {chunks} chunks")
+    mode = st.radio("Mode", ["Chat", "RAG"])
 
-# Chat
-if "history" not in st.session_state:
-    st.session_state.history = []
+    models = get_models()
+    model = st.selectbox("Model", models)
 
-query = st.chat_input("Ask something...")
+    st.divider()
 
-if query:
-    if mode == "RAG":
-        response = rag_query(query, model=model)
-    else:
-        response = generate(query, model=model)
+    st.subheader("📄 Upload PDF")
+    uploaded_file = st.file_uploader("Drag & drop PDF", type=["pdf"])
 
-    st.session_state.history.append(("user", query))
-    st.session_state.history.append(("assistant", response))
+    if uploaded_file:
+        with st.spinner("Processing PDF..."):
+            chunks = ingest_pdf(uploaded_file)
+            st.success(f"Indexed {chunks} chunks")
 
-for role, msg in st.session_state.history:
-    st.chat_message(role).write(msg)
+    st.divider()
+
+    # ✅ Clear Chat Button
+    if st.button("🧹 Clear Chat"):
+        st.session_state.messages = []
+        st.success("Chat cleared")
+
+# ------------------ MAIN UI ------------------
+st.title("🧠 LLM Dev Kit")
+
+st.caption("Local LLM + RAG playground powered by Ollama")
+
+# ------------------ SESSION STATE ------------------
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
+# ------------------ DISPLAY CHAT ------------------
+for msg in st.session_state.messages:
+    with st.chat_message(msg["role"]):
+        st.markdown(msg["content"])
+
+# ------------------ INPUT ------------------
+user_input = st.chat_input("Ask something...")
+
+if user_input:
+    # Add user message
+    st.session_state.messages.append({
+        "role": "user",
+        "content": user_input
+    })
+
+    with st.chat_message("user"):
+        st.markdown(user_input)
+
+    # Generate response
+    with st.chat_message("assistant"):
+        with st.spinner("Thinking..."):
+
+            if mode == "RAG":
+                response = rag_query(user_input, model=model)
+            else:
+                response = generate(user_input, model=model)
+
+            st.markdown(response)
+
+    # Save response
+    st.session_state.messages.append({
+        "role": "assistant",
+        "content": response
+    })

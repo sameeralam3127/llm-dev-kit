@@ -1,0 +1,6 @@
+streamlit
+requests
+redis
+chromadb
+pypdf
+langchain

@@ -1,47 +1,71 @@
 # LLM Dev Kit
 
-A simple, local-first toolkit to build and experiment with LLM applications using **Ollama**, **Streamlit**, **RAG (PDF-based retrieval)**, **ChromaDB**, and **Redis caching** — all with a clean Docker setup.
+A local-first toolkit for building and testing LLM applications using Ollama, Streamlit, RAG (Retrieval-Augmented Generation), ChromaDB, and Redis.
+
+This project is designed to be simple, reproducible, and developer-friendly. It allows you to run everything locally, upload documents, and query them using a hybrid approach that combines retrieval and direct LLM responses.
 
 ---
 
-## What is this?
+## Overview
 
-This project is designed as a **developer-friendly playground** for working with local LLMs.
+This application provides:
 
-You can:
+- Local LLM inference using Ollama
+- Document-based question answering (RAG)
+- Automatic fallback to general LLM responses
+- Vector search using ChromaDB
+- Response caching using Redis
+- Clean Streamlit interface for testing and experimentation
 
-- Chat with local models (via Ollama)
-- Upload PDFs and “train” them (RAG)
-- Ask questions based on your documents
-- Experiment with prompts and models
-- Get faster responses using Redis caching
+No external APIs are required. Everything runs locally.
 
-Everything runs locally. No APIs. No cloud dependencies.
+---
+
+## Architecture
+
+```
+User Input
+   ↓
+Cache Check (Redis)
+   ↓
+Embedding (Ollama)
+   ↓
+Vector Search (ChromaDB)
+   ↓
+If context found → RAG
+Else → Direct LLM
+   ↓
+Response Cached (Redis)
+```
 
 ---
 
 ## Tech Stack
 
-- **Ollama** → Runs LLMs locally (llama3, mistral, etc.)
-- **Streamlit** → Simple and clean chat UI
-- **ChromaDB** → Vector database for RAG
-- **Redis** → Caching for faster responses
-- **Docker** → Runs services (except Ollama)
+- Ollama – Local LLM runtime
+- Streamlit – Web interface
+- ChromaDB – Vector database
+- Redis – Caching layer
+- PyPDF – PDF parsing
 
 ---
 
 ## Prerequisites
 
-Make sure you have:
+Install the following:
 
-- Docker & Docker Compose installed
-- Ollama installed locally → [https://ollama.com](https://ollama.com)
+- Python 3.10 or 3.11
+- Docker and Docker Compose
+- Ollama (installed locally, not in Docker)
+
+Install Ollama from:
+https://ollama.com
 
 ---
 
-## Setup (very simple)
+## Setup Instructions
 
-### 1. Clone the repo
+### 1. Clone the repository
 
 ```bash
 git clone https://github.com/sameeralam3127/llm-dev-kit.git
@@ -50,31 +74,32 @@ cd llm-dev-kit
 
 ---
 
-### 2. Install & start Ollama
+### 2. Start Ollama
 
 ```bash
 ollama serve
 ```
 
-Pull required models:
+---
+
+### 3. Pull required models
 
 ```bash
-ollama pull llama3
-ollama pull mistral
+ollama pull llama3.1
 ollama pull nomic-embed-text
 ```
 
 ---
 
-### 3. Start the app
+### 4. Start services (Redis + Chroma + App)
 
 ```bash
-docker-compose -f docker/docker-compose.yml up --build
+docker-compose up --build
 ```
 
 ---
 
-### 4. Open in browser
+### 5. Open the application
 
 ```
 http://localhost:8501
@@ -82,120 +107,60 @@ http://localhost:8501
 
 ---
 
-## How to Use
+## How It Works
 
-### 👉 Chat Mode
+### Chat and RAG (Hybrid Mode)
 
-- Select **Chat**
-- Choose a model (llama3 / mistral)
-- Start asking questions
+The system automatically decides how to answer:
 
----
+- If relevant document context is found → uses RAG
+- If no context is found → falls back to direct LLM response
 
-### RAG Mode (PDF “training”)
-
-This is where things get interesting.
-
-#### Step 1: Upload a PDF
-
-Use the sidebar uploader.
-
-#### Step 2: What happens internally?
-
-When you upload a PDF:
-
-1. The PDF is read and converted to text
-2. Text is split into smaller chunks
-3. Each chunk is converted into embeddings
-4. Embeddings are stored in ChromaDB
-
-👉 This is NOT training the model
-👉 This is called **RAG (Retrieval-Augmented Generation)**
+There is no manual mode switching required.
 
 ---
 
-#### Step 3: Ask questions
+### Uploading and Using PDFs
 
-Switch to **RAG mode** and ask:
+1. Upload a PDF from the sidebar
+
+2. The system will:
+   - Extract text
+   - Split into chunks
+   - Generate embeddings
+   - Store in ChromaDB
+
+3. Ask questions related to the document
+
+Example:
 
 ```
-What is this document about?
-```
-
-The system will:
-
-1. Convert your question into an embedding
-2. Retrieve relevant chunks from the database
-3. Send them as context to the LLM
-4. Generate an answer based on your PDF
-
----
-
-## ⚡ Why Redis?
-
-LLM responses can be slow.
-
-Redis helps by:
-
-- Caching previous responses
-- Avoiding repeated computation
-- Making repeated queries instant
-
-👉 Ask the same question twice — second time will be faster.
-
----
-
-## Why Ollama?
-
-- Runs models **locally**
-- No API keys required
-- Supports multiple models
-- Privacy-friendly
-
----
-
-## Why Streamlit?
-
-- Extremely fast to build UI
-- Perfect for prototyping LLM apps
-- Built-in chat components
-- Minimal frontend effort
-
----
-
-## Why ChromaDB?
-
-- Simple local vector database
-- Stores embeddings for RAG
-- Easy to integrate
-- No complex setup
-
----
-
-## Workflow Summary
-
-```text
-PDF → chunk → embeddings → ChromaDB
-User Query → embedding → similarity search
-→ context → LLM (Ollama) → answer
+Summarize this document
+What are the key points?
+Explain section 2
 ```
 
 ---
 
-## 🧪 Example Queries
+### Caching (Redis)
 
-- “Summarize this document”
-- “What are the key points?”
-- “Explain section 2”
-- “Give me a short summary”
+Responses are cached based on:
+
+- User prompt
+- Selected model
+
+If the same question is asked again:
+
+- The response is returned instantly from cache
+- No LLM call is made
 
 ---
 
-## 🧯 Troubleshooting
+## Troubleshooting
 
 ### Ollama not responding
 
-Make sure:
+Make sure Ollama is running:
 
 ```bash
 ollama serve
@@ -203,41 +168,61 @@ ollama serve
 
 ---
 
-### RAG not working
+### Model not found
 
-- Ensure PDF was uploaded
-- Ensure embeddings model is pulled:
+Check installed models:
 
 ```bash
+ollama list
+```
+
+Pull missing models:
+
+```bash
+ollama pull llama3.1
 ollama pull nomic-embed-text
 ```
 
 ---
 
-### Docker issues
+### Cache not working
 
 Check logs:
 
 ```bash
-docker-compose -f docker/docker-compose.yml logs app
+docker-compose logs -f
+```
+
+Look for:
+
+```
+CACHE HIT
+CACHE MISS
 ```
 
 ---
 
-## 📌 Notes
+### No results from PDF
 
-- This is a **local-first dev toolkit**, not production-ready SaaS
-- No external APIs are used
-- You can extend this with LangChain, agents, or tools
+- Ensure the PDF contains selectable text (not scanned images)
+- Re-upload the file
 
 ---
 
-## ⭐ Future Improvements
+## Notes
+
+- This is a local development toolkit, not a production deployment
+- No external APIs or cloud services are used
+- Designed for experimentation and learning
+
+---
+
+## Future Improvements
 
 - Streaming responses
-- Source citations in UI
+- Source visibility (show retrieved chunks)
 - Multi-document support
-- Better prompt controls
+- Advanced retrieval ranking
 
 ---
 

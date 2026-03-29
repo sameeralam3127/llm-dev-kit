@@ -1,151 +1,246 @@
-# Local Chatbot with RAG + MCP + SQLAlchemy
+# LLM Dev Kit
 
-A **fast, modular, local-first chatbot** powered by [Ollama](https://ollama.ai/) models.
-This project demonstrates how to combine:
-
-- 🧠 **Chat with Ollama** (streaming for fast responses)
-- 📄 **RAG** (Retrieval-Augmented Generation) with cached embeddings for local docs
-- 🔌 **MCP (Model Context Protocol) simulator** for local tool access (web search, calculator, doc store)
-- 🗄️ **SQLite persistence** with SQLAlchemy for storing conversations
-
-Designed for **local use only**: no cloud dependencies, no external APIs required.
-![alt text](<Screenshot 2025-09-21 at 12.12.22 AM.png>)
+A simple, local-first toolkit to build and experiment with LLM applications using **Ollama**, **Streamlit**, **RAG (PDF-based retrieval)**, **ChromaDB**, and **Redis caching** — all with a clean Docker setup.
 
 ---
 
-## 🚀 Features
+## What is this?
 
-- **Chatbot UI** with [Streamlit](https://streamlit.io/)
-- **Ollama integration** → select any local LLM (`llama3.1:8b`, `mistral`, etc.)
-- **Fast responses** via streaming chunks
-- **RAG (Retrieval-Augmented Generation)**
+This project is designed as a **developer-friendly playground** for working with local LLMs.
 
-  - Upload `.txt`, `.pdf`, `.docx`, `.md` documents
-  - Chunking + embeddings with `sentence-transformers`
-  - Caching for speed
+You can:
 
-- **MCP simulator**
+- Chat with local models (via Ollama)
+- Upload PDFs and “train” them (RAG)
+- Ask questions based on your documents
+- Experiment with prompts and models
+- Get faster responses using Redis caching
 
-  - Web search (stub)
-  - Calculator (safe arithmetic)
-  - Document store (demo reference)
-
-- **Conversation history**
-
-  - Stored in SQLite (`chat_history.db`)
-  - SQLAlchemy ORM models for messages
-  - Recent conversations shown in sidebar
+Everything runs locally. No APIs. No cloud dependencies.
 
 ---
 
-## 📦 Installation
+## Tech Stack
 
-### 1. Clone repo
+- **Ollama** → Runs LLMs locally (llama3, mistral, etc.)
+- **Streamlit** → Simple and clean chat UI
+- **ChromaDB** → Vector database for RAG
+- **Redis** → Caching for faster responses
+- **Docker** → Runs services (except Ollama)
+
+---
+
+## Prerequisites
+
+Make sure you have:
+
+- Docker & Docker Compose installed
+- Ollama installed locally → [https://ollama.com](https://ollama.com)
+
+---
+
+## Setup (very simple)
+
+### 1. Clone the repo
 
 ```bash
-git clone https://github.com/sameeralam3127/chatbot.git
-cd local-chatbot
+git clone https://github.com/sameeralam3127/llm-dev-kit.git
+cd llm-dev-kit
 ```
 
-### 2. Create virtual environment
+---
 
-```bash
-python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
-```
-
-### 3. Install dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-### 4. Start Ollama
+### 2. Install & start Ollama
 
 ```bash
 ollama serve
-ollama pull llama3.1:8b
 ```
 
-### 5. Run Streamlit app
+Pull required models:
 
 ```bash
-streamlit run app.py
+ollama pull llama3
+ollama pull mistral
+ollama pull nomic-embed-text
 ```
 
 ---
 
-## 🖥️ Usage
+### 3. Start the app
 
-- Select a model from the sidebar (only chat models are shown, embedding-only models are excluded).
-- Type messages in the chat input.
-- (Optional) Enable **RAG** → upload documents for context retrieval.
-- (Optional) Enable **MCP** → use simulated web search, calculator, or doc store.
-- Messages are saved to SQLite (`chat_history.db`) automatically.
-
----
-
-## 📂 Project Structure
-
-```
-local_chatbot/
-│
-├── app.py              # Streamlit app (UI)
-├── chat_api.py         # Ollama API wrapper
-├── rag.py              # RAG engine with embeddings
-├── mcp.py              # MCP simulator
-├── db.py               # SQLite/SQLAlchemy storage
-├── requirements.txt    # Dependencies
-└── README.md           # This file
+```bash
+docker-compose -f docker/docker-compose.yml up --build
 ```
 
 ---
 
-## 🔮 Future Features & Enhancements
+### 4. Open in browser
 
-Planned improvements and ideas for extending this chatbot:
-
-### 💡 Core Enhancements
-
-- [ ] **Clear conversation** button → reset both session and database.
-- [ ] **Conversation management** → multiple named conversations instead of one global history.
-- [ ] **Better system prompts** → inject RAG/MCP context as hidden instructions, not shown to the user.
-- [ ] **Support multi-turn retrieval** → context retrieved per conversation turn, not globally.
-
-### ⚡ Performance
-
-- [ ] Replace `sentence-transformers` with **Ollama embedding models** (`nomic-embed-text`) for tighter local integration.
-- [ ] Vector DB backend (e.g., **Chroma**, **Weaviate**, or **FAISS**) instead of raw caching.
-- [ ] Async Ollama client for reduced latency.
-
-### 🔌 MCP & Tools
-
-- [ ] Real **web search integration** (DuckDuckGo, Brave, or local index).
-- [ ] Expand calculator (unit conversion, datetime math, etc.).
-- [ ] File-system document store (search across indexed PDFs, docs, notes).
-- [ ] Custom tool plugins (weather, APIs, local DB queries).
-
-### 🎨 UI
-
-- [ ] Dark mode & theming for Streamlit.
-- [ ] Upload & manage documents in a library view.
-- [ ] Conversation tagging, filtering, and export (Markdown / JSON).
-- [ ] Chart & table rendering in responses.
-
-### 🗄️ Storage
-
-- [ ] Support **Postgres** for multi-user persistence.
-- [ ] Export conversation history as Markdown/HTML.
-- [ ] Fine-grained logging of RAG/MCP context used per message.
+```
+http://localhost:8501
+```
 
 ---
 
-## 🤝 Contributing
+## How to Use
 
-Pull requests welcome! Open an issue to discuss new features, improvements, or bug fixes.
+### 👉 Chat Mode
+
+- Select **Chat**
+- Choose a model (llama3 / mistral)
+- Start asking questions
 
 ---
 
-## 📜 License
+### RAG Mode (PDF “training”)
 
-MIT License. Free for personal and commercial use.
+This is where things get interesting.
+
+#### Step 1: Upload a PDF
+
+Use the sidebar uploader.
+
+#### Step 2: What happens internally?
+
+When you upload a PDF:
+
+1. The PDF is read and converted to text
+2. Text is split into smaller chunks
+3. Each chunk is converted into embeddings
+4. Embeddings are stored in ChromaDB
+
+👉 This is NOT training the model
+👉 This is called **RAG (Retrieval-Augmented Generation)**
+
+---
+
+#### Step 3: Ask questions
+
+Switch to **RAG mode** and ask:
+
+```
+What is this document about?
+```
+
+The system will:
+
+1. Convert your question into an embedding
+2. Retrieve relevant chunks from the database
+3. Send them as context to the LLM
+4. Generate an answer based on your PDF
+
+---
+
+## ⚡ Why Redis?
+
+LLM responses can be slow.
+
+Redis helps by:
+
+- Caching previous responses
+- Avoiding repeated computation
+- Making repeated queries instant
+
+👉 Ask the same question twice — second time will be faster.
+
+---
+
+## Why Ollama?
+
+- Runs models **locally**
+- No API keys required
+- Supports multiple models
+- Privacy-friendly
+
+---
+
+## Why Streamlit?
+
+- Extremely fast to build UI
+- Perfect for prototyping LLM apps
+- Built-in chat components
+- Minimal frontend effort
+
+---
+
+## Why ChromaDB?
+
+- Simple local vector database
+- Stores embeddings for RAG
+- Easy to integrate
+- No complex setup
+
+---
+
+## Workflow Summary
+
+```text
+PDF → chunk → embeddings → ChromaDB
+User Query → embedding → similarity search
+→ context → LLM (Ollama) → answer
+```
+
+---
+
+## 🧪 Example Queries
+
+- “Summarize this document”
+- “What are the key points?”
+- “Explain section 2”
+- “Give me a short summary”
+
+---
+
+## 🧯 Troubleshooting
+
+### Ollama not responding
+
+Make sure:
+
+```bash
+ollama serve
+```
+
+---
+
+### RAG not working
+
+- Ensure PDF was uploaded
+- Ensure embeddings model is pulled:
+
+```bash
+ollama pull nomic-embed-text
+```
+
+---
+
+### Docker issues
+
+Check logs:
+
+```bash
+docker-compose -f docker/docker-compose.yml logs app
+```
+
+---
+
+## 📌 Notes
+
+- This is a **local-first dev toolkit**, not production-ready SaaS
+- No external APIs are used
+- You can extend this with LangChain, agents, or tools
+
+---
+
+## ⭐ Future Improvements
+
+- Streaming responses
+- Source citations in UI
+- Multi-document support
+- Better prompt controls
+
+---
+
+## License
+
+MIT

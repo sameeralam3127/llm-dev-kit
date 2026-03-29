@@ -1,10 +1,6 @@
-streamlit>=1.20
+streamlit
 requests
-PyPDF2
-python-docx
-chardet
-sentence-transformers
-scikit-learn
-numpy
-sqlalchemy
-alembic
+redis
+chromadb
+pypdf
+langchain

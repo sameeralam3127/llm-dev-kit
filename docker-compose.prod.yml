@@ -53,9 +53,9 @@ services:
       - CHROMA_HOST=chroma
       - CHROMA_PORT=8000
       - ENVIRONMENT=production
+      - PYTHONPATH=/app
     volumes:
       - ./app:/app/app:ro
-      - ./backend:/app:ro
     depends_on:
       redis:
         condition: service_healthy
@@ -86,9 +86,9 @@ services:
       - CHROMA_PORT=8000
       - BACKEND_URL=http://backend:8000
       - ENVIRONMENT=production
+      - PYTHONPATH=/app
     volumes:
       - ./app:/app/app:ro
-      - ./agent-service:/app:ro
     depends_on:
       redis:
         condition: service_healthy

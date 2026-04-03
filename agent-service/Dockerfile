@@ -12,10 +12,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
-COPY . .
-
-# Copy shared app modules from parent directory
-COPY ../app /app/app
+COPY main.py .
 
 # Expose port
 EXPOSE 8001

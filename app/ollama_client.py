@@ -100,3 +100,42 @@ def generate(prompt, model):
 
     except Exception as e:
         return f"❌ Request failed: {e}"
+
+
+# ------------------ CHAT COMPLETION ------------------
+
+def chat_completion(message, model, system_prompt=None):
+    """Chat completion without RAG"""
+    if not message.strip():
+        return "⚠️ Empty message"
+
+    if not model_exists(model):
+        return f"❌ Model '{model}' not found"
+
+    try:
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": message})
+
+        res = session.post(
+            f"{OLLAMA_HOST}/api/chat",
+            json={
+                "model": model,
+                "messages": messages,
+                "stream": False,
+                "options": {
+                    "temperature": 0.7,
+                    "num_predict": 2000
+                }
+            },
+            timeout=120
+        )
+
+        res.raise_for_status()
+        data = res.json()
+
+        return data.get("message", {}).get("content", f"❌ Ollama error: {data}")
+
+    except Exception as e:
+        return f"❌ Request failed: {e}"

@@ -1,0 +1,148 @@
+version: "3.9"
+
+services:
+  # Redis for caching
+  redis:
+    image: redis:7-alpine
+    container_name: llm-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - llm-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ChromaDB for vector storage
+  chroma:
+    image: chromadb/chroma:latest
+    container_name: llm-chroma
+    ports:
+      - "8000:8000"
+    volumes:
+      - chroma_data:/chroma/chroma
+    environment:
+      - IS_PERSISTENT=TRUE
+      - ANONYMIZED_TELEMETRY=FALSE
+    networks:
+      - llm-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Backend API Service
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: llm-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - OLLAMA_HOST=${OLLAMA_HOST:-http://host.docker.internal:11434}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - CHROMA_HOST=chroma
+      - CHROMA_PORT=8000
+      - ENVIRONMENT=production
+      - PYTHONPATH=/app
+    volumes:
+      - ./app:/app/app:ro
+    depends_on:
+      redis:
+        condition: service_healthy
+      chroma:
+        condition: service_healthy
+    networks:
+      - llm-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Agent Service
+  agent:
+    build:
+      context: ./agent-service
+      dockerfile: Dockerfile
+    container_name: llm-agent
+    ports:
+      - "8001:8001"
+    environment:
+      - OLLAMA_HOST=${OLLAMA_HOST:-http://host.docker.internal:11434}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - CHROMA_HOST=chroma
+      - CHROMA_PORT=8000
+      - BACKEND_URL=http://backend:8000
+      - ENVIRONMENT=production
+      - PYTHONPATH=/app
+    volumes:
+      - ./app:/app/app:ro
+    depends_on:
+      redis:
+        condition: service_healthy
+      chroma:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    networks:
+      - llm-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Open WebUI Frontend
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: llm-frontend
+    ports:
+      - "3000:8080"
+    environment:
+      - OLLAMA_BASE_URL=${OLLAMA_HOST:-http://host.docker.internal:11434}
+      - WEBUI_SECRET_KEY=${WEBUI_SECRET_KEY:-your-secret-key-change-in-production}
+      - WEBUI_AUTH=true
+      - ENABLE_RAG_WEB_SEARCH=true
+      - ENABLE_IMAGE_GENERATION=false
+      - BACKEND_API_URL=http://backend:8000
+      - AGENT_API_URL=http://agent:8001
+    volumes:
+      - open_webui_data:/app/backend/data
+    depends_on:
+      backend:
+        condition: service_healthy
+      agent:
+        condition: service_healthy
+    networks:
+      - llm-network
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+networks:
+  llm-network:
+    driver: bridge
+    name: llm-network
+
+volumes:
+  redis_data:
+    name: llm-redis-data
+  chroma_data:
+    name: llm-chroma-data
+  open_webui_data:
+    name: llm-webui-data
+
+# Made with Bob

@@ -66,15 +66,28 @@ def get_cached(prompt, model=None):
         return None
 
 
+# Alias for backward compatibility
+def get_cache(key):
+    """Get value from cache by key"""
+    if not r:
+        return None
+    try:
+        return r.get(key)
+    except Exception as e:
+        print(f"Cache read error: {e}")
+        return None
+
+
 # ------------------ CACHE SET ------------------
 
-def set_cache(prompt, response, model=None):
+def set_cache(prompt, response, model=None, ttl=None):
     if not r:
         return
 
     try:
         key = make_key(prompt, model)
-        r.setex(key, CACHE_TTL, response)
+        cache_ttl = ttl or CACHE_TTL
+        r.setex(key, cache_ttl, response)
         print(f"CACHE SET: {key}")
     except Exception as e:
         print(f"Cache write error: {e}")

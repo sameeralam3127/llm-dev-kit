@@ -164,23 +164,24 @@ def query_documents(
         documents = results.get("documents", [[]])[0]
         distances = results.get("distances", [[]])[0]
         
-        # Filter by similarity threshold
-        filtered_docs = []
-        for doc, dist in zip(documents, distances):
-            # Convert distance to similarity (lower distance = higher similarity)
-            similarity = 1.0 - dist
-            if similarity >= min_similarity:
-                filtered_docs.append(doc)
+        print(f"📊 Query results: {len(documents)} documents retrieved")
+        for i, (doc, dist) in enumerate(zip(documents, distances)):
+            similarity = 1.0 - dist if dist <= 1.0 else 0.0
+            print(f"   Doc {i+1}: similarity={similarity:.3f}, distance={dist:.3f}")
         
-        if filtered_docs:
-            print(f"✅ Found {len(filtered_docs)} matching documents")
+        # Return all documents (no filtering by similarity)
+        # This ensures RAG is used when documents exist
+        if documents:
+            print(f"✅ Returning {len(documents)} documents for RAG")
+            return documents
         else:
-            print("❌ No matching documents found")
-        
-        return filtered_docs
+            print("❌ No documents found in collection")
+            return []
     
     except Exception as e:
         print(f"❌ Query failed: {e}")
+        import traceback
+        traceback.print_exc()
         return []
 
 

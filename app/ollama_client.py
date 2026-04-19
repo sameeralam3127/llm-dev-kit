@@ -37,18 +37,28 @@ def get_models() -> List[str]:
 
 def get_embedding_model() -> Optional[str]:
     """
-    Find the first available embedding model
+    Get the embedding model (uses llama3.1:8b instead of dedicated embedding model)
     
     Returns:
         Embedding model name or None
     """
     models = get_models()
-    for model in models:
-        if "embed" in model.lower():
-            return model
     
-    print("⚠️  No embedding model found")
-    print("💡 Run: ollama pull nomic-embed-text")
+    # Prefer llama3.1:8b for embeddings
+    preferred_models = ["llama3.1:8b", "llama3.1", "llama3"]
+    
+    for preferred in preferred_models:
+        if preferred in models:
+            print(f"✅ Using {preferred} for embeddings")
+            return preferred
+    
+    # Fallback to any available model
+    if models:
+        print(f"⚠️  Using {models[0]} for embeddings")
+        return models[0]
+    
+    print("❌ No models found")
+    print("💡 Run: ollama pull llama3.1:8b")
     return None
 
 
@@ -137,6 +147,59 @@ def generate_response(prompt: str, model: str, temperature: float = 0.7) -> str:
         return "❌ Cannot connect to Ollama. Make sure it's running (ollama serve)"
     except Exception as e:
         return f"❌ Error: {str(e)}"
+
+
+def stream_response(prompt: str, model: str, temperature: float = 0.7):
+    """
+    Stream text response from Ollama for faster perceived response
+    
+    Args:
+        prompt: Input prompt
+        model: Model name to use
+        temperature: Sampling temperature
+    
+    Yields:
+        Text chunks as they arrive
+    """
+    if not prompt or not prompt.strip():
+        yield "⚠️  Empty prompt provided"
+        return
+    
+    try:
+        response = session.post(
+            f"{OLLAMA_HOST}/api/generate",
+            json={
+                "model": model,
+                "prompt": prompt,
+                "stream": True,
+                "options": {
+                    "temperature": temperature,
+                    "num_predict": 2000
+                }
+            },
+            timeout=DEFAULT_TIMEOUT,
+            stream=True
+        )
+        response.raise_for_status()
+        
+        for line in response.iter_lines():
+            if line:
+                try:
+                    data = line.decode('utf-8')
+                    import json
+                    chunk = json.loads(data)
+                    if 'response' in chunk:
+                        yield chunk['response']
+                except Exception as e:
+                    print(f"Error parsing chunk: {e}")
+                    continue
+    
+    except requests.exceptions.Timeout:
+        yield "❌ Request timed out"
+    except requests.exceptions.ConnectionError:
+        yield "❌ Cannot connect to Ollama"
+    except Exception as e:
+        yield f"❌ Error: {str(e)}"
 
 
 def chat_completion(

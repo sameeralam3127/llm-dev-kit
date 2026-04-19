@@ -1,6 +1,6 @@
 # LLM Dev Kit
 
-A local-first toolkit for building and testing LLM applications using Ollama, Streamlit, RAG (Retrieval-Augmented Generation), ChromaDB, and Redis.
+A local-first enterprise toolkit for building and testing LLM applications using Ollama, Streamlit, RAG (Retrieval-Augmented Generation), ChromaDB, and Redis.
 
 This project is designed to be simple, reproducible, and developer-friendly. It allows you to run everything locally, upload documents, and query them using a hybrid approach that combines retrieval and direct LLM responses.
 
@@ -15,7 +15,8 @@ This application provides:
 - Automatic fallback to general LLM responses
 - Vector search using ChromaDB
 - Response caching using Redis
-- Clean Streamlit interface for testing and experimentation
+- Enterprise Streamlit interface with streaming responses
+- Persistent chat history and document storage
 
 No external APIs are required. Everything runs locally.
 
@@ -28,25 +29,30 @@ User Input
    ↓
 Cache Check (Redis)
    ↓
-Embedding (Ollama)
+Embedding Generation (llama3.1:8b)
    ↓
 Vector Search (ChromaDB)
    ↓
-If context found → RAG
+If documents found → RAG with context
 Else → Direct LLM
    ↓
+Streaming Response
+   ↓
 Response Cached (Redis)
+   ↓
+History Saved (Persistent)
 ```
 
 ---
 
 ## Tech Stack
 
-- Ollama – Local LLM runtime
-- Streamlit – Web interface
-- ChromaDB – Vector database
-- Redis – Caching layer
-- PyPDF – PDF parsing
+- **Ollama** – Local LLM runtime
+- **Streamlit** – Enterprise web interface
+- **ChromaDB** – Vector database for document embeddings
+- **Redis** – Response caching layer
+- **PyPDF** – PDF document parsing
+- **Docker** – Containerized deployment
 
 ---
 
@@ -54,7 +60,7 @@ Response Cached (Redis)
 
 Install the following:
 
-- Python 3.10 or 3.11
+- Python 3.11
 - Docker and Docker Compose
 - Ollama (installed locally, not in Docker)
 
@@ -82,16 +88,17 @@ ollama serve
 
 ---
 
-### 3. Pull required models
+### 3. Pull required model
 
 ```bash
-ollama pull llama3.1
-ollama pull nomic-embed-text
+ollama pull llama3.1:8b
 ```
+
+Note: This model is used for both chat and embeddings.
 
 ---
 
-### 4. Start services (Redis + Chroma + App)
+### 4. Start services (Redis + ChromaDB + Streamlit)
 
 ```bash
 docker-compose up --build
@@ -109,6 +116,12 @@ http://localhost:8501
 
 ## How It Works
 
+### Model Selection
+
+- No default model is selected
+- User must explicitly choose a model from the dropdown
+- Recommended: llama3.1:8b
+
 ### Chat and RAG (Hybrid Mode)
 
 The system automatically decides how to answer:
@@ -118,31 +131,40 @@ The system automatically decides how to answer:
 
 There is no manual mode switching required.
 
+### Streaming Responses
+
+- Responses stream token-by-token for faster perceived performance
+- Processing indicator shows while generating embeddings
+- Real-time display with cursor animation
+
 ---
 
-### Uploading and Using PDFs
+## Uploading and Using PDFs
 
-1. Upload a PDF from the sidebar
+1. Select a model from the sidebar dropdown
 
-2. The system will:
-   - Extract text
-   - Split into chunks
-   - Generate embeddings
-   - Store in ChromaDB
+2. Upload a PDF from the sidebar
 
-3. Ask questions related to the document
+3. The system will:
+   - Extract text from the PDF
+   - Split into chunks (500 characters with 50 character overlap)
+   - Generate embeddings using llama3.1:8b
+   - Store in ChromaDB vector database
 
-Example:
+4. Ask questions related to the document
+
+Example queries:
 
 ```
 Summarize this document
 What are the key points?
 Explain section 2
+What does the document say about [topic]?
 ```
 
 ---
 
-### Caching (Redis)
+## Caching (Redis)
 
 Responses are cached based on:
 
@@ -153,6 +175,53 @@ If the same question is asked again:
 
 - The response is returned instantly from cache
 - No LLM call is made
+- Cache keys metric increments
+
+---
+
+## Persistent Storage
+
+### Chat History
+
+- Saved to `/app/data/chat_history.json`
+- Persists across container restarts
+- Export functionality available in sidebar
+
+### Uploaded Documents
+
+- Stored in `/app/data/uploads/`
+- Vector embeddings in ChromaDB volume
+
+### Docker Volumes
+
+- `app_data` - Chat history and uploads
+- `redis_data` - Cache persistence
+- `chroma_data` - Vector store persistence
+
+---
+
+## Features
+
+### Enterprise UI
+
+- Professional design without emojis
+- Clean, consistent chat interface
+- Model selection required before chatting
+- System status metrics in sidebar
+
+### Performance
+
+- Streaming responses for faster interaction
+- Redis caching for instant repeated queries
+- Optimized PDF processing
+- Efficient vector search
+
+### Reliability
+
+- Automatic service health checks
+- Persistent data storage
+- Comprehensive error handling
+- Detailed logging for debugging
 
 ---
 
@@ -166,6 +235,12 @@ Make sure Ollama is running:
 ollama serve
 ```
 
+Check if it's accessible:
+
+```bash
+curl http://localhost:11434/api/tags
+```
+
 ---
 
 ### Model not found
@@ -176,21 +251,20 @@ Check installed models:
 ollama list
 ```
 
-Pull missing models:
+Pull the required model:
 
 ```bash
-ollama pull llama3.1
-ollama pull nomic-embed-text
+ollama pull llama3.1:8b
 ```
 
 ---
 
 ### Cache not working
 
-Check logs:
+Check Docker logs:
 
 ```bash
-docker-compose logs -f
+docker-compose logs -f app
 ```
 
 Look for:
@@ -198,14 +272,73 @@ Look for:
 ```
 CACHE HIT
 CACHE MISS
+CACHE SET
 ```
+
+---
+
+### RAG not using documents
+
+Check logs for:
+
+```
+Using RAG with X documents
+Retrieved X documents
+```
+
+If you see "No documents retrieved", ensure:
+
+- PDF was successfully uploaded
+- Model is selected
+- Documents metric shows count > 0
 
 ---
 
 ### No results from PDF
 
 - Ensure the PDF contains selectable text (not scanned images)
-- Re-upload the file
+- Check that documents were indexed (see Documents metric)
+- Try re-uploading the file
+
+---
+
+## Configuration
+
+### Environment Variables
+
+Create a `.env` file (see `.env.example`):
+
+```bash
+OLLAMA_HOST=http://localhost:11434
+REDIS_HOST=localhost
+REDIS_PORT=6379
+CHROMA_HOST=localhost
+CHROMA_PORT=8000
+CACHE_TTL=3600
+```
+
+---
+
+## Development
+
+### Running Locally (without Docker)
+
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Start Ollama
+ollama serve
+
+# Start Redis
+docker run -d -p 6379:6379 redis:7-alpine
+
+# Start ChromaDB
+docker run -d -p 8000:8000 chromadb/chroma
+
+# Run Streamlit
+streamlit run app/main.py
+```
 
 ---
 
@@ -214,18 +347,30 @@ CACHE MISS
 - This is a local development toolkit, not a production deployment
 - No external APIs or cloud services are used
 - Designed for experimentation and learning
+- All data stays on your machine
 
 ---
 
 ## Future Improvements
 
-- Streaming responses
-- Source visibility (show retrieved chunks)
-- Multi-document support
-- Advanced retrieval ranking
+- Multi-document support with document management
+- Advanced retrieval ranking algorithms
+- Source citation in responses
+- Conversation memory and context
+- Model fine-tuning capabilities
 
 ---
 
 ## License
 
 MIT
+
+---
+
+## Support
+
+For issues and questions:
+
+- Check the logs: `docker-compose logs -f app`
+- Verify services: `docker-compose ps`
+- Review this README for troubleshooting steps

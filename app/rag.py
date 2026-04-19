@@ -4,10 +4,10 @@ Handles document ingestion and hybrid query processing
 """
 from pypdf import PdfReader
 from typing import List, BinaryIO
-from app.ollama_client import generate_embedding, generate_response
-from app.vector_store import add_documents, query_documents
-from app.prompts import build_rag_prompt, build_chat_prompt
-from app.cache import get_cached_response, set_cached_response
+from ollama_client import generate_embedding, generate_response
+from vector_store import add_documents, query_documents
+from prompts import build_rag_prompt, build_chat_prompt
+from cache import get_cached_response, set_cached_response
 
 
 def extract_text_from_pdf(file: BinaryIO) -> str:
@@ -183,6 +183,76 @@ def hybrid_query(query: str, model: str, use_cache: bool = True) -> str:
     return response
 
 
+def hybrid_query_stream(query: str, model: str):
+    """
+    Stream response using hybrid approach (RAG + fallback) with caching
+    
+    Args:
+        query: User's question
+        model: LLM model to use
+    
+    Yields:
+        Text chunks as they arrive
+    """
+    if not query or not query.strip():
+        yield "Please provide a valid question"
+        return
+    
+    # Check cache first
+    from cache import get_cached_response, set_cached_response
+    cached = get_cached_response(query, model)
+    
+    if cached:
+        print("✅ CACHE HIT - Returning cached response")
+        # Stream cached response word by word for consistency
+        words = cached.split()
+        for word in words:
+            yield word + " "
+        return
+    
+    print("❌ CACHE MISS - Generating new response")
+    
+    # Generate embedding for the query using the same model
+    print(f"🔍 Generating embedding with model: {model}")
+    query_embedding = generate_embedding(query, model=model)
+    
+    if not query_embedding:
+        print("❌ Failed to generate embedding, using direct LLM")
+        prompt = build_chat_prompt(query)
+    else:
+        print("✅ Embedding generated successfully")
+        
+        # Search vector store for relevant documents
+        print("🔍 Searching vector store...")
+        documents = query_documents(query_embedding, n_results=5)
+        
+        print(f"📊 Retrieved {len(documents)} documents")
+        for i, doc in enumerate(documents[:2]):
+            print(f"   Doc {i+1} preview: {doc[:100]}...")
+        
+        # Use RAG if we have any documents
+        if documents and len(documents) > 0:
+            print(f"✅ Using RAG with {len(documents)} documents")
+            context = "\n\n---\n\n".join(documents)
+            prompt = build_rag_prompt(query, context)
+        else:
+            print("⚠️  No documents retrieved, using direct LLM")
+            prompt = build_chat_prompt(query)
+    
+    # Stream response from LLM
+    from ollama_client import stream_response
+    full_response = ""
+    
+    for chunk in stream_response(prompt, model):
+        full_response += chunk
+        yield chunk
+    
+    # Cache the complete response
+    if full_response:
+        set_cached_response(query, full_response, model)
+        print("✅ Response cached")
+
+
 def clear_all_documents() -> bool:
     """
     Clear all indexed documents from vector store
@@ -190,7 +260,7 @@ def clear_all_documents() -> bool:
     Returns:
         True if successful
     """
-    from app.vector_store import clear_collection
+    from vector_store import clear_collection
     return clear_collection()
 
 # Made with Bob

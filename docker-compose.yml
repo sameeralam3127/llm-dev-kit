@@ -1,29 +1,72 @@
-version: "3.9"
+# LLM Dev Kit - Docker Compose Configuration
 
 services:
+  # Redis Cache Service
   redis:
-    image: redis:7
+    image: redis:7-alpine
+    container_name: llm-dev-kit-redis
     ports:
       - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
 
+  # ChromaDB Vector Store Service
   chroma:
-    image: chromadb/chroma
+    image: chromadb/chroma:latest
+    container_name: llm-dev-kit-chroma
     ports:
       - "8000:8000"
     volumes:
-      - chroma_data:/chroma
+      - chroma_data:/chroma/chroma
+    environment:
+      - IS_PERSISTENT=TRUE
+      - ANONYMIZED_TELEMETRY=FALSE
+    restart: unless-stopped
 
+  # Streamlit Application Service
   app:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: llm-dev-kit-app
     ports:
       - "8501:8501"
+    volumes:
+      - app_data:/app/data
     environment:
+      # Ollama runs on host machine, not in Docker
       - OLLAMA_HOST=http://host.docker.internal:11434
       - REDIS_HOST=redis
+      - REDIS_PORT=6379
       - CHROMA_HOST=chroma
+      - CHROMA_PORT=8000
+      - CACHE_TTL=3600
     depends_on:
       - redis
       - chroma
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
+# Persistent volumes
 volumes:
+  redis_data:
+    driver: local
   chroma_data:
+    driver: local
+  app_data:
+    driver: local
+
+# Network configuration
+networks:
+  default:
+    name: llm-dev-kit-network
+
+# Made with Bob

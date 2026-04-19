@@ -1,6 +1,19 @@
-streamlit
-requests
-redis
-chromadb
-pypdf
-langchain
+# LLM Dev Kit Dependencies
+
+# Web Framework
+streamlit>=1.28.0
+
+# HTTP Client
+requests>=2.31.0
+
+# Caching
+redis>=5.0.0
+
+# Vector Database
+chromadb>=0.4.15
+
+# PDF Processing
+pypdf>=3.17.0
+
+# Optional: Additional utilities
+python-dotenv>=1.0.0

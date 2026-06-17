@@ -1,6 +1,6 @@
 services:
   redis:
-    image: redis:7
+    image: redis:7-alpine
     command: redis-server --save "" --appendonly no
     ports:
       - "6379:6379"
@@ -9,18 +9,23 @@ services:
       interval: 10s
       timeout: 3s
       retries: 10
+    restart: unless-stopped
 
   chroma:
     image: chromadb/chroma:latest
     ports:
       - "8000:8000"
     volumes:
-      - chroma_data:/chroma
+      - chroma_data:/chroma/chroma
+    environment:
+      IS_PERSISTENT: "TRUE"
+      ANONYMIZED_TELEMETRY: "FALSE"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v2/heartbeat')"]
       interval: 10s
       timeout: 5s
       retries: 20
+    restart: unless-stopped
 
   api:
     build:
@@ -32,9 +37,12 @@ services:
     environment:
       OLLAMA_HOST: http://host.docker.internal:11434
       REDIS_HOST: redis
+      REDIS_PORT: 6379
       CHROMA_HOST: chroma
+      CHROMA_PORT: 8000
       DEFAULT_CHAT_MODEL: llama3.1
       DEFAULT_EMBEDDING_MODEL: nomic-embed-text
+      CACHE_TTL: 3600
     volumes:
       - ./app:/app/app
     depends_on:
@@ -42,24 +50,26 @@ services:
         condition: service_healthy
       chroma:
         condition: service_started
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
 
   web:
     build:
       context: .
       target: web
-    command: streamlit run app/main.py --server.port=8501 --server.address=0.0.0.0 --server.runOnSave=true
+    command: streamlit run app/main.py --server.port=8501 --server.address=0.0.0.0 --server.runOnSave=true --server.headless=true --browser.gatherUsageStats=false
     ports:
       - "8501:8501"
     environment:
       API_BASE_URL: http://api:8001
-      OLLAMA_HOST: http://host.docker.internal:11434
-      REDIS_HOST: redis
-      CHROMA_HOST: chroma
     volumes:
       - ./app:/app/app
+      - app_data:/app/data
     depends_on:
       api:
         condition: service_started
+    restart: unless-stopped
 
   mcp:
     build:
@@ -68,15 +78,26 @@ services:
     environment:
       OLLAMA_HOST: http://host.docker.internal:11434
       REDIS_HOST: redis
+      REDIS_PORT: 6379
       CHROMA_HOST: chroma
+      CHROMA_PORT: 8000
       DEFAULT_CHAT_MODEL: llama3.1
     volumes:
       - ./app:/app/app
     depends_on:
-      api:
+      redis:
+        condition: service_healthy
+      chroma:
         condition: service_started
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     profiles:
       - mcp
 
 volumes:
   chroma_data:
+  app_data:
+
+networks:
+  default:
+    name: llm-dev-kit-network

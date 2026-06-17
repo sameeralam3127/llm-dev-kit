@@ -75,3 +75,7 @@ def hybrid_query(query_text: str, model: str) -> ChatResponse:
     response = generate(prompt, model)
     set_cache(query_text, response, model=model)
     return ChatResponse(response=response, model=model, sources=docs)
+
+
+def hybrid_query_stream(query_text: str, model: str):
+    yield hybrid_query(query_text, model=model).response

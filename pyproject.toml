@@ -1,7 +1,7 @@
 [project]
 name = "llm-dev-kit"
 version = "0.1.0"
-description = "Add your description here"
+description = "Local-first LLM development kit with chat, RAG, API, Docker, and MCP support."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

@@ -51,3 +51,26 @@ def set_cache(prompt: str, response: str, model: str | None = None) -> None:
         r.setex(make_key(prompt, model), settings.cache_ttl, response)
     except Exception as exc:
         print(f"Cache write error: {exc}")
+
+
+def clear_cache() -> bool:
+    if not r:
+        return False
+
+    try:
+        r.flushdb()
+        return True
+    except Exception as exc:
+        print(f"Cache clear error: {exc}")
+        return False
+
+
+def get_cache_stats() -> dict:
+    if not r:
+        return {"status": "offline", "keys": 0}
+
+    try:
+        return {"status": "connected", "keys": r.dbsize()}
+    except Exception as exc:
+        print(f"Cache stats error: {exc}")
+        return {"status": "error", "keys": 0}

@@ -1,6 +1,7 @@
 from functools import lru_cache
 
 import requests
+import json
 
 from app.config import get_settings
 
@@ -87,3 +88,38 @@ def generate(prompt: str, model: str | None = None) -> str:
         return data.get("response", f"Ollama error: {data}")
     except Exception as exc:
         return f"Request failed: {exc}"
+
+
+def generate_stream(prompt: str, model: str | None = None):
+    model = model or settings.default_chat_model
+    if not prompt.strip():
+        yield "Empty prompt"
+        return
+
+    if not model_exists(model):
+        yield f"Model '{model}' not found"
+        return
+
+    try:
+        with session.post(
+            f"{settings.ollama_host}/api/generate",
+            json={
+                "model": model,
+                "prompt": prompt,
+                "stream": True,
+                "options": {"temperature": 0.7, "num_predict": 512},
+            },
+            timeout=settings.request_timeout_seconds,
+            stream=True,
+        ) as res:
+            res.raise_for_status()
+            for line in res.iter_lines():
+                if not line:
+                    continue
+                data = json.loads(line)
+                if "response" in data:
+                    yield data["response"]
+                if data.get("done"):
+                    break
+    except Exception as exc:
+        yield f"Request failed: {exc}"

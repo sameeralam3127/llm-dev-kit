@@ -9,7 +9,12 @@ from app.config import get_settings
 settings = get_settings()
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8001")
 
-st.set_page_config(page_title=settings.app_name, page_icon="AI", layout="wide")
+st.set_page_config(
+    page_title=settings.app_name,
+    page_icon=":material/smart_toy:",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
 
 st.markdown(
     """
@@ -43,12 +48,8 @@ def api_get(path: str, fallback):
         return fallback
 
 
-def api_chat(message: str, model: str) -> dict:
-    response = requests.post(
-        f"{API_BASE_URL}/chat",
-        json={"message": message, "model": model},
-        timeout=90,
-    )
+def api_post(path: str, payload: dict) -> dict:
+    response = requests.post(f"{API_BASE_URL}{path}", json=payload, timeout=90)
     response.raise_for_status()
     return response.json()
 
@@ -87,9 +88,18 @@ with st.sidebar:
             st.error(f"Failed to process PDF: {exc}")
 
     st.divider()
-    if st.button("Clear chat", use_container_width=True):
-        st.session_state.messages = []
-        st.rerun()
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("Clear chat", use_container_width=True):
+            st.session_state.messages = []
+            st.rerun()
+    with col2:
+        if st.button("Clear cache", use_container_width=True):
+            try:
+                api_post("/cache/clear", {})
+                st.success("Cache cleared")
+            except Exception as exc:
+                st.error(f"Failed: {exc}")
 
 st.markdown('<span class="status-pill">Local-first AI workspace</span>', unsafe_allow_html=True)
 st.title("AI Chat")
@@ -110,7 +120,7 @@ if user_input:
     with st.chat_message("assistant"):
         with st.spinner("Thinking"):
             try:
-                result = api_chat(user_input, model=model)
+                result = api_post("/chat", {"message": user_input, "model": model})
                 response = result["response"]
                 if result.get("cached"):
                     st.caption("Cache hit")

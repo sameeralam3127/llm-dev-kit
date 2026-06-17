@@ -37,7 +37,7 @@ MCP Client --> MCP Server --> same local RAG service
 | Service | Port | Purpose |
 | --- | ---: | --- |
 | `web` | `8501` | Streamlit AI chat UI |
-| `api` | `8001` | FastAPI chat, model, health, and PDF ingest endpoints |
+| `api` | `8001` | FastAPI chat, model, health, PDF ingest, cache, and document endpoints |
 | `redis` | `6379` | Response cache |
 | `chroma` | `8000` | Vector database |
 | `mcp` | stdio | Optional MCP tool server |
@@ -117,7 +117,7 @@ uvicorn app.api:api --reload --port 8001
 streamlit run app/main.py
 ```
 
-Use `sample.env` as the starting point for `.env`.
+Use `sample.env` or `.env.example` as the starting point for `.env`.
 
 ## Testing
 

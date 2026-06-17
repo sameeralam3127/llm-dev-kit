@@ -1,29 +1,82 @@
-version: "3.9"
-
 services:
   redis:
     image: redis:7
+    command: redis-server --save "" --appendonly no
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
 
   chroma:
-    image: chromadb/chroma
+    image: chromadb/chroma:latest
     ports:
       - "8000:8000"
     volumes:
       - chroma_data:/chroma
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v2/heartbeat')"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
 
-  app:
-    build: .
+  api:
+    build:
+      context: .
+      target: api
+    command: uvicorn app.api:api --host 0.0.0.0 --port 8001 --reload
+    ports:
+      - "8001:8001"
+    environment:
+      OLLAMA_HOST: http://host.docker.internal:11434
+      REDIS_HOST: redis
+      CHROMA_HOST: chroma
+      DEFAULT_CHAT_MODEL: llama3.1
+      DEFAULT_EMBEDDING_MODEL: nomic-embed-text
+    volumes:
+      - ./app:/app/app
+    depends_on:
+      redis:
+        condition: service_healthy
+      chroma:
+        condition: service_started
+
+  web:
+    build:
+      context: .
+      target: web
+    command: streamlit run app/main.py --server.port=8501 --server.address=0.0.0.0 --server.runOnSave=true
     ports:
       - "8501:8501"
     environment:
-      - OLLAMA_HOST=http://host.docker.internal:11434
-      - REDIS_HOST=redis
-      - CHROMA_HOST=chroma
+      API_BASE_URL: http://api:8001
+      OLLAMA_HOST: http://host.docker.internal:11434
+      REDIS_HOST: redis
+      CHROMA_HOST: chroma
+    volumes:
+      - ./app:/app/app
     depends_on:
-      - redis
-      - chroma
+      api:
+        condition: service_started
+
+  mcp:
+    build:
+      context: .
+      target: mcp
+    environment:
+      OLLAMA_HOST: http://host.docker.internal:11434
+      REDIS_HOST: redis
+      CHROMA_HOST: chroma
+      DEFAULT_CHAT_MODEL: llama3.1
+    volumes:
+      - ./app:/app/app
+    depends_on:
+      api:
+        condition: service_started
+    profiles:
+      - mcp
 
 volumes:
   chroma_data:

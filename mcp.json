@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "llm-dev-kit": {
+      "command": "docker",
+      "args": ["compose", "run", "--rm", "mcp"],
+      "env": {
+        "OLLAMA_HOST": "http://host.docker.internal:11434",
+        "DEFAULT_CHAT_MODEL": "llama3.1"
+      }
+    }
+  }
+}

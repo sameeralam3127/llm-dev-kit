@@ -1,6 +1,11 @@
 streamlit
+fastapi
+uvicorn[standard]
 requests
 redis
 chromadb
 pypdf
-langchain
+pydantic-settings
+python-multipart
+mcp
+pytest

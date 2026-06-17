@@ -1,231 +1,155 @@
 # LLM Dev Kit
 
-A local-first toolkit for building and testing LLM applications using Ollama, Streamlit, RAG (Retrieval-Augmented Generation), ChromaDB, and Redis.
+A local-first AI chat workspace for building and testing LLM applications with Ollama, FastAPI, Streamlit, ChromaDB, Redis, RAG, tests, hot reload, and an MCP entrypoint.
 
-This project is designed to be simple, reproducible, and developer-friendly. It allows you to run everything locally, upload documents, and query them using a hybrid approach that combines retrieval and direct LLM responses.
+## What You Get
 
----
-
-## Overview
-
-This application provides:
-
-- Local LLM inference using Ollama
-- Document-based question answering (RAG)
-- Automatic fallback to general LLM responses
-- Vector search using ChromaDB
-- Response caching using Redis
-- Clean Streamlit interface for testing and experimentation
-
-No external APIs are required. Everything runs locally.
-
----
+- Modern chat UI in Streamlit
+- FastAPI backend for reusable chat and ingest APIs
+- Local Ollama model and embedding calls
+- PDF ingestion with retrieval-augmented generation
+- ChromaDB vector search
+- Redis response caching
+- MCP server exposing local assistant tools
+- Docker hot reload for frontend and backend development
+- Focused pytest coverage for prompt, cache, and RAG behavior
 
 ## Architecture
 
+```text
+Streamlit Web UI
+      |
+      v
+FastAPI Chat API
+      |
+      +--> Redis cache
+      +--> Ollama embeddings/generation
+      +--> ChromaDB vector search
+      |
+      v
+RAG response
+
+MCP Client --> MCP Server --> same local RAG service
 ```
-User Input
-   ↓
-Cache Check (Redis)
-   ↓
-Embedding (Ollama)
-   ↓
-Vector Search (ChromaDB)
-   ↓
-If context found → RAG
-Else → Direct LLM
-   ↓
-Response Cached (Redis)
-```
 
----
+## Services
 
-## Tech Stack
-
-- Ollama – Local LLM runtime
-- Streamlit – Web interface
-- ChromaDB – Vector database
-- Redis – Caching layer
-- PyPDF – PDF parsing
-
----
+| Service | Port | Purpose |
+| --- | ---: | --- |
+| `web` | `8501` | Streamlit AI chat UI |
+| `api` | `8001` | FastAPI chat, model, health, and PDF ingest endpoints |
+| `redis` | `6379` | Response cache |
+| `chroma` | `8000` | Vector database |
+| `mcp` | stdio | Optional MCP tool server |
 
 ## Prerequisites
 
-Install the following:
-
-- Python 3.10 or 3.11
 - Docker and Docker Compose
-- Ollama (installed locally, not in Docker)
+- Ollama running on your machine
+- Python 3.12+ for local development outside Docker
 
-Install Ollama from:
-https://ollama.com
+Install Ollama from [ollama.com](https://ollama.com).
 
----
-
-## Setup Instructions
-
-### 1. Clone the repository
-
-```bash
-git clone https://github.com/sameeralam3127/llm-dev-kit.git
-cd llm-dev-kit
-```
-
----
-
-### 2. Start Ollama
+## Start Ollama
 
 ```bash
 ollama serve
-```
-
----
-
-### 3. Pull required models
-
-```bash
 ollama pull llama3.1
 ollama pull nomic-embed-text
 ```
 
----
-
-### 4. Start services (Redis + Chroma + App)
+## Run With Docker Hot Reload
 
 ```bash
-docker-compose up --build
+docker compose up --build
 ```
 
----
+Open:
 
-### 5. Open the application
+- Web UI: `http://localhost:8501`
+- API docs: `http://localhost:8001/docs`
 
-```
-http://localhost:8501
-```
+The `api` and `web` services mount `./app` into the containers. Backend changes reload through Uvicorn, and Streamlit reruns on save.
 
----
+## API Examples
 
-## How It Works
-
-### Chat and RAG (Hybrid Mode)
-
-The system automatically decides how to answer:
-
-- If relevant document context is found → uses RAG
-- If no context is found → falls back to direct LLM response
-
-There is no manual mode switching required.
-
----
-
-### Uploading and Using PDFs
-
-1. Upload a PDF from the sidebar
-
-2. The system will:
-   - Extract text
-   - Split into chunks
-   - Generate embeddings
-   - Store in ChromaDB
-
-3. Ask questions related to the document
-
-Example:
-
-```
-Summarize this document
-What are the key points?
-Explain section 2
+```bash
+curl http://localhost:8001/health
+curl http://localhost:8001/models
+curl -X POST http://localhost:8001/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message":"Summarize my knowledge base","model":"llama3.1"}'
 ```
 
----
+## MCP Usage
 
-### Caching (Redis)
+This repo includes `mcp.json` for MCP-compatible clients:
 
-Responses are cached based on:
+```json
+{
+  "mcpServers": {
+    "llm-dev-kit": {
+      "command": "docker",
+      "args": ["compose", "run", "--rm", "mcp"]
+    }
+  }
+}
+```
 
-- User prompt
-- Selected model
+Available MCP tools:
 
-If the same question is asked again:
+- `list_ollama_models`
+- `ask_llm_dev_kit`
 
-- The response is returned instantly from cache
-- No LLM call is made
+Run the MCP service directly:
 
----
+```bash
+docker compose --profile mcp run --rm mcp
+```
+
+## Local Development
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.api:api --reload --port 8001
+streamlit run app/main.py
+```
+
+Use `sample.env` as the starting point for `.env`.
+
+## Testing
+
+```bash
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest
+```
+
+`PYTEST_DISABLE_PLUGIN_AUTOLOAD=1` avoids unrelated globally installed pytest plugins interfering with this project.
+
+## Useful Docker Commands
+
+```bash
+docker compose up --build
+docker compose logs -f api
+docker compose logs -f web
+docker compose down
+docker compose down -v
+```
 
 ## Troubleshooting
 
-### Ollama not responding
-
-Make sure Ollama is running:
-
-```bash
-ollama serve
-```
-
----
-
-### Model not found
-
-Check installed models:
+If Ollama is not reachable from Docker, confirm it is running locally:
 
 ```bash
 ollama list
 ```
 
-Pull missing models:
+If models are missing:
 
 ```bash
 ollama pull llama3.1
 ollama pull nomic-embed-text
 ```
 
----
-
-### Cache not working
-
-Check logs:
-
-```bash
-docker-compose logs -f
-```
-
-Look for:
-
-```
-CACHE HIT
-CACHE MISS
-```
-
----
-
-### No results from PDF
-
-- Ensure the PDF contains selectable text (not scanned images)
-- Re-upload the file
-
----
-
-## Notes
-
-- This is a local development toolkit, not a production deployment
-- No external APIs or cloud services are used
-- Designed for experimentation and learning
-
----
-
-## Future Improvements
-
-- Streaming responses
-- Source visibility (show retrieved chunks)
-- Multi-document support
-- Advanced retrieval ranking
-
----
-
-## License
-
-MIT
+If PDF retrieval returns no context, make sure the PDF contains selectable text rather than scanned images.

@@ -4,4 +4,22 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "chromadb",
+    "fastapi",
+    "mcp",
+    "pydantic-settings",
+    "pypdf",
+    "python-multipart",
+    "redis",
+    "requests",
+    "streamlit",
+    "uvicorn[standard]",
+]
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

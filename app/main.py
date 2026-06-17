@@ -3,8 +3,7 @@ import os
 import requests
 import streamlit as st
 
-from app.config import get_settings
-
+from config import get_settings
 
 settings = get_settings()
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8001")
@@ -79,7 +78,9 @@ with st.sidebar:
 
     st.divider()
     uploaded_file = st.file_uploader("Upload PDF", type=["pdf"])
-    if uploaded_file and st.button("Index PDF", type="primary", use_container_width=True):
+    if uploaded_file and st.button(
+        "Index PDF", type="primary", use_container_width=True
+    ):
         try:
             with st.spinner("Indexing document"):
                 chunks = api_ingest_pdf(uploaded_file)
@@ -101,7 +102,9 @@ with st.sidebar:
             except Exception as exc:
                 st.error(f"Failed: {exc}")
 
-st.markdown('<span class="status-pill">Local-first AI workspace</span>', unsafe_allow_html=True)
+st.markdown(
+    '<span class="status-pill">Local-first AI workspace</span>', unsafe_allow_html=True
+)
 st.title("AI Chat")
 st.caption("Ask directly or upload PDFs to switch into retrieval-augmented answers.")
 

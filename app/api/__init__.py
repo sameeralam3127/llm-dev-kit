@@ -1,5 +1,6 @@
 from fastapi import FastAPI, File, HTTPException, UploadFile
 
+from app.api.github_webhook import router as github_webhook_router
 from app.config import get_settings
 from app.models import ChatRequest, ChatResponse, HealthResponse, IngestResponse
 from app.services.cache import clear_cache, get_cache_stats
@@ -10,6 +11,7 @@ from app.services.vector_store import clear_all_documents, get_collection_stats
 
 settings = get_settings()
 api = FastAPI(title=settings.app_name, version="0.1.0")
+api.include_router(github_webhook_router)
 
 
 @api.get("/health", response_model=HealthResponse)

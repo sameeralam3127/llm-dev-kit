@@ -29,3 +29,6 @@ CMD ["streamlit", "run", "app/main.py", "--server.port=8501", "--server.address=
 
 FROM base AS mcp
 CMD ["python", "-m", "app.mcp_server"]
+
+FROM base AS worker
+CMD ["python", "-m", "app.workers.embedding_worker"]

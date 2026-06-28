@@ -10,6 +10,9 @@ dependencies = [
     "mcp",
     "pydantic-settings",
     "pypdf",
+    "aiokafka",
+    "httpx",
+    "qdrant-client",
     "python-multipart",
     "redis",
     "requests",
@@ -18,7 +21,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-test = ["pytest"]
+test = ["pytest", "httpx"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

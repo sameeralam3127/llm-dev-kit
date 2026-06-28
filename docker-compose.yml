@@ -11,6 +11,29 @@ services:
       retries: 10
     restart: unless-stopped
 
+  kafka:
+    image: bitnami/kafka:latest
+    ports:
+      - "9092:29092"
+    environment:
+      KAFKA_ENABLE_KRAFT: "yes"
+      KAFKA_CFG_NODE_ID: 1
+      KAFKA_CFG_PROCESS_ROLES: broker,controller
+      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CFG_LISTENERS: INTERNAL://:9092,EXTERNAL://:29092,CONTROLLER://:9093
+      KAFKA_CFG_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL://localhost:9092
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CFG_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: "true"
+      ALLOW_PLAINTEXT_LISTENER: "yes"
+    healthcheck:
+      test: ["CMD", "kafka-topics.sh", "--bootstrap-server", "localhost:9092", "--list"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
   chroma:
     image: chromadb/chroma:latest
     ports:
@@ -25,6 +48,15 @@ services:
       interval: 10s
       timeout: 5s
       retries: 20
+    restart: unless-stopped
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
     restart: unless-stopped
 
   api:
@@ -43,12 +75,46 @@ services:
       DEFAULT_CHAT_MODEL: llama3.1
       DEFAULT_EMBEDDING_MODEL: nomic-embed-text
       CACHE_TTL: 3600
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      QDRANT_URL: http://qdrant:6333
+      REDIS_URL: redis://redis:6379/0
     volumes:
       - ./app:/app/app
     depends_on:
       redis:
         condition: service_healthy
       chroma:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  embedding-worker:
+    build:
+      context: .
+      target: worker
+    environment:
+      OLLAMA_HOST: http://host.docker.internal:11434
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_URL: redis://redis:6379/0
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      QDRANT_URL: http://qdrant:6333
+      DEFAULT_EMBEDDING_MODEL: nomic-embed-text
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      GITHUB_DEFAULT_OWNER: ${GITHUB_DEFAULT_OWNER:-}
+      GITHUB_DEFAULT_REPO: ${GITHUB_DEFAULT_REPO:-}
+      GITHUB_DEFAULT_BRANCH: ${GITHUB_DEFAULT_BRANCH:-main}
+    volumes:
+      - ./app:/app/app
+    depends_on:
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      qdrant:
         condition: service_started
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -96,6 +162,7 @@ services:
 
 volumes:
   chroma_data:
+  qdrant_data:
   app_data:
 
 networks:

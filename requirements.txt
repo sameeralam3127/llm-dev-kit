@@ -9,3 +9,6 @@ pydantic-settings
 python-multipart
 mcp
 pytest
+aiokafka
+httpx
+qdrant-client

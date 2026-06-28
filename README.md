@@ -10,6 +10,7 @@ A local-first AI chat workspace for building and testing LLM applications with O
 - PDF ingestion with retrieval-augmented generation
 - ChromaDB vector search
 - Redis response caching
+- Event-driven GitHub documentation sync with Kafka, Qdrant, and Redis caching
 - MCP server exposing local assistant tools
 - Docker hot reload for frontend and backend development
 - Focused pytest coverage for prompt, cache, and RAG behavior
@@ -30,6 +31,8 @@ FastAPI Chat API
 RAG response
 
 MCP Client --> MCP Server --> same local RAG service
+
+GitHub Push --> FastAPI Webhook --> Kafka docs.changed --> Embedding Worker --> Qdrant
 ```
 
 ## Services
@@ -40,6 +43,9 @@ MCP Client --> MCP Server --> same local RAG service
 | `api` | `8001` | FastAPI chat, model, health, PDF ingest, cache, and document endpoints |
 | `redis` | `6379` | Response cache |
 | `chroma` | `8000` | Vector database |
+| `kafka` | `9092` | KRaft Kafka broker for document events |
+| `qdrant` | `6333` | GitHub documentation vector store |
+| `embedding-worker` | n/a | Kafka consumer that chunks, embeds, and upserts GitHub docs |
 | `mcp` | stdio | Optional MCP tool server |
 
 ## Prerequisites
@@ -80,6 +86,19 @@ curl -X POST http://localhost:8001/chat \
   -H "Content-Type: application/json" \
   -d '{"message":"Summarize my knowledge base","model":"llama3.1"}'
 ```
+
+## GitHub Documentation Sync
+
+The API exposes `POST /webhooks/github` for GitHub Push events. It verifies the
+`X-Hub-Signature-256` signature when `GITHUB_WEBHOOK_SECRET` is set, filters
+changes to `.md` and `.mdx` files, and publishes file-level events to Kafka.
+
+The embedding worker consumes `docs.changed` as the `embedding-workers` group,
+downloads only changed markdown files, chunks and embeds them, upserts vectors
+into Qdrant, and publishes `docs.indexed` or `docs.failed`.
+
+See [docs/github-doc-sync.md](docs/github-doc-sync.md) for the architecture
+diagram, sequence diagram, topic guide, metadata contract, and configuration.
 
 ## MCP Usage
 

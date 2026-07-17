@@ -1,0 +1,9 @@
+# Union of what the tests need locally; runtime deps are per-service in
+# services/*/requirements.txt
+fastapi
+httpx
+pydantic-settings
+pypdf
+pytest
+python-multipart
+redis

@@ -4,10 +4,9 @@ from hashlib import sha256
 
 from fastapi.testclient import TestClient
 
-from app.config import Settings
-from app.api import api
-import app.api.github_webhook as webhook_module
-from app.api.github_webhook import get_event_bus
+from devkit_common.config import Settings
+import webhook_service.main as webhook_module
+from webhook_service.main import app, get_event_bus
 
 
 class FakeEventBus:
@@ -21,10 +20,12 @@ class FakeEventBus:
 def test_github_webhook_publishes_document_changes(monkeypatch):
     bus = FakeEventBus()
     monkeypatch.setattr(
-        webhook_module, "get_settings", lambda: Settings(GITHUB_WEBHOOK_SECRET="")
+        webhook_module,
+        "get_settings",
+        lambda: Settings(GITHUB_WEBHOOK_SECRET=""),
     )
-    api.dependency_overrides[get_event_bus] = lambda: bus
-    client = TestClient(api)
+    app.dependency_overrides[get_event_bus] = lambda: bus
+    client = TestClient(app)
 
     payload = {
         "ref": "refs/heads/main",
@@ -50,19 +51,23 @@ def test_github_webhook_publishes_document_changes(monkeypatch):
         headers={"X-GitHub-Event": "push"},
     )
 
-    api.dependency_overrides.clear()
+    app.dependency_overrides.clear()
     assert response.status_code == 202
     assert response.json()["published"] == 3
-    assert [event.event for _, event, _ in bus.events] == ["added", "modified", "removed"]
+    published = [event.event for _, event, _ in bus.events]
+    assert published == ["added", "modified", "removed"]
+    assert all(key == event.path for _, event, key in bus.events)
 
 
 def test_github_webhook_rejects_bad_signature(monkeypatch):
     bus = FakeEventBus()
     monkeypatch.setattr(
-        webhook_module, "get_settings", lambda: Settings(GITHUB_WEBHOOK_SECRET="secret")
+        webhook_module,
+        "get_settings",
+        lambda: Settings(GITHUB_WEBHOOK_SECRET="secret"),
     )
-    api.dependency_overrides[get_event_bus] = lambda: bus
-    client = TestClient(api)
+    app.dependency_overrides[get_event_bus] = lambda: bus
+    client = TestClient(app)
     body = json.dumps({"repository": {"name": "repo"}, "commits": []}).encode()
     valid = "sha256=" + hmac.new(b"secret", body, sha256).hexdigest()
 
@@ -75,5 +80,5 @@ def test_github_webhook_rejects_bad_signature(monkeypatch):
         },
     )
 
-    api.dependency_overrides.clear()
+    app.dependency_overrides.clear()
     assert response.status_code == 401

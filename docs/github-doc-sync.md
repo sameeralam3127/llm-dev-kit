@@ -10,7 +10,7 @@ flowchart TD
     K --> CW["Cache invalidation worker"]
     K --> AN["Analytics"]
     EW --> CH["Markdown chunking"]
-    CH --> EM["Ollama embeddings"]
+    CH --> EM["llm-service embeddings (local Ollama)"]
     EM --> Q["Qdrant upsert/delete"]
     EW --> IDX["docs.indexed"]
     EW --> FAIL["docs.failed"]
@@ -21,7 +21,7 @@ flowchart TD
 ```mermaid
 sequenceDiagram
     participant GitHub
-    participant API as FastAPI webhook
+    participant API as webhook-service
     participant Kafka
     participant Worker
     participant Qdrant
@@ -45,7 +45,7 @@ sequenceDiagram
 
 | Topic | Producer | Consumer | Purpose |
 | --- | --- | --- | --- |
-| `docs.changed` | GitHub webhook, hybrid retriever | `embedding-workers` | File-level document change events |
+| `docs.changed` | webhook-service | `embedding-workers` | File-level document change events |
 | `docs.indexed` | Embedding worker | Analytics or observability | Successful Qdrant indexing result |
 | `docs.failed` | Embedding worker | Dead-letter monitoring | Failed document processing |
 | `cache.invalidate` | Future cache workers | Cache worker | Explicit cache invalidation events |
@@ -75,11 +75,12 @@ RETRIEVER_SCORE_THRESHOLD=0.72
 ## Local Run
 
 ```bash
-docker compose up --build kafka qdrant redis api embedding-worker
+docker compose up --build kafka qdrant redis llm-service webhook-service embedding-worker
 ```
 
-Create a GitHub webhook pointing at `/webhooks/github`, set the content type to
-`application/json`, and configure the same secret in `GITHUB_WEBHOOK_SECRET`.
+Create a GitHub webhook pointing at `http://<host>:8080/webhooks/github`
+(through the Nginx gateway), set the content type to `application/json`, and
+configure the same secret in `GITHUB_WEBHOOK_SECRET`.
 
 ## Metadata
 

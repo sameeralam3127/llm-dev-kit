@@ -1,4 +1,4 @@
-from app.prompts import build_prompt
+from rag_service.prompts import build_prompt
 
 
 def test_build_prompt_with_context():

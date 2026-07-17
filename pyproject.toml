@@ -1,28 +1,23 @@
 [project]
 name = "llm-dev-kit"
-version = "0.1.0"
-description = "Local-first LLM development kit with chat, RAG, API, Docker, and MCP support."
+version = "0.2.0"
+description = "Local-first microservices LLM development kit: offline Ollama plus optional cloud providers, RAG, Kafka doc sync, Open WebUI frontend, and an Nginx load balancer."
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = [
-    "chromadb",
-    "fastapi",
-    "mcp",
-    "pydantic-settings",
-    "pypdf",
-    "aiokafka",
-    "httpx",
-    "qdrant-client",
-    "python-multipart",
-    "redis",
-    "requests",
-    "streamlit",
-    "uvicorn[standard]",
-]
+# Runtime dependencies are per-service: see services/*/requirements.txt
+dependencies = []
 
 [project.optional-dependencies]
-test = ["pytest", "httpx"]
+dev = [
+    "fastapi",
+    "httpx",
+    "pydantic-settings",
+    "pypdf",
+    "pytest",
+    "python-multipart",
+    "redis",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["."]
+pythonpath = ["services", "."]

@@ -1,174 +1,143 @@
 # LLM Dev Kit
 
-A local-first AI chat workspace for building and testing LLM applications with Ollama, FastAPI, Streamlit, ChromaDB, Redis, RAG, tests, hot reload, and an MCP entrypoint.
+A local-first **microservices** LLM workspace. Chat through **Open WebUI**, answer with retrieval-augmented generation over your PDFs and GitHub docs, run **fully offline on Ollama**, and optionally route to **cloud LLMs (OpenAI, Anthropic, or any OpenAI-compatible API)** by adding an API key. All traffic enters through an **Nginx load balancer**.
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for diagrams and request flows.
 
 ## What You Get
 
-- Modern chat UI in Streamlit
-- FastAPI backend for reusable chat and ingest APIs
-- Local Ollama model and embedding calls
-- PDF ingestion with retrieval-augmented generation
-- ChromaDB vector search
-- Redis response caching
-- Event-driven GitHub documentation sync with Kafka, Qdrant, and Redis caching
-- MCP server exposing local assistant tools
-- Docker hot reload for frontend and backend development
-- Focused pytest coverage for prompt, cache, and RAG behavior
-
-## Architecture
-
-```text
-Streamlit Web UI
-      |
-      v
-FastAPI Chat API
-      |
-      +--> Redis cache
-      +--> Ollama embeddings/generation
-      +--> ChromaDB vector search
-      |
-      v
-RAG response
-
-MCP Client --> MCP Server --> same local RAG service
-
-GitHub Push --> FastAPI Webhook --> Kafka docs.changed --> Embedding Worker --> Qdrant
-```
+- **Open WebUI** frontend (replaces the old Streamlit UI)
+- **Nginx** gateway/load balancer — single entrypoint on `:8080`, round-robins across `rag-service` replicas
+- **llm-service** — one API for all models: local Ollama by default, `openai/<model>` and `anthropic/<model>` when a key is configured (env or per-request)
+- **rag-service** (2 replicas) — chat with hybrid retrieval (ChromaDB PDFs + Qdrant GitHub docs), PDF ingestion, Redis response cache, and an **OpenAI-compatible `/v1` API** so Open WebUI (or any OpenAI SDK) can use the RAG pipeline as a model backend
+- **webhook-service** — GitHub push webhooks → Kafka events
+- **embedding-worker** — Kafka consumer that chunks, embeds, and indexes GitHub markdown into Qdrant
+- **mcp-service** — MCP tools backed by the same services
+- Optimized Docker: one slim stage per service, per-service dependencies, non-root containers, healthchecks, hot reload in dev
 
 ## Services
 
-| Service | Port | Purpose |
+| Service | Port (internal) | Purpose |
 | --- | ---: | --- |
-| `web` | `8501` | Streamlit AI chat UI |
-| `api` | `8001` | FastAPI chat, model, health, PDF ingest, cache, and document endpoints |
-| `redis` | `6379` | Response cache |
-| `chroma` | `8000` | Vector database |
-| `kafka` | `9092` | KRaft Kafka broker for document events |
-| `qdrant` | `6333` | GitHub documentation vector store |
-| `embedding-worker` | n/a | Kafka consumer that chunks, embeds, and upserts GitHub docs |
-| `mcp` | stdio | Optional MCP tool server |
+| `nginx` | `8080` (published) | Gateway + load balancer, the only published app port |
+| `open-webui` | 8080 | Chat frontend |
+| `llm-service` | 8010 | Model routing: Ollama (offline) + cloud providers |
+| `rag-service` ×2 | 8020 | RAG chat, `/v1` OpenAI-compatible API, PDF ingest, cache |
+| `webhook-service` | 8030 | GitHub webhook → Kafka |
+| `embedding-worker` | — | Kafka consumer → Qdrant indexer |
+| `mcp` | stdio | MCP tool server (profile `mcp`) |
+| `redis` / `chroma` / `qdrant` / `kafka` | 6379 / 8000 / 6333 / 9092 | Infrastructure |
 
-## Prerequisites
+## Quick Start
 
-- Docker and Docker Compose
-- Ollama running on your machine
-- Python 3.12+ for local development outside Docker
+1. **Start Ollama** (offline models):
 
-Install Ollama from [ollama.com](https://ollama.com).
+   ```bash
+   ollama serve
+   ollama pull llama3.1
+   ollama pull nomic-embed-text
+   ```
 
-## Start Ollama
+   (Or run Ollama in Docker: `docker compose --profile ollama up` and set `OLLAMA_HOST=http://ollama:11434` in `.env` — CPU-only on macOS.)
+
+2. **Configure** — copy `sample.env` to `.env`. Everything works offline with the defaults; cloud keys are optional.
+
+3. **Run the stack**:
+
+   ```bash
+   docker compose up --build
+   ```
+
+4. Open **http://localhost:8080** — create the first (admin) account in Open WebUI.
+
+In Open WebUI you'll see two kinds of models:
+
+- **Ollama models** (direct connection) — plain offline chat.
+- Models from the **`http://nginx/v1` connection** — the same models, but answered by `rag-service` with retrieval over your indexed documents.
+
+## Cloud LLMs — bring your own API key
+
+The stack is fully offline by default. To enable cloud models, either:
+
+- **In `.env`** (server-wide): set `OPENAI_API_KEY` and/or `ANTHROPIC_API_KEY`. Models then appear as `openai/gpt-4o`, `anthropic/claude-sonnet-5`, etc.
+- **Per request**: pass `api_key` in the `/chat` or `/generate` request body — nothing stored server-side.
+- **In Open WebUI**: Admin Settings → Connections → add any OpenAI-compatible API with your own key; a real (non `sk-local*`) key entered for the `/v1` RAG connection is forwarded to the cloud provider for `openai/...` / `anthropic/...` models.
+
+`OPENAI_BASE_URL` may point at any OpenAI-compatible endpoint (Groq, Together, vLLM, LM Studio, ...). Embeddings always stay local so your vector stores keep one consistent embedding space.
+
+## API Examples (through the load balancer)
 
 ```bash
-ollama serve
-ollama pull llama3.1
-ollama pull nomic-embed-text
-```
+# health
+curl http://localhost:8080/api/llm/health
+curl http://localhost:8080/api/rag/health
 
-## Run With Docker Hot Reload
+# all available models (local + configured cloud)
+curl http://localhost:8080/api/llm/models
 
-```bash
-docker compose up --build
-```
-
-Open:
-
-- Web UI: `http://localhost:8501`
-- API docs: `http://localhost:8001/docs`
-
-The `api` and `web` services mount `./app` into the containers. Backend changes reload through Uvicorn, and Streamlit reruns on save.
-
-## API Examples
-
-```bash
-curl http://localhost:8001/health
-curl http://localhost:8001/models
-curl -X POST http://localhost:8001/chat \
+# RAG chat — offline model
+curl -X POST http://localhost:8080/api/rag/chat \
   -H "Content-Type: application/json" \
-  -d '{"message":"Summarize my knowledge base","model":"llama3.1"}'
+  -d '{"message":"Summarize my knowledge base"}'
+
+# RAG chat — cloud model with your own key
+curl -X POST http://localhost:8080/api/rag/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message":"hello","model":"anthropic/claude-sonnet-5","api_key":"sk-ant-..."}'
+
+# OpenAI-compatible API (works with any OpenAI SDK)
+curl -X POST http://localhost:8080/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model":"llama3.1","messages":[{"role":"user","content":"What changed in the docs?"}]}'
+
+# ingest a PDF into the RAG index
+curl -X POST http://localhost:8080/api/rag/ingest/pdf -F "file=@mydoc.pdf"
 ```
 
 ## GitHub Documentation Sync
 
-The API exposes `POST /webhooks/github` for GitHub Push events. It verifies the
-`X-Hub-Signature-256` signature when `GITHUB_WEBHOOK_SECRET` is set, filters
-changes to `.md` and `.mdx` files, and publishes file-level events to Kafka.
-
-The embedding worker consumes `docs.changed` as the `embedding-workers` group,
-downloads only changed markdown files, chunks and embeds them, upserts vectors
-into Qdrant, and publishes `docs.indexed` or `docs.failed`.
-
-See [docs/github-doc-sync.md](docs/github-doc-sync.md) for the architecture
-diagram, sequence diagram, topic guide, metadata contract, and configuration.
+`POST http://localhost:8080/webhooks/github` receives GitHub Push events (signature-verified when `GITHUB_WEBHOOK_SECRET` is set), publishes per-file events to Kafka `docs.changed`, and the embedding worker indexes changed `.md`/`.mdx` files into Qdrant. RAG chat automatically searches these documents alongside uploaded PDFs. Details in [docs/github-doc-sync.md](docs/github-doc-sync.md).
 
 ## MCP Usage
 
-This repo includes `mcp.json` for MCP-compatible clients:
-
-```json
-{
-  "mcpServers": {
-    "llm-dev-kit": {
-      "command": "docker",
-      "args": ["compose", "run", "--rm", "mcp"]
-    }
-  }
-}
-```
-
-Available MCP tools:
-
-- `list_ollama_models`
-- `ask_llm_dev_kit`
-
-Run the MCP service directly:
+`mcp.json` is included for MCP clients. Tools: `list_models`, `ask_llm_dev_kit`.
 
 ```bash
 docker compose --profile mcp run --rm mcp
 ```
 
-## Local Development
+## Scaling
+
+`rag-service` runs 2 replicas by default (`deploy.replicas` in `docker-compose.yml`); Nginx round-robins across them. Scale at runtime:
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn app.api:api --reload --port 8001
-streamlit run app/main.py
+docker compose up -d --scale rag-service=4
+docker compose restart nginx   # re-resolve upstream IPs
 ```
 
-Use `sample.env` or `.env.example` as the starting point for `.env`.
+## Local Development (outside Docker)
+
+```bash
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements-dev.txt -r services/llm_service/requirements.txt \
+  -r services/rag_service/requirements.txt
+export PYTHONPATH=services
+uvicorn llm_service.main:app --reload --port 8010
+uvicorn rag_service.main:app --reload --port 8020
+```
+
+Use `sample.env` as the starting point for `.env` (set `LLM_SERVICE_URL=http://localhost:8010`).
 
 ## Testing
 
 ```bash
+pip install -r requirements-dev.txt
 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest
-```
-
-`PYTEST_DISABLE_PLUGIN_AUTOLOAD=1` avoids unrelated globally installed pytest plugins interfering with this project.
-
-## Useful Docker Commands
-
-```bash
-docker compose up --build
-docker compose logs -f api
-docker compose logs -f web
-docker compose down
-docker compose down -v
 ```
 
 ## Troubleshooting
 
-If Ollama is not reachable from Docker, confirm it is running locally:
-
-```bash
-ollama list
-```
-
-If models are missing:
-
-```bash
-ollama pull llama3.1
-ollama pull nomic-embed-text
-```
-
-If PDF retrieval returns no context, make sure the PDF contains selectable text rather than scanned images.
+- **No models in Open WebUI** — check Ollama is running (`ollama list`) and reachable from Docker; the connection URL is `http://host.docker.internal:11434` by default.
+- **Cloud model errors** — `401` means no/invalid API key: set it in `.env` or pass `api_key` per request.
+- **PDF retrieval returns nothing** — the PDF must contain selectable text, not scanned images.
+- **`docs.failed` events** — inspect worker logs: `docker compose logs -f embedding-worker`.

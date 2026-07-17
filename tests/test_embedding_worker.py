@@ -1,8 +1,8 @@
 import asyncio
 
-from app.config import Settings
-from app.models.events import DocsChangedEvent, DocumentEventType
-from app.workers.embedding_worker import process_embedding_event
+from devkit_common.config import Settings
+from devkit_common.events import DocsChangedEvent, DocumentEventType
+from embedding_worker.main import process_embedding_event
 
 
 class FakeGitHub:
@@ -12,11 +12,10 @@ class FakeGitHub:
     async def latest_commit_sha(self, owner, repo, path, branch):
         return "sha"
 
-    async def repository_metadata(self, owner, repo):
-        return {}
 
-    async def search_markdown(self, owner, repo, query, branch):
-        return []
+class FailingGitHub(FakeGitHub):
+    async def download_markdown(self, owner, repo, path, branch):
+        raise RuntimeError("download exploded")
 
 
 class FakeVectorStore:
@@ -37,9 +36,6 @@ class FakeVectorStore:
 class FakeEmbeddings:
     async def embed_many(self, texts):
         return [[0.1, 0.2] for _ in texts]
-
-    async def embed_one(self, text):
-        return [0.1, 0.2]
 
 
 class FakeBus:
@@ -64,6 +60,17 @@ class FakeCache:
         self.values.pop(key, None)
 
 
+def make_event(event_type=DocumentEventType.MODIFIED):
+    return DocsChangedEvent(
+        owner="acme",
+        repo="docs",
+        branch="main",
+        path="docs/a.md",
+        commit="sha",
+        event=event_type,
+    )
+
+
 def test_process_embedding_event_upserts_and_publishes_indexed():
     settings = Settings(GITHUB_DEFAULT_OWNER="acme")
     vector_store = FakeVectorStore()
@@ -71,17 +78,10 @@ def test_process_embedding_event_upserts_and_publishes_indexed():
 
     asyncio.run(
         process_embedding_event(
-            DocsChangedEvent(
-                owner="acme",
-                repo="docs",
-                branch="main",
-                path="docs/a.md",
-                commit="sha",
-                event=DocumentEventType.MODIFIED,
-            ),
+            make_event(),
             github=FakeGitHub(),
             vector_store=vector_store,
-            embedding_provider=FakeEmbeddings(),
+            embedding_client=FakeEmbeddings(),
             event_bus=bus,
             cache=FakeCache(),
             settings=settings,
@@ -91,6 +91,8 @@ def test_process_embedding_event_upserts_and_publishes_indexed():
     assert vector_store.upserts
     assert bus.published[0][0] == settings.kafka_topic_docs_indexed
     assert vector_store.upserts[0][2][0]["source"] == "github"
+    # Stale chunks from previous revisions are removed before the new upsert.
+    assert vector_store.deletes == [("docs", "docs/a.md")]
 
 
 def test_process_delete_event_removes_vectors():
@@ -99,17 +101,10 @@ def test_process_delete_event_removes_vectors():
 
     asyncio.run(
         process_embedding_event(
-            DocsChangedEvent(
-                owner="acme",
-                repo="docs",
-                branch="main",
-                path="docs/a.md",
-                commit="sha",
-                event=DocumentEventType.REMOVED,
-            ),
+            make_event(DocumentEventType.REMOVED),
             github=FakeGitHub(),
             vector_store=vector_store,
-            embedding_provider=FakeEmbeddings(),
+            embedding_client=FakeEmbeddings(),
             event_bus=FakeBus(),
             cache=None,
             settings=settings,
@@ -117,3 +112,25 @@ def test_process_delete_event_removes_vectors():
     )
 
     assert vector_store.deletes == [("docs", "docs/a.md")]
+    assert vector_store.upserts == []
+
+
+def test_failures_publish_docs_failed_without_raising():
+    settings = Settings(GITHUB_DEFAULT_OWNER="acme")
+    bus = FakeBus()
+
+    asyncio.run(
+        process_embedding_event(
+            make_event(),
+            github=FailingGitHub(),
+            vector_store=FakeVectorStore(),
+            embedding_client=FakeEmbeddings(),
+            event_bus=bus,
+            cache=None,
+            settings=settings,
+        ),
+    )
+
+    topics = [topic for topic, _, _ in bus.published]
+    assert topics == [settings.kafka_topic_docs_failed]
+    assert "download exploded" in bus.published[0][1].error

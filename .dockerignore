@@ -7,4 +7,12 @@ venv
 .env
 .DS_Store
 README.md
+ARCHITECTURE.md
+docs
 tests
+data
+nginx
+docker-compose.yml
+Dockerfile
+mcp.json
+requirements-dev.txt

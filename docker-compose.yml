@@ -35,6 +35,11 @@ services:
       ENABLE_OPENAI_API: "true"
       OPENAI_API_BASE_URL: http://nginx/v1
       OPENAI_API_KEY: sk-local-rag
+      # Persist the sentence-transformers embedding model download into the
+      # data volume so restarts don't re-fetch it from Hugging Face (slow
+      # unauthenticated downloads were leaving the container without a
+      # listener on 8080 for minutes, which nginx saw as 502s).
+      HF_HOME: /app/backend/data/cache/embedding/models
     volumes:
       - open_webui_data:/app/backend/data
     extra_hosts:

@@ -2,7 +2,9 @@
 
 A local-first **microservices** LLM workspace. Chat through **Open WebUI**, answer with retrieval-augmented generation over your PDFs and GitHub docs, run **fully offline on Ollama**, and optionally route to **cloud LLMs (OpenAI, Anthropic, or any OpenAI-compatible API)** by adding an API key. All traffic enters through an **Nginx load balancer**.
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for diagrams and request flows.
+See [ARCHITECTURE.md](ARCHITECTURE.md) for diagrams and request flows, and
+[docs/setup.md](docs/setup.md) for a full step-by-step setup and
+troubleshooting guide.
 
 ## What You Get
 
@@ -54,6 +56,13 @@ In Open WebUI you'll see two kinds of models:
 
 - **Ollama models** (direct connection) — plain offline chat.
 - Models from the **`http://nginx/v1` connection** — the same models, but answered by `rag-service` with retrieval over your indexed documents.
+
+> **Uploading PDFs:** the paperclip/attachment button inside an Open WebUI
+> chat feeds Open WebUI's own built-in document store, not this project's
+> retriever. To index a PDF here, upload it to the ingest endpoint instead
+> (see [API Examples](#api-examples-through-the-load-balancer) below or the
+> full walkthrough in [docs/setup.md](docs/setup.md#5-index-a-pdf)), then
+> chat against a model from the `nginx/v1` connection.
 
 ## Cloud LLMs — bring your own API key
 
@@ -137,7 +146,11 @@ PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest
 
 ## Troubleshooting
 
+- **Nothing loads at `localhost:8080`** — run `docker compose ps`; if services show `Exited`, the stack stopped (Docker Desktop restart, host sleep, or a manual `down`/`stop`) and needs `docker compose up -d`.
+- **PDF uploaded via Open WebUI doesn't show up in RAG answers** — the chat attachment button doesn't feed this project's index; ingest it via the API instead (see [API Examples](#api-examples-through-the-load-balancer) above).
 - **No models in Open WebUI** — check Ollama is running (`ollama list`) and reachable from Docker; the connection URL is `http://host.docker.internal:11434` by default.
 - **Cloud model errors** — `401` means no/invalid API key: set it in `.env` or pass `api_key` per request.
 - **PDF retrieval returns nothing** — the PDF must contain selectable text, not scanned images.
 - **`docs.failed` events** — inspect worker logs: `docker compose logs -f embedding-worker`.
+
+Full walkthrough and more failure modes: [docs/setup.md](docs/setup.md).

@@ -71,9 +71,9 @@ RAG — will be unreachable; see [Troubleshooting](#troubleshooting).
 
 ## 4. Open the chat UI
 
-Go to **http://localhost:8080** — the built-in chat UI loads instantly (it's
-a static page served by nginx; no account, no frontend container). In the
-toolbar:
+Go to **http://localhost:8080** — the built-in chat UI loads instantly (a
+React + Vite app compiled to static files inside the nginx image; no
+account, no frontend container). In the toolbar:
 
 - **Provider** — Local (Ollama) by default; switch to OpenAI, Gemini or
   Anthropic and paste an API key (kept in your browser's localStorage, sent
@@ -86,8 +86,10 @@ toolbar:
 
 ## 5. Index a PDF
 
-Click **Upload PDF** in the chat UI toolbar — the file is chunked, embedded
-locally, and indexed into ChromaDB. Or upload via the API:
+Click the **📎 paperclip** in the message bar (or drag a PDF anywhere onto
+the page) — the file is chunked, embedded locally, and indexed into
+ChromaDB, with a confirmation note in the chat thread. Or upload via the
+API:
 
 ```bash
 curl -X POST http://localhost:8080/api/rag/ingest/pdf -F "file=@mydoc.pdf"

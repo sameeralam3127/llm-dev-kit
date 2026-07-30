@@ -62,3 +62,7 @@ htmlcov/
 *.tmp
 *.bak
 .cache/
+
+# Frontend (React + Vite)
+ui/node_modules/
+ui/dist/

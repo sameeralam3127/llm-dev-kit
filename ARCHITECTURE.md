@@ -70,26 +70,30 @@ flowchart TB
 ## Services
 
 ### nginx (gateway / load balancer / frontend)
-Single entrypoint. Serves the static chat UI (`./ui`, bind-mounted — no
-frontend container or image to pull), routes APIs by path, and round-robins
-across all `rag-service` replicas (Docker DNS returns one address per
-replica; nginx resolves them at startup). SSE/NDJSON buffering is disabled so
-token streaming reaches the browser.
+Single entrypoint. Serves the built React chat UI as static files (compiled
+by the `ui-build` Docker stage into the gateway image — no frontend
+container), routes APIs by path, and round-robins across all `rag-service`
+replicas (Docker DNS returns one address per replica; nginx resolves them at
+startup). SSE/NDJSON buffering is disabled so token streaming reaches the
+browser.
 
 | Route | Target |
 | --- | --- |
-| `/` | static chat UI (`ui/index.html`) |
+| `/` | React chat UI (static `dist/` baked into the image) |
 | `/v1/*` | rag-service — OpenAI-compatible API |
 | `/api/rag/*` | rag-service REST (prefix stripped) |
 | `/api/llm/*` | llm-service REST (prefix stripped) |
 | `/webhooks/*` | webhook-service |
 
-### chat UI (static)
-A single dependency-free HTML page: streaming chat over
-`/api/rag/chat/stream`, PDF upload to `/api/rag/ingest/pdf`, provider/model
-picker fed by `/api/llm/models`, per-provider API keys kept in browser
-localStorage and sent per-request, cache/index status badges, and source
-snippets under each answer.
+### chat UI (React + Vite)
+A small React app (`ui/`, ~50 kB gzipped built output): streaming chat over
+`/api/rag/chat/stream`, in-chat PDF attachment (paperclip / drag-and-drop)
+posting to `/api/rag/ingest/pdf`, provider/model picker fed by
+`/api/llm/models` (auto-retries while the backend boots), per-provider API
+keys kept in browser localStorage and sent per-request, dark/light theme
+(OS-aware, user-toggleable), cache/index status badges, and source snippets
+under each answer. `npm run dev` gives hot reload with `/api` proxied to the
+dockerized gateway.
 
 ### llm-service (model router)
 The only service that talks to model backends. Providers:

@@ -8,7 +8,7 @@ troubleshooting guide.
 
 ## What You Get
 
-- **Custom chat UI** — a single static page served by nginx (replaces the 1.5 GB Open WebUI image): streaming responses, PDF upload, provider/model picker, per-provider API keys, cache and index stats
+- **Custom chat UI** — a React + Vite app compiled to ~50 kB of static files served by nginx (replaces the 1.5 GB Open WebUI image): streaming responses, PDF upload, provider/model picker, per-provider API keys, cache and index stats
 - **Nginx** gateway/load balancer — single entrypoint on `:8080`, serves the UI and round-robins across `rag-service` replicas
 - **llm-service** — one API for all models: local Ollama by default; `openai/<model>`, `gemini/<model>` and `anthropic/<model>` routed through **LiteLLM** with true token streaming (key from env or per-request)
 - **rag-service** (2 replicas) — chat with hybrid retrieval (ChromaDB PDFs + Qdrant GitHub docs), streaming chat, PDF ingestion, Redis response cache, and an **OpenAI-compatible `/v1` API** (works with any OpenAI SDK — handy for LangChain later)
@@ -53,14 +53,24 @@ troubleshooting guide.
 
 ## Chat UI
 
-The frontend is a single dependency-free static page ([ui/index.html](ui/index.html)) served straight from nginx — nothing to build, nothing to pull.
+The frontend is a **React + Vite** app ([ui/](ui/)) built into the nginx image during `docker compose up --build` — ~50 kB gzipped, served as static files, no frontend container and no Node needed on the host.
 
 - **Streaming responses** — tokens render as they arrive over `/api/rag/chat/stream` (NDJSON).
 - **Provider selector** — Local (Ollama), OpenAI, Gemini, or Anthropic. Cloud providers show an API-key field; the key is kept in your browser's localStorage and sent per-request (nothing stored server-side). Your model choice per provider is remembered.
-- **Upload PDF** — indexes the file into ChromaDB; every answer is then retrieval-augmented over your PDFs and synced GitHub docs, with source snippets shown under the reply.
+- **Resilient model picker** — the model list auto-retries while the backend is still starting, with a manual ↻ refresh button.
+- **Dark & light mode** — follows your OS preference, toggleable from the header, remembered across visits.
+- **Attach PDFs in the chat** — the 📎 paperclip in the message bar (or drag-and-drop anywhere) indexes the file into ChromaDB; every answer is then retrieval-augmented over your PDFs and synced GitHub docs, with source snippets shown under the reply.
 - **Cache badge** — repeated questions come back instantly from Redis and are marked ⚡ cached. Header shows live LLM/docs/cache status plus one-click cache clear.
 
 Cloud models in the picker come from curated lists in [litellm_provider.py](services/llm_service/providers/litellm_provider.py) (`DEFAULT_CLOUD_MODELS`) — edit them there to add or pin models.
+
+For UI development with hot reload (requires Node 20+):
+
+```bash
+cd ui
+npm install
+npm run dev   # http://localhost:5173, proxies /api and /v1 to :8080
+```
 
 ## Cloud LLMs — bring your own API key
 
@@ -144,7 +154,7 @@ docker compose restart nginx   # re-resolve upstream IPs
 ## Project Layout
 
 ```
-ui/                        static chat UI (served by nginx)
+ui/                        React + Vite chat UI (built into the nginx image)
 nginx/nginx.conf           gateway: UI + /api/* + /v1 routing, LB across replicas
 services/
   llm_service/             model router — Ollama direct, cloud via LiteLLM

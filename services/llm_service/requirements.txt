@@ -1,4 +1,5 @@
 fastapi
 httpx
+litellm
 pydantic-settings
 uvicorn[standard]

@@ -7,11 +7,10 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from devkit_common.config import get_settings
-from llm_service.providers.anthropic import AnthropicProvider
 from llm_service.providers.base import ProviderError
+from llm_service.providers.litellm_provider import LiteLLMProvider
 from llm_service.providers.ollama import OllamaProvider
-from llm_service.providers.openai_compat import OpenAICompatProvider
-from llm_service.providers.router import split_model
+from llm_service.providers.router import CLOUD_PROVIDERS, split_model
 
 settings = get_settings()
 
@@ -20,20 +19,25 @@ settings = get_settings()
 async def lifespan(app: FastAPI):
     client = httpx.AsyncClient(timeout=settings.request_timeout_seconds)
     app.state.http = client
+    timeout = settings.request_timeout_seconds
     app.state.providers = {
         "ollama": OllamaProvider(settings.ollama_host, client),
-        "openai": OpenAICompatProvider(
-            "openai", settings.openai_base_url, settings.openai_api_key, client
+        "openai": LiteLLMProvider(
+            "openai",
+            settings.openai_api_key,
+            base_url=settings.openai_base_url,
+            timeout=timeout,
         ),
-        "anthropic": AnthropicProvider(
-            settings.anthropic_base_url, settings.anthropic_api_key, client
+        "gemini": LiteLLMProvider("gemini", settings.gemini_api_key, timeout=timeout),
+        "anthropic": LiteLLMProvider(
+            "anthropic", settings.anthropic_api_key, timeout=timeout
         ),
     }
     yield
     await client.aclose()
 
 
-app = FastAPI(title=f"{settings.app_name} — LLM Service", version="0.2.0", lifespan=lifespan)
+app = FastAPI(title=f"{settings.app_name} — LLM Service", version="0.3.0", lifespan=lifespan)
 
 
 class GenerateRequest(BaseModel):
@@ -66,46 +70,39 @@ async def health(request: Request) -> dict:
         "status": "ok" if offline_ready else "degraded",
         "offline_ready": offline_ready,
         "cloud_providers": {
-            "openai": request.app.state.providers["openai"].configured,
-            "anthropic": request.app.state.providers["anthropic"].configured,
+            name: request.app.state.providers[name].configured
+            for name in CLOUD_PROVIDERS
         },
     }
 
 
 @app.get("/providers")
 async def providers(request: Request) -> list[dict]:
-    return [
-        {"name": "ollama", "type": "offline", "configured": True, "prefix": ""},
+    entries = [{"name": "ollama", "type": "offline", "configured": True, "prefix": ""}]
+    entries.extend(
         {
-            "name": "openai",
+            "name": name,
             "type": "cloud",
-            "configured": request.app.state.providers["openai"].configured,
-            "prefix": "openai/",
-        },
-        {
-            "name": "anthropic",
-            "type": "cloud",
-            "configured": request.app.state.providers["anthropic"].configured,
-            "prefix": "anthropic/",
-        },
-    ]
+            "configured": request.app.state.providers[name].configured,
+            "prefix": f"{name}/",
+        }
+        for name in CLOUD_PROVIDERS
+    )
+    return entries
 
 
 @app.get("/models")
 async def models(request: Request) -> dict:
+    """Local models come from Ollama live; cloud models are curated LiteLLM
+    lists (always shown — users can bring their own key per request)."""
     available: list[str] = []
     try:
         available.extend(await _provider(request, "ollama").list_models())
     except ProviderError:
         pass
-    for name in ("openai", "anthropic"):
+    for name in CLOUD_PROVIDERS:
         provider = request.app.state.providers[name]
-        if not provider.configured:
-            continue
-        try:
-            available.extend(f"{name}/{m}" for m in await provider.list_models())
-        except ProviderError:
-            pass
+        available.extend(f"{name}/{m}" for m in provider.list_models())
     return {"models": available}
 
 
@@ -135,15 +132,13 @@ async def generate_stream(req: GenerateRequest, request: Request) -> StreamingRe
     async def event_gen():
         try:
             if provider_name == "ollama":
-                async for chunk in provider.generate_stream(
-                    model_name, req.prompt, req.options
-                ):
-                    yield json.dumps({"delta": chunk}) + "\n"
+                stream = provider.generate_stream(model_name, req.prompt, req.options)
             else:
-                text = await provider.generate(
+                stream = provider.generate_stream(
                     model_name, req.prompt, req.options, api_key=req.api_key
                 )
-                yield json.dumps({"delta": text}) + "\n"
+            async for chunk in stream:
+                yield json.dumps({"delta": chunk}) + "\n"
             yield json.dumps(
                 {"done": True, "model": model, "provider": provider_name}
             ) + "\n"

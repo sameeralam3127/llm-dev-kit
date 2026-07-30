@@ -69,31 +69,32 @@ curl http://localhost:8080/api/llm/health
 as `Exited`, nothing is listening on `:8080` and the whole UI — not just
 RAG — will be unreachable; see [Troubleshooting](#troubleshooting).
 
-## 4. Open Open WebUI
+## 4. Open the chat UI
 
-Go to **http://localhost:8080** and create the first (admin) account. You'll
-see two kinds of models in the picker:
+Go to **http://localhost:8080** — the built-in chat UI loads instantly (it's
+a static page served by nginx; no account, no frontend container). In the
+toolbar:
 
-- **Ollama models** — direct connection, plain offline chat, no retrieval.
-- **Models from the `http://nginx/v1` connection** — same models, but
-  answered by `rag-service` with retrieval over whatever you've indexed.
-
-Use the second group to get RAG-augmented answers.
+- **Provider** — Local (Ollama) by default; switch to OpenAI, Gemini or
+  Anthropic and paste an API key (kept in your browser's localStorage, sent
+  per-request, never stored server-side).
+- **Model** — populated from `/api/llm/models` (live Ollama models plus
+  curated cloud models).
+- Every answer is RAG-augmented over whatever you've indexed; responses
+  stream token-by-token, cached answers return instantly with a ⚡ badge, and
+  retrieved source snippets are shown under each reply.
 
 ## 5. Index a PDF
 
-**Important:** the paperclip/attachment button inside an Open WebUI chat
-uses Open WebUI's *own* built-in document store — it does not feed this
-project's retriever. To get a PDF into this project's index, upload it
-directly to the ingest endpoint:
+Click **Upload PDF** in the chat UI toolbar — the file is chunked, embedded
+locally, and indexed into ChromaDB. Or upload via the API:
 
 ```bash
 curl -X POST http://localhost:8080/api/rag/ingest/pdf -F "file=@mydoc.pdf"
 # {"chunks": 12}
 ```
 
-Then chat against a model from the `nginx/v1` connection (step 4) and it
-will automatically retrieve relevant chunks. Useful checks:
+Then just chat — relevant chunks are retrieved automatically. Useful checks:
 
 ```bash
 # how many chunks are currently indexed
@@ -115,9 +116,10 @@ PDFs. Full details in [github-doc-sync.md](github-doc-sync.md).
 
 ## 7. Cloud models (optional)
 
-Set `OPENAI_API_KEY` and/or `ANTHROPIC_API_KEY` in `.env` (server-wide), pass
-`api_key` per request to `/api/rag/chat`, or add a connection with your own
-key in Open WebUI's Admin Settings → Connections. See the README's
+Cloud calls are routed through LiteLLM. Set `OPENAI_API_KEY`,
+`GEMINI_API_KEY` and/or `ANTHROPIC_API_KEY` in `.env` (server-wide), pass
+`api_key` per request to `/api/rag/chat`, or just pick the provider in the
+chat UI and paste your key there. See the README's
 [Cloud LLMs section](../README.md#cloud-llms--bring-your-own-api-key) for
 details.
 
@@ -173,11 +175,8 @@ docker compose restart nginx   # re-resolve upstream IPs
   running (Docker Desktop restart, host sleep, or a manual `down`/`stop` are
   the usual causes) — bring it back with `docker compose up -d` and re-check
   `docker compose ps` for `healthy` status.
-- **PDF doesn't show up in chat answers after uploading it in Open WebUI** —
-  the chat attachment button doesn't call this project's ingest pipeline;
-  use `curl .../api/rag/ingest/pdf` as shown in [step 5](#5-index-a-pdf).
-- **No models in Open WebUI** — check Ollama is running (`ollama list`) and
-  reachable from Docker; the connection URL is
+- **"no local models found" in the model picker** — check Ollama is running
+  (`ollama list`) and reachable from Docker; the connection URL is
   `http://host.docker.internal:11434` by default.
 - **Cloud model errors** — `401` means no/invalid API key: set it in `.env`
   or pass `api_key` per request.

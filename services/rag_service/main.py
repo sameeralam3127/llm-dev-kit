@@ -2,12 +2,13 @@ import asyncio
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
+from fastapi.responses import StreamingResponse
 
 from devkit_common.config import get_settings
 from devkit_common.models import ChatRequest, ChatResponse, IngestResponse
 from devkit_common.qdrant_store import QdrantVectorStore
 from rag_service.cache import ChatCache
-from rag_service.chat import answer_query
+from rag_service.chat import answer_query, stream_answer
 from rag_service.chroma_store import ChromaStore
 from rag_service.llm_client import LLMServiceClient
 from rag_service.openai_api import router as openai_router
@@ -59,6 +60,21 @@ async def chat(body: ChatRequest, request: Request) -> ChatResponse:
         cache=request.app.state.cache,
         retriever=request.app.state.retriever,
         api_key=body.api_key,
+    )
+
+
+@app.post("/chat/stream")
+async def chat_stream(body: ChatRequest, request: Request) -> StreamingResponse:
+    return StreamingResponse(
+        stream_answer(
+            body.message,
+            body.model or settings.default_chat_model,
+            llm=request.app.state.llm,
+            cache=request.app.state.cache,
+            retriever=request.app.state.retriever,
+            api_key=body.api_key,
+        ),
+        media_type="application/x-ndjson",
     )
 
 

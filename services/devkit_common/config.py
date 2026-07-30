@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     openai_base_url: str = Field(
         default="https://api.openai.com/v1", alias="OPENAI_BASE_URL"
     )
+    gemini_api_key: str | None = Field(default=None, alias="GEMINI_API_KEY")
     anthropic_api_key: str | None = Field(default=None, alias="ANTHROPIC_API_KEY")
     anthropic_base_url: str = Field(
         default="https://api.anthropic.com", alias="ANTHROPIC_BASE_URL"

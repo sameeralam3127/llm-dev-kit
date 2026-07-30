@@ -1,7 +1,7 @@
 [project]
 name = "llm-dev-kit"
 version = "0.2.0"
-description = "Local-first microservices LLM development kit: offline Ollama plus optional cloud providers, RAG, Kafka doc sync, Open WebUI frontend, and an Nginx load balancer."
+description = "Local-first microservices LLM development kit: offline Ollama plus cloud providers via LiteLLM, RAG, Kafka doc sync, a built-in static chat UI, and an Nginx load balancer."
 readme = "README.md"
 requires-python = ">=3.12"
 # Runtime dependencies are per-service: see services/*/requirements.txt

@@ -1,6 +1,6 @@
 # LLM Dev Kit
 
-A local-first **microservices** LLM workspace. Chat through **Open WebUI**, answer with retrieval-augmented generation over your PDFs and GitHub docs, run **fully offline on Ollama**, and optionally route to **cloud LLMs (OpenAI, Anthropic, or any OpenAI-compatible API)** by adding an API key. All traffic enters through an **Nginx load balancer**.
+A local-first **microservices** LLM workspace. Chat through a **built-in lightweight web UI** (a single static page — no heavyweight frontend image), answer with retrieval-augmented generation over your PDFs and GitHub docs, run **fully offline on Ollama**, and optionally route to **cloud LLMs (OpenAI, Gemini, Anthropic) via LiteLLM** by adding an API key. All traffic enters through an **Nginx load balancer**.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for diagrams and request flows, and
 [docs/setup.md](docs/setup.md) for a full step-by-step setup and
@@ -8,10 +8,10 @@ troubleshooting guide.
 
 ## What You Get
 
-- **Open WebUI** frontend (replaces the old Streamlit UI)
-- **Nginx** gateway/load balancer — single entrypoint on `:8080`, round-robins across `rag-service` replicas
-- **llm-service** — one API for all models: local Ollama by default, `openai/<model>` and `anthropic/<model>` when a key is configured (env or per-request)
-- **rag-service** (2 replicas) — chat with hybrid retrieval (ChromaDB PDFs + Qdrant GitHub docs), PDF ingestion, Redis response cache, and an **OpenAI-compatible `/v1` API** so Open WebUI (or any OpenAI SDK) can use the RAG pipeline as a model backend
+- **Custom chat UI** — a single static page served by nginx (replaces the 1.5 GB Open WebUI image): streaming responses, PDF upload, provider/model picker, per-provider API keys, cache and index stats
+- **Nginx** gateway/load balancer — single entrypoint on `:8080`, serves the UI and round-robins across `rag-service` replicas
+- **llm-service** — one API for all models: local Ollama by default; `openai/<model>`, `gemini/<model>` and `anthropic/<model>` routed through **LiteLLM** with true token streaming (key from env or per-request)
+- **rag-service** (2 replicas) — chat with hybrid retrieval (ChromaDB PDFs + Qdrant GitHub docs), streaming chat, PDF ingestion, Redis response cache, and an **OpenAI-compatible `/v1` API** (works with any OpenAI SDK — handy for LangChain later)
 - **webhook-service** — GitHub push webhooks → Kafka events
 - **embedding-worker** — Kafka consumer that chunks, embeds, and indexes GitHub markdown into Qdrant
 - **mcp-service** — MCP tools backed by the same services
@@ -21,10 +21,9 @@ troubleshooting guide.
 
 | Service | Port (internal) | Purpose |
 | --- | ---: | --- |
-| `nginx` | `8080` (published) | Gateway + load balancer, the only published app port |
-| `open-webui` | 8080 | Chat frontend |
-| `llm-service` | 8010 | Model routing: Ollama (offline) + cloud providers |
-| `rag-service` ×2 | 8020 | RAG chat, `/v1` OpenAI-compatible API, PDF ingest, cache |
+| `nginx` | `8080` (published) | Gateway + load balancer + static chat UI, the only published app port |
+| `llm-service` | 8010 | Model routing: Ollama (offline) + cloud via LiteLLM |
+| `rag-service` ×2 | 8020 | RAG chat (+streaming), `/v1` OpenAI-compatible API, PDF ingest, cache |
 | `webhook-service` | 8030 | GitHub webhook → Kafka |
 | `embedding-worker` | — | Kafka consumer → Qdrant indexer |
 | `mcp` | stdio | MCP tool server (profile `mcp`) |
@@ -50,27 +49,25 @@ troubleshooting guide.
    docker compose up --build
    ```
 
-4. Open **http://localhost:8080** — create the first (admin) account in Open WebUI.
+4. Open **http://localhost:8080** — the chat UI loads instantly (no account, no frontend container to boot).
 
-In Open WebUI you'll see two kinds of models:
+## Chat UI
 
-- **Ollama models** (direct connection) — plain offline chat.
-- Models from the **`http://nginx/v1` connection** — the same models, but answered by `rag-service` with retrieval over your indexed documents.
+The frontend is a single dependency-free static page ([ui/index.html](ui/index.html)) served straight from nginx — nothing to build, nothing to pull.
 
-> **Uploading PDFs:** the paperclip/attachment button inside an Open WebUI
-> chat feeds Open WebUI's own built-in document store, not this project's
-> retriever. To index a PDF here, upload it to the ingest endpoint instead
-> (see [API Examples](#api-examples-through-the-load-balancer) below or the
-> full walkthrough in [docs/setup.md](docs/setup.md#5-index-a-pdf)), then
-> chat against a model from the `nginx/v1` connection.
+- **Streaming responses** — tokens render as they arrive over `/api/rag/chat/stream` (NDJSON).
+- **Provider selector** — Local (Ollama), OpenAI, Gemini, or Anthropic. Cloud providers show an API-key field; the key is kept in your browser's localStorage and sent per-request (nothing stored server-side). Your model choice per provider is remembered.
+- **Upload PDF** — indexes the file into ChromaDB; every answer is then retrieval-augmented over your PDFs and synced GitHub docs, with source snippets shown under the reply.
+- **Cache badge** — repeated questions come back instantly from Redis and are marked ⚡ cached. Header shows live LLM/docs/cache status plus one-click cache clear.
+
+Cloud models in the picker come from curated lists in [litellm_provider.py](services/llm_service/providers/litellm_provider.py) (`DEFAULT_CLOUD_MODELS`) — edit them there to add or pin models.
 
 ## Cloud LLMs — bring your own API key
 
-The stack is fully offline by default. To enable cloud models, either:
+The stack is fully offline by default. Cloud calls go through **LiteLLM**, so adding more providers later is a one-line change. To enable cloud models, either:
 
-- **In `.env`** (server-wide): set `OPENAI_API_KEY` and/or `ANTHROPIC_API_KEY`. Models then appear as `openai/gpt-4o`, `anthropic/claude-sonnet-5`, etc.
-- **Per request**: pass `api_key` in the `/chat` or `/generate` request body — nothing stored server-side.
-- **In Open WebUI**: Admin Settings → Connections → add any OpenAI-compatible API with your own key; a real (non `sk-local*`) key entered for the `/v1` RAG connection is forwarded to the cloud provider for `openai/...` / `anthropic/...` models.
+- **In `.env`** (server-wide): set `OPENAI_API_KEY`, `GEMINI_API_KEY` and/or `ANTHROPIC_API_KEY`. Models are addressed as `openai/gpt-4o`, `gemini/gemini-2.5-flash`, `anthropic/claude-sonnet-5`, etc.
+- **Per request / in the UI**: pick a cloud provider and paste your key — it is sent as `api_key` in the request body and never stored server-side.
 
 `OPENAI_BASE_URL` may point at any OpenAI-compatible endpoint (Groq, Together, vLLM, LM Studio, ...). Embeddings always stay local so your vector stores keep one consistent embedding space.
 
@@ -89,10 +86,15 @@ curl -X POST http://localhost:8080/api/rag/chat \
   -H "Content-Type: application/json" \
   -d '{"message":"Summarize my knowledge base"}'
 
+# RAG chat — streaming (NDJSON: meta, deltas, done)
+curl -N -X POST http://localhost:8080/api/rag/chat/stream \
+  -H "Content-Type: application/json" \
+  -d '{"message":"Summarize my knowledge base"}'
+
 # RAG chat — cloud model with your own key
 curl -X POST http://localhost:8080/api/rag/chat \
   -H "Content-Type: application/json" \
-  -d '{"message":"hello","model":"anthropic/claude-sonnet-5","api_key":"sk-ant-..."}'
+  -d '{"message":"hello","model":"gemini/gemini-2.5-flash","api_key":"AIza..."}'
 
 # OpenAI-compatible API (works with any OpenAI SDK)
 curl -X POST http://localhost:8080/v1/chat/completions \
@@ -101,6 +103,21 @@ curl -X POST http://localhost:8080/v1/chat/completions \
 
 # ingest a PDF into the RAG index
 curl -X POST http://localhost:8080/api/rag/ingest/pdf -F "file=@mydoc.pdf"
+```
+
+### Using it from LangChain
+
+The `/v1` endpoint is OpenAI-compatible, so LangChain can use the whole RAG pipeline as a chat model — no extra glue code:
+
+```python
+from langchain_openai import ChatOpenAI
+
+llm = ChatOpenAI(
+    base_url="http://localhost:8080/v1",
+    api_key="sk-local-rag",   # placeholder = stay offline; real key = cloud models
+    model="llama3.1",         # or "gemini/gemini-2.5-flash", "openai/gpt-4o", ...
+)
+print(llm.invoke("Summarize my knowledge base").content)
 ```
 
 ## GitHub Documentation Sync
@@ -122,6 +139,21 @@ docker compose --profile mcp run --rm mcp
 ```bash
 docker compose up -d --scale rag-service=4
 docker compose restart nginx   # re-resolve upstream IPs
+```
+
+## Project Layout
+
+```
+ui/                        static chat UI (served by nginx)
+nginx/nginx.conf           gateway: UI + /api/* + /v1 routing, LB across replicas
+services/
+  llm_service/             model router — Ollama direct, cloud via LiteLLM
+  rag_service/             RAG chat (+streaming), /v1 API, PDF ingest, Redis cache
+  webhook_service/         GitHub push webhooks → Kafka
+  embedding_worker/        Kafka consumer → chunk/embed/index into Qdrant
+  mcp_service/             MCP tool server
+  devkit_common/           shared config, models, Kafka/Redis/Qdrant helpers
+tests/                     unit tests (no containers needed)
 ```
 
 ## Local Development (outside Docker)
@@ -147,8 +179,7 @@ PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest
 ## Troubleshooting
 
 - **Nothing loads at `localhost:8080`** — run `docker compose ps`; if services show `Exited`, the stack stopped (Docker Desktop restart, host sleep, or a manual `down`/`stop`) and needs `docker compose up -d`.
-- **PDF uploaded via Open WebUI doesn't show up in RAG answers** — the chat attachment button doesn't feed this project's index; ingest it via the API instead (see [API Examples](#api-examples-through-the-load-balancer) above).
-- **No models in Open WebUI** — check Ollama is running (`ollama list`) and reachable from Docker; the connection URL is `http://host.docker.internal:11434` by default.
+- **"no local models found" in the model picker** — check Ollama is running (`ollama list`) and reachable from Docker; the connection URL is `http://host.docker.internal:11434` by default.
 - **Cloud model errors** — `401` means no/invalid API key: set it in `.env` or pass `api_key` per request.
 - **PDF retrieval returns nothing** — the PDF must contain selectable text, not scanned images.
 - **`docs.failed` events** — inspect worker logs: `docker compose logs -f embedding-worker`.

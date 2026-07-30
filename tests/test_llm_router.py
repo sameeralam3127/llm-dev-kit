@@ -13,6 +13,10 @@ def test_anthropic_prefix_routes_to_anthropic():
     assert split_model("anthropic/claude-sonnet-5") == ("anthropic", "claude-sonnet-5")
 
 
+def test_gemini_prefix_routes_to_gemini():
+    assert split_model("gemini/gemini-2.5-flash") == ("gemini", "gemini-2.5-flash")
+
+
 def test_unknown_prefix_stays_ollama():
     assert split_model("library/llama3.1") == ("ollama", "library/llama3.1")
 

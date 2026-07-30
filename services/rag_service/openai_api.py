@@ -1,5 +1,5 @@
-"""OpenAI-compatible endpoints so Open WebUI (or any OpenAI client) can use the
-RAG pipeline as a model backend.
+"""OpenAI-compatible endpoints so any OpenAI client (SDKs, LangChain, curl)
+can use the RAG pipeline as a model backend.
 
 Every model exposed here answers with retrieval-augmented context. A real cloud
 API key supplied as the Bearer token is forwarded to the llm-service for cloud

@@ -19,11 +19,7 @@ flowchart TB
     end
 
     subgraph Gateway
-        N[Nginx :8080<br/>reverse proxy + load balancer]
-    end
-
-    subgraph Frontend
-        OW[Open WebUI]
+        N[Nginx :8080<br/>reverse proxy + load balancer<br/>+ static chat UI]
     end
 
     subgraph Services
@@ -44,20 +40,16 @@ flowchart TB
 
     subgraph Models
         OL[Ollama<br/>fully offline]
-        OAI[OpenAI or any<br/>OpenAI-compatible API]
-        ANT[Anthropic API]
+        LL[LiteLLM<br/>OpenAI / Gemini / Anthropic]
     end
 
-    B --> N
+    B -->|/ static chat UI| N
     SDK --> N
     GH -->|/webhooks/github| N
-    N -->|/| OW
     N -->|/v1 and /api/rag round-robin| R1
     N --> R2
     N -->|/api/llm| L
     N --> W
-    OW -->|OpenAI API via nginx /v1| N
-    OW -.direct offline chat.-> OL
     R1 --> RD
     R1 --> CH
     R1 --> QD
@@ -72,46 +64,48 @@ flowchart TB
     MCP --> R1
     MCP --> L
     L -->|default| OL
-    L -->|openai/model + API key| OAI
-    L -->|anthropic/model + API key| ANT
+    L -->|provider/model + API key| LL
 ```
 
 ## Services
 
-### nginx (gateway / load balancer)
-Single entrypoint. Routes by path and round-robins across all `rag-service`
-replicas (Docker DNS returns one address per replica; nginx resolves them at
-startup). SSE buffering is disabled so token streaming reaches the browser.
+### nginx (gateway / load balancer / frontend)
+Single entrypoint. Serves the static chat UI (`./ui`, bind-mounted — no
+frontend container or image to pull), routes APIs by path, and round-robins
+across all `rag-service` replicas (Docker DNS returns one address per
+replica; nginx resolves them at startup). SSE/NDJSON buffering is disabled so
+token streaming reaches the browser.
 
 | Route | Target |
 | --- | --- |
-| `/` | Open WebUI (websockets enabled) |
+| `/` | static chat UI (`ui/index.html`) |
 | `/v1/*` | rag-service — OpenAI-compatible API |
 | `/api/rag/*` | rag-service REST (prefix stripped) |
 | `/api/llm/*` | llm-service REST (prefix stripped) |
 | `/webhooks/*` | webhook-service |
 
-### open-webui (frontend)
-Stock `ghcr.io/open-webui/open-webui` image. Two model sources:
-1. **Direct Ollama connection** — plain offline chat.
-2. **OpenAI connection to `http://nginx/v1`** — every model listed there is
-   answered by rag-service with retrieval-augmented context. The placeholder
-   key `sk-local-rag` keeps it offline; users can add their own cloud
-   connections/keys in Admin Settings → Connections.
+### chat UI (static)
+A single dependency-free HTML page: streaming chat over
+`/api/rag/chat/stream`, PDF upload to `/api/rag/ingest/pdf`, provider/model
+picker fed by `/api/llm/models`, per-provider API keys kept in browser
+localStorage and sent per-request, cache/index status badges, and source
+snippets under each answer.
 
 ### llm-service (model router)
 The only service that talks to model backends. Providers:
 
-- **ollama** (default, offline) — chat, streaming, embeddings.
-- **openai** — any OpenAI-compatible API via `OPENAI_BASE_URL`.
-- **anthropic** — Anthropic Messages API.
+- **ollama** (default, offline) — chat, streaming, embeddings, direct API.
+- **openai / gemini / anthropic** — routed through **LiteLLM**
+  (`litellm.acompletion`), with true token streaming for cloud models.
+  `OPENAI_BASE_URL` still lets the `openai/` prefix target any
+  OpenAI-compatible API.
 
 Model ids route by prefix: `llama3.1` → Ollama, `openai/gpt-4o` → OpenAI,
-`anthropic/claude-sonnet-5` → Anthropic. Cloud calls need a key from the
-environment **or** an `api_key` field on the request (bring-your-own-key —
-nothing is stored). Embeddings are always local so both vector stores share
-one embedding space. Errors are proper HTTP errors — they are never returned
-as fake chat text and never cached.
+`gemini/gemini-2.5-flash` → Gemini, `anthropic/claude-sonnet-5` → Anthropic.
+Cloud calls need a key from the environment **or** an `api_key` field on the
+request (bring-your-own-key — nothing is stored). Embeddings are always local
+so both vector stores share one embedding space. Errors are proper HTTP
+errors — they are never returned as fake chat text and never cached.
 
 Endpoints: `/health`, `/providers`, `/models`, `/generate`,
 `/generate/stream` (NDJSON), `/embed`.
@@ -123,8 +117,9 @@ docs, score-thresholded) → build prompt → generate via llm-service → cache
 successful responses (keys namespaced `chat:*`, so clearing chat cache never
 touches worker state).
 
-Also serves the OpenAI-compatible `/v1/models` and `/v1/chat/completions`
-(streaming SSE and non-streaming), `/ingest/pdf`, `/cache/*`, `/documents/*`.
+Also serves `/chat/stream` (NDJSON token streaming for the chat UI), the
+OpenAI-compatible `/v1/models` and `/v1/chat/completions` (streaming SSE and
+non-streaming), `/ingest/pdf`, `/cache/*`, `/documents/*`.
 
 ### webhook-service
 Verifies the GitHub `X-Hub-Signature-256` (HMAC) when a secret is configured,
@@ -149,22 +144,23 @@ rag-service over HTTP — no direct database access.
 
 ```mermaid
 sequenceDiagram
-    participant U as Open WebUI
+    participant U as Chat UI (browser)
     participant N as Nginx
     participant R as rag-service (replica)
     participant L as llm-service
     participant V as Chroma + Qdrant
-    participant M as Ollama / Cloud API
+    participant M as Ollama / LiteLLM cloud
 
-    U->>N: POST /v1/chat/completions (stream)
+    U->>N: POST /api/rag/chat/stream
     N->>R: round-robin to a replica
+    R->>R: Redis cache check (hit → stream cached answer)
     R->>L: POST /embed (query)
     L->>M: local embedding model
     R->>V: vector search (PDFs + GitHub docs)
     R->>L: POST /generate/stream (prompt + context)
-    L->>M: Ollama stream or cloud call
+    L->>M: Ollama or LiteLLM token stream
     L-->>R: NDJSON deltas
-    R-->>U: SSE chunks (chat.completion.chunk)
+    R-->>U: NDJSON (meta + deltas + done), full answer cached
 ```
 
 ## GitHub Doc Sync Flow
@@ -208,6 +204,6 @@ base:
 | Scenario | Configuration | What happens |
 | --- | --- | --- |
 | Fully offline (default) | no keys set | All chat + embeddings via local Ollama |
-| Server-wide cloud | `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` in `.env` | `openai/*`, `anthropic/*` models listed and usable by everyone |
-| Bring-your-own-key | `api_key` in request body, or a real Bearer key on `/v1` | Key used for that request only, never stored |
+| Server-wide cloud | `OPENAI_API_KEY` / `GEMINI_API_KEY` / `ANTHROPIC_API_KEY` in `.env` | `openai/*`, `gemini/*`, `anthropic/*` models usable by everyone |
+| Bring-your-own-key | key pasted in the UI (sent as `api_key`), or a real Bearer key on `/v1` | Key used for that request only, never stored |
 | Alternative OpenAI-compatible host | `OPENAI_BASE_URL` | Groq/Together/vLLM/LM Studio behind the same `openai/` prefix |

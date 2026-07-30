@@ -4,46 +4,22 @@ x-python-healthcheck: &python-healthcheck
   retries: 10
 
 services:
-  # ---------------------------------------------------------------- gateway
+  # ------------------------------------------------------- gateway + frontend
+  # nginx serves the static chat UI (./ui) directly — no frontend container.
   nginx:
     image: nginx:1.27-alpine
     ports:
       - "8080:80"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ui:/usr/share/nginx/html:ro
     depends_on:
-      open-webui:
-        condition: service_started
       llm-service:
         condition: service_healthy
       rag-service:
         condition: service_healthy
       webhook-service:
         condition: service_healthy
-    restart: unless-stopped
-
-  # --------------------------------------------------------------- frontend
-  open-webui:
-    image: ghcr.io/open-webui/open-webui:main
-    environment:
-      WEBUI_NAME: "LLM Dev Kit"
-      # Direct offline chat against local Ollama models
-      OLLAMA_BASE_URL: ${OLLAMA_HOST:-http://host.docker.internal:11434}
-      # RAG-augmented models served by rag-service through the load balancer.
-      # The placeholder key is ignored by the backend; add real cloud keys in
-      # Open WebUI (Admin Settings -> Connections) or in .env.
-      ENABLE_OPENAI_API: "true"
-      OPENAI_API_BASE_URL: http://nginx/v1
-      OPENAI_API_KEY: sk-local-rag
-      # Persist the sentence-transformers embedding model download into the
-      # data volume so restarts don't re-fetch it from Hugging Face (slow
-      # unauthenticated downloads were leaving the container without a
-      # listener on 8080 for minutes, which nginx saw as 502s).
-      HF_HOME: /app/backend/data/cache/embedding/models
-    volumes:
-      - open_webui_data:/app/backend/data
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     restart: unless-stopped
 
   # ----------------------------------------------------------- microservices
@@ -58,6 +34,7 @@ services:
       DEFAULT_EMBEDDING_MODEL: ${DEFAULT_EMBEDDING_MODEL:-nomic-embed-text}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       ANTHROPIC_BASE_URL: ${ANTHROPIC_BASE_URL:-https://api.anthropic.com}
     volumes:
@@ -239,7 +216,6 @@ services:
 volumes:
   chroma_data:
   qdrant_data:
-  open_webui_data:
   ollama_data:
 
 networks:

@@ -1,0 +1,3 @@
+# Private workspace: chats and shared links are unlisted, not public.
+User-agent: *
+Disallow: /

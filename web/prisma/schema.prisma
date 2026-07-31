@@ -1,0 +1,156 @@
+// Portable schema: no enums, no Json, no scalar lists — switching `provider`
+// to "postgresql" / "mysql" is a one-word change with no other edits required.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Auth (Auth.js / NextAuth v5 compatible)
+// ---------------------------------------------------------------------------
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  /// Null for OAuth-only users.
+  passwordHash  String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts Account[]
+  sessions Session[]
+  chats    Chat[]
+  folders  Folder[]
+
+  @@index([email])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ---------------------------------------------------------------------------
+// Chat domain
+// ---------------------------------------------------------------------------
+
+model Folder {
+  id        String   @id @default(cuid())
+  name      String
+  /// Tailwind-safe token from FOLDER_COLORS, not raw CSS.
+  color     String   @default("slate")
+  position  Int      @default(0)
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chats Chat[]
+
+  @@index([userId, position])
+}
+
+model Chat {
+  id           String   @id @default(cuid())
+  title        String   @default("New chat")
+  /// Model id as understood by the provider, e.g. "llama3.1" or "openai/gpt-4o".
+  model        String
+  systemPrompt String?
+  pinned       Boolean  @default(false)
+  archived     Boolean  @default(false)
+  /// Public share slug; null when the chat is private.
+  shareId      String?  @unique
+  sharedAt     DateTime?
+  userId       String
+  folderId     String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  folder   Folder?   @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  messages Message[]
+
+  @@index([userId, updatedAt])
+  @@index([folderId])
+}
+
+model Message {
+  id     String @id @default(cuid())
+  chatId String
+  /// "user" | "assistant" | "system" — validated by MessageRoleSchema.
+  role   String
+  content String
+  /// Monotonic ordering within a chat; gaps are allowed.
+  position Int
+  /// Model that produced an assistant message.
+  model    String?
+  /// Set when generation failed, so the UI can offer a retry.
+  error    String?
+  /// Streaming was cut short (user stop / disconnect).
+  truncated Boolean @default(false)
+  editedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  chat     Chat             @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  versions MessageVersion[]
+
+  @@index([chatId, position])
+}
+
+/// Previous contents of an assistant message, so the UI can page through
+/// regenerated answers ("2 / 3") instead of losing them.
+model MessageVersion {
+  id        String   @id @default(cuid())
+  messageId String
+  content   String
+  model     String?
+  position  Int
+  createdAt DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId, position])
+}

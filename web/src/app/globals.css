@@ -1,0 +1,339 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 224 12% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 224 12% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 224 12% 12%;
+
+    --primary: 224 76% 48%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 224 12% 20%;
+
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 46%;
+
+    --accent: 220 14% 94%;
+    --accent-foreground: 224 12% 16%;
+
+    --destructive: 0 72% 45%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 13% 89%;
+    --input: 220 13% 87%;
+    --ring: 224 76% 48%;
+
+    --sidebar: 220 20% 98%;
+    --sidebar-foreground: 224 12% 20%;
+    --sidebar-accent: 220 14% 92%;
+    --sidebar-border: 220 13% 90%;
+
+    --radius: 0.6rem;
+  }
+
+  .dark {
+    --background: 224 14% 9%;
+    --foreground: 220 14% 92%;
+
+    --card: 224 14% 11%;
+    --card-foreground: 220 14% 92%;
+
+    --popover: 224 14% 12%;
+    --popover-foreground: 220 14% 92%;
+
+    --primary: 217 91% 62%;
+    --primary-foreground: 224 20% 8%;
+
+    --secondary: 223 12% 18%;
+    --secondary-foreground: 220 14% 90%;
+
+    --muted: 223 12% 17%;
+    --muted-foreground: 220 9% 62%;
+
+    --accent: 223 12% 20%;
+    --accent-foreground: 220 14% 94%;
+
+    --destructive: 0 72% 58%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 223 12% 20%;
+    --input: 223 12% 24%;
+    --ring: 217 91% 62%;
+
+    --sidebar: 224 14% 11%;
+    --sidebar-foreground: 220 14% 88%;
+    --sidebar-accent: 223 12% 18%;
+    --sidebar-border: 223 12% 18%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    @apply antialiased;
+    /* Anchor links to a message should not hide it under the sticky header. */
+    scroll-padding-top: 5rem;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* A visible, consistent focus ring everywhere keyboard users land. */
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+
+  ::selection {
+    @apply bg-primary/25;
+  }
+}
+
+@layer utilities {
+  /* Standard visually-hidden pattern: removed from view, kept for assistive tech. */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--border));
+    border-radius: 9999px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Markdown / prose
+   Hand-rolled rather than @tailwindcss/typography: chat bubbles need much
+   tighter vertical rhythm than prose defaults, and the token colours have to
+   track the theme variables above.
+--------------------------------------------------------------------------- */
+
+.markdown-body {
+  @apply text-[0.9375rem] leading-7;
+}
+
+.markdown-body > * + * {
+  @apply mt-4;
+}
+
+.markdown-body h1 {
+  @apply mt-6 text-xl font-semibold tracking-tight;
+}
+.markdown-body h2 {
+  @apply mt-6 text-lg font-semibold tracking-tight;
+}
+.markdown-body h3 {
+  @apply mt-5 text-base font-semibold;
+}
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+  @apply mt-4 text-sm font-semibold;
+}
+
+.markdown-body p {
+  @apply whitespace-pre-wrap break-words;
+}
+
+.markdown-body a {
+  @apply font-medium text-primary underline underline-offset-4 hover:no-underline;
+}
+
+.markdown-body ul {
+  @apply list-disc space-y-1.5 pl-6;
+}
+.markdown-body ol {
+  @apply list-decimal space-y-1.5 pl-6;
+}
+.markdown-body li > ul,
+.markdown-body li > ol {
+  @apply mt-1.5;
+}
+.markdown-body li::marker {
+  @apply text-muted-foreground;
+}
+
+.markdown-body blockquote {
+  @apply border-l-2 border-border pl-4 italic text-muted-foreground;
+}
+
+.markdown-body hr {
+  @apply border-border;
+}
+
+.markdown-body table {
+  @apply w-full border-collapse text-sm;
+}
+.markdown-body th,
+.markdown-body td {
+  @apply border border-border px-3 py-1.5 text-left align-top;
+}
+.markdown-body th {
+  @apply bg-muted font-semibold;
+}
+
+/* Inline code only — fenced blocks are rendered by CodeBlock. */
+.markdown-body :not(pre) > code {
+  @apply rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[0.85em];
+}
+
+.markdown-body pre {
+  @apply overflow-x-auto p-4 font-mono text-[0.8125rem] leading-6;
+}
+
+.markdown-body img {
+  @apply max-w-full rounded-md border border-border;
+}
+
+/* The caret that trails a streaming answer. */
+.streaming-caret::after {
+  content: '';
+  @apply ml-0.5 inline-block h-4 w-[2px] translate-y-0.5 animate-caret-blink bg-foreground align-baseline;
+}
+
+/* ---------------------------------------------------------------------------
+   highlight.js — theme-aware token colours driven by the same variables.
+--------------------------------------------------------------------------- */
+
+.hljs-comment,
+.hljs-quote {
+  @apply italic text-muted-foreground;
+}
+
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-literal,
+.hljs-doctag,
+.hljs-name,
+.hljs-type {
+  color: hsl(291 64% 52%);
+}
+
+.hljs-string,
+.hljs-regexp,
+.hljs-addition,
+.hljs-attribute,
+.hljs-meta .hljs-string {
+  color: hsl(142 52% 36%);
+}
+
+.hljs-number,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-variable,
+.hljs-template-variable,
+.hljs-link,
+.hljs-selector-attr {
+  color: hsl(24 90% 44%);
+}
+
+.hljs-title,
+.hljs-section,
+.hljs-title.class_,
+.hljs-title.function_ {
+  color: hsl(217 85% 46%);
+}
+
+.hljs-built_in,
+.hljs-attr,
+.hljs-selector-id,
+.hljs-selector-class {
+  color: hsl(190 80% 34%);
+}
+
+.hljs-deletion {
+  color: hsl(0 72% 48%);
+}
+
+.hljs-emphasis {
+  @apply italic;
+}
+.hljs-strong {
+  @apply font-semibold;
+}
+
+.dark .hljs-keyword,
+.dark .hljs-selector-tag,
+.dark .hljs-literal,
+.dark .hljs-doctag,
+.dark .hljs-name,
+.dark .hljs-type {
+  color: hsl(291 76% 76%);
+}
+
+.dark .hljs-string,
+.dark .hljs-regexp,
+.dark .hljs-addition,
+.dark .hljs-attribute,
+.dark .hljs-meta .hljs-string {
+  color: hsl(142 60% 62%);
+}
+
+.dark .hljs-number,
+.dark .hljs-symbol,
+.dark .hljs-bullet,
+.dark .hljs-variable,
+.dark .hljs-template-variable,
+.dark .hljs-link,
+.dark .hljs-selector-attr {
+  color: hsl(30 95% 68%);
+}
+
+.dark .hljs-title,
+.dark .hljs-section,
+.dark .hljs-title.class_,
+.dark .hljs-title.function_ {
+  color: hsl(213 92% 74%);
+}
+
+.dark .hljs-built_in,
+.dark .hljs-attr,
+.dark .hljs-selector-id,
+.dark .hljs-selector-class {
+  color: hsl(187 72% 66%);
+}
+
+/* Respect a reduced-motion preference: kill decorative animation, keep layout. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

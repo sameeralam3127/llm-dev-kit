@@ -41,7 +41,16 @@ troubleshooting guide.
 
    (Or run Ollama in Docker: `docker compose --profile ollama up` and set `OLLAMA_HOST=http://ollama:11434` in `.env` — CPU-only on macOS.)
 
-2. **Configure** — copy `sample.env` to `.env`. Everything works offline with the defaults; cloud keys are optional.
+2. **Configure** — copy `sample.env` to `.env`, then set `AUTH_SECRET`:
+
+   ```bash
+   cp sample.env .env
+   echo "AUTH_SECRET=$(openssl rand -base64 32)" >> .env
+   ```
+
+   `AUTH_SECRET` signs the web app's session cookies and has no default on
+   purpose — the stack refuses to start without it. Everything else works
+   offline with the defaults; cloud keys are optional.
 
 3. **Run the stack**:
 
@@ -49,17 +58,26 @@ troubleshooting guide.
    docker compose up --build
    ```
 
-4. Open **http://localhost:8080** — the chat UI loads instantly (no account, no frontend container to boot).
+4. Open **http://localhost:8080** — create an account, and you are in.
 
 ## Chat UI
 
-The frontend is a **React + Vite** app ([ui/](ui/)) built into the nginx image during `docker compose up --build` — ~50 kB gzipped, served as static files, no frontend container and no Node needed on the host.
+The frontend is a **Next.js** application ([web/](web/)) running as its own
+container, reverse-proxied by nginx at `/`. See [web/README.md](web/README.md)
+for its architecture and environment variables.
 
-- **Streaming responses** — tokens render as they arrive over `/api/rag/chat/stream` (NDJSON).
-- **Provider selector** — Local (Ollama), OpenAI, Gemini, or Anthropic. Cloud providers show an API-key field; the key is kept in your browser's localStorage and sent per-request (nothing stored server-side). Your model choice per provider is remembered.
-- **Resilient model picker** — the model list auto-retries while the backend is still starting, with a manual ↻ refresh button.
-- **Dark & light mode** — follows your OS preference, toggleable from the header, remembered across visits.
-- **Attach PDFs in the chat** — the 📎 paperclip in the message bar (or drag-and-drop anywhere) indexes the file into ChromaDB; every answer is then retrieval-augmented over your PDFs and synced GitHub docs, with source snippets shown under the reply.
+- **Accounts** — email/password sign-in (optional GitHub OAuth), so history is per-user rather than per-browser.
+- **Streaming responses** — tokens render as they arrive over SSE, with a stop button; a partial answer is persisted even if you stop it or the model host dies mid-sentence.
+- **Multiple sessions and folders** — persistent history, colour-coded folders, pinning, and search across titles and message bodies.
+- **Edit and regenerate** — editing a message rewinds the conversation to that turn and regenerates; replaced answers are archived and reachable through a `‹ 2/3 ›` control rather than lost.
+- **Markdown and syntax highlighting** — GitHub-flavoured Markdown, per-block code copy and soft-wrap toggle.
+- **Sharing** — publish any conversation as a read-only link, revocable at any time.
+- **Dark & light mode** — follows your OS preference, toggleable, remembered.
+
+> **Note:** the retrieval pipeline is unchanged — answers still come from
+> `rag-service`, grounded in your indexed PDFs and GitHub docs. PDF ingestion
+> is available through the `/api/rag/ingest/pdf` endpoint; the in-chat
+> paperclip upload from the old static UI has not been reimplemented yet.
 - **Cache badge** — repeated questions come back instantly from Redis and are marked ⚡ cached. Header shows live LLM/docs/cache status plus one-click cache clear.
 
 Cloud models in the picker come from curated lists in [litellm_provider.py](services/llm_service/providers/litellm_provider.py) (`DEFAULT_CLOUD_MODELS`) — edit them there to add or pin models.
@@ -154,8 +172,8 @@ docker compose restart nginx   # re-resolve upstream IPs
 ## Project Layout
 
 ```
-ui/                        React + Vite chat UI (built into the nginx image)
-nginx/nginx.conf           gateway: UI + /api/* + /v1 routing, LB across replicas
+web/                       Next.js chat app — auth, history, folders, sharing
+nginx/nginx.conf           gateway: web + /api/* + /v1 routing, LB across replicas
 services/
   llm_service/             model router — Ollama direct, cloud via LiteLLM
   rag_service/             RAG chat (+streaming), /v1 API, PDF ingest, Redis cache

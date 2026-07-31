@@ -8,9 +8,9 @@ repo's `rag-service`, so answers come back grounded in your indexed PDFs and
 GitHub docs — but the same build works against raw Ollama or a hosted API by
 changing one environment variable.
 
-> This is a separate, fuller application from the lightweight static `ui/`.
-> `ui/` stays the zero-dependency page served by nginx; `web/` is the one with
-> accounts, persistent history, folders and sharing.
+> This is the project's frontend. It replaced the earlier static `ui/`
+> (React + Vite) page, which was removed — nginx now reverse-proxies this app
+> at `/` instead of serving files from disk.
 
 ## Quick start
 
@@ -182,34 +182,25 @@ as a 500 in the middle of a stream.
 
 ## Running in the compose stack
 
-`docker-compose.web.yml` is an optional overlay, kept separate so the default
-`docker compose up` stays as light as it is today:
+The app is a core service in the root `docker-compose.yml` — no overlay needed:
 
 ```bash
+cp sample.env .env
 echo "AUTH_SECRET=$(openssl rand -base64 32)" >> .env
-docker compose -f docker-compose.yml -f web/docker-compose.web.yml up --build
+docker compose up --build
 ```
 
-The app comes up on `:3000`, reaches `rag-service:8020` directly inside the
-network, and keeps its SQLite file on the `web-data` volume so history survives
+It is reached through the nginx gateway on **http://localhost:8080**, not
+directly — the container publishes no host port of its own. Inside the network
+it talks to `rag-service:8020` directly rather than looping back out through
+nginx, and its SQLite file lives on the `web_data` volume so history survives
 container replacement.
 
-To put it behind the existing gateway instead of publishing port 3000, add an
-upstream and a location to `nginx/nginx.conf`:
-
-```nginx
-upstream web_app { server web:3000; }
-
-location / {
-    proxy_pass http://web_app;
-    proxy_set_header Upgrade $http_upgrade;
-    proxy_set_header Connection "upgrade";
-}
-```
-
-The existing `proxy_buffering off;` already covers streaming. Note that this
-`location /` replaces the block currently serving the static `ui/` page, so keep
-one or the other — or mount the new app under a prefix.
+nginx routes by longest-prefix match: `/v1/`, `/api/rag/`, `/api/llm/` and
+`/webhooks/` go to the Python services, and everything else — including this
+app's own `/api/auth`, `/api/chat`, `/api/chats`, `/api/folders` and
+`/api/models` — falls through to `location /`. The gateway's existing
+`proxy_buffering off` is what allows SSE tokens through in real time.
 
 ## Production notes
 

@@ -2,19 +2,10 @@
 # One slim base, one stage per microservice. Each stage installs only its own
 # requirements, so images stay small and rebuilds only touch the changed service.
 
-# ------------------------------------------------------ frontend (React + Vite)
-FROM node:20-alpine AS ui-build
-WORKDIR /ui
-COPY ui/package.json ui/package-lock.json* ./
-RUN npm install --no-audit --no-fund
-COPY ui/ .
-RUN npm run build
-
-
-# The gateway image: nginx + the built UI. nginx.conf is bind-mounted by
-# docker-compose so config changes don't need a rebuild.
+# The gateway image is now plain nginx: the frontend is the `web` service
+# (Next.js), which nginx reverse-proxies rather than serving from disk.
+# nginx.conf is bind-mounted by docker-compose so config changes need no rebuild.
 FROM nginx:1.27-alpine AS gateway
-COPY --from=ui-build /ui/dist /usr/share/nginx/html
 
 
 FROM python:3.12-slim AS base

@@ -79,21 +79,26 @@ browser.
 
 | Route | Target |
 | --- | --- |
-| `/` | React chat UI (static `dist/` baked into the image) |
+| `/` | web — Next.js chat app (reverse-proxied, not static) |
 | `/v1/*` | rag-service — OpenAI-compatible API |
 | `/api/rag/*` | rag-service REST (prefix stripped) |
 | `/api/llm/*` | llm-service REST (prefix stripped) |
 | `/webhooks/*` | webhook-service |
 
-### chat UI (React + Vite)
-A small React app (`ui/`, ~50 kB gzipped built output): streaming chat over
-`/api/rag/chat/stream`, in-chat PDF attachment (paperclip / drag-and-drop)
-posting to `/api/rag/ingest/pdf`, provider/model picker fed by
-`/api/llm/models` (auto-retries while the backend boots), per-provider API
-keys kept in browser localStorage and sent per-request, dark/light theme
-(OS-aware, user-toggleable), cache/index status badges, and source snippets
-under each answer. `npm run dev` gives hot reload with `/api` proxied to the
-dockerized gateway.
+### web (Next.js chat app)
+The frontend (`web/`), served as its own container behind nginx: accounts
+(Auth.js, JWT sessions), persistent per-user history in Prisma/SQLite, chat
+folders, message editing with conversation rewind, response regeneration with
+archived versions, Markdown with syntax highlighting, and revocable read-only
+share links.
+
+It reaches the model through `rag-service`'s OpenAI-compatible `/v1` endpoint
+behind a `ChatProvider` interface, so swapping the backend (raw Ollama, a
+hosted API) means writing one adapter rather than touching routes or UI.
+Streaming uses SSE; nginx's `proxy_buffering off` is what lets tokens through
+in real time. `npm run dev` in `web/` gives hot reload.
+
+See [web/README.md](web/README.md) for the full breakdown.
 
 ### llm-service (model router)
 The only service that talks to model backends. Providers:

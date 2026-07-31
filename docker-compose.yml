@@ -4,9 +4,9 @@ x-python-healthcheck: &python-healthcheck
   retries: 10
 
 services:
-  # ------------------------------------------------------- gateway + frontend
-  # nginx serves the React (Vite) chat UI, built into the image by the
-  # ui-build stage — no separate frontend container, no Node needed on host.
+  # ----------------------------------------------------------------- gateway
+  # The single published port. Routes /v1/, /api/rag/, /api/llm/ and
+  # /webhooks/ to the Python services and everything else to the web app.
   nginx:
     build:
       context: .
@@ -21,6 +21,33 @@ services:
       rag-service:
         condition: service_healthy
       webhook-service:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------- frontend
+  # Next.js chat app: accounts, persistent history, folders, sharing.
+  web:
+    build:
+      context: ./web
+    environment:
+      # Inside the network, reach rag-service directly rather than looping
+      # back out through nginx.
+      LLM_BASE_URL: http://rag-service:8020/v1
+      LLM_API_KEY: ${LLM_API_KEY:-sk-local}
+      DEFAULT_MODEL: ${DEFAULT_CHAT_MODEL:-llama3.1}
+      DATABASE_URL: file:/data/web.db
+      # No default on purpose — a shipped signing key would let anyone forge a
+      # session. Generate one: openssl rand -base64 32
+      AUTH_SECRET: "${AUTH_SECRET:?set AUTH_SECRET in .env - run openssl rand -base64 32}"
+      AUTH_URL: ${WEB_PUBLIC_URL:-http://localhost:8080}
+      AUTH_TRUST_HOST: "true"
+      ALLOW_REGISTRATION: ${ALLOW_REGISTRATION:-true}
+    volumes:
+      - web_data:/data
+    depends_on:
+      rag-service:
         condition: service_healthy
     restart: unless-stopped
 
@@ -219,6 +246,7 @@ volumes:
   chroma_data:
   qdrant_data:
   ollama_data:
+  web_data:
 
 networks:
   default:

@@ -63,13 +63,10 @@ htmlcov/
 *.bak
 .cache/
 
-# Frontend — covers both ui/ (React + Vite) and web/ (Next.js).
+# Frontend (web/ — Next.js).
 # The trailing slash matches the directory at any depth, so a single rule is
 # enough for every workspace; do not re-declare these in a nested .gitignore.
 node_modules/
-
-# ui/ build output
-ui/dist/
 
 # web/ build output and generated files
 .next/

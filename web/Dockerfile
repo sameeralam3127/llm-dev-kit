@@ -25,13 +25,19 @@ RUN apt-get update \
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Env is validated at startup, not at build time, but Next still needs these
-# present to prerender the few static pages.
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV DATABASE_URL="file:/tmp/build.db"
-ENV AUTH_SECRET="build-time-placeholder-value-0123456789"
 
-RUN npm run build && npm prune --omit=dev
+# Config is validated at startup, but `next build` still evaluates it while
+# prerendering the few static pages, so placeholders have to exist here.
+#
+# They are set inline on the RUN command rather than via ENV or ARG: that scopes
+# them to this single command, so they never land in image metadata and no
+# scanner can mistake them for real credentials. Compose injects the real values
+# at runtime.
+RUN DATABASE_URL="file:/tmp/build.db" \
+    AUTH_SECRET="build-placeholder-not-a-real-credential" \
+    npm run build \
+ && npm prune --omit=dev
 
 # --- runtime ----------------------------------------------------------------
 FROM node:20-slim AS runtime

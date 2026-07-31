@@ -1,7 +1,7 @@
 .git
 .pytest_cache
-ui/node_modules
-ui/dist
+web/node_modules
+web/.next
 __pycache__
 *.pyc
 .venv

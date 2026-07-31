@@ -19,7 +19,7 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-node_modules
+
 # Virtual Environment
 venv/
 env/
@@ -63,6 +63,20 @@ htmlcov/
 *.bak
 .cache/
 
-# Frontend (React + Vite)
-ui/node_modules/
+# Frontend — covers both ui/ (React + Vite) and web/ (Next.js).
+# The trailing slash matches the directory at any depth, so a single rule is
+# enough for every workspace; do not re-declare these in a nested .gitignore.
+node_modules/
+
+# ui/ build output
 ui/dist/
+
+# web/ build output and generated files
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+
+# web/ local SQLite database
+*.db
+*.db-journal

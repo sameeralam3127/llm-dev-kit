@@ -1,14 +1,28 @@
 # LLM Dev Kit
 
-A local-first **microservices** LLM workspace. Chat through a **built-in lightweight web UI** (a single static page — no heavyweight frontend image), answer with retrieval-augmented generation over your PDFs and GitHub docs, run **fully offline on Ollama**, and optionally route to **cloud LLMs (OpenAI, Gemini, Anthropic) via LiteLLM** by adding an API key. All traffic enters through an **Nginx load balancer**.
+A local-first **microservices** LLM workspace — and a **learning journey**.
+Chat through a full-featured **Next.js app** (accounts, persistent history,
+folders, sharing), answer with retrieval-augmented generation over your PDFs
+and GitHub docs, run **fully offline on Ollama**, and optionally route to
+**cloud LLMs (OpenAI, Gemini, Anthropic) via LiteLLM** by adding an API key.
+All traffic enters through an **Nginx load balancer**.
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for diagrams and request flows, and
-[docs/setup.md](docs/setup.md) for a full step-by-step setup and
-troubleshooting guide.
+The project grows in phases — each one a hot-pluggable module behind an
+interface, production-ready before the next begins — so you can fork it,
+make small changes, and have your own live AI chatbot while learning how
+each layer works. See **[docs/ROADMAP.md](docs/ROADMAP.md)** for the 11-phase
+plan, [ARCHITECTURE.md](ARCHITECTURE.md) for diagrams and request flows, and
+[docs/setup.md](docs/setup.md) for step-by-step setup.
+
+Working in **Claude Code**? The repo ships skills that encode its workflows:
+`/roadmap` plans your next learning increment, `/add-provider` connects a new
+LLM host, `/add-feature` lands features through the standard layering, and
+`/smoke-test` proves the chat path end-to-end. See
+[.claude/skills/README.md](.claude/skills/README.md).
 
 ## What You Get
 
-- **Custom chat UI** — a React + Vite app compiled to ~50 kB of static files served by nginx (replaces the 1.5 GB Open WebUI image): streaming responses, PDF upload, provider/model picker, per-provider API keys, cache and index stats
+- **Full chat application** — a Next.js app ([web/](web/)) with accounts, streaming responses, persistent per-user history, chat folders, edit/regenerate with version history, Markdown + syntax highlighting, and revocable share links
 - **Nginx** gateway/load balancer — single entrypoint on `:8080`, serves the UI and round-robins across `rag-service` replicas
 - **llm-service** — one API for all models: local Ollama by default; `openai/<model>`, `gemini/<model>` and `anthropic/<model>` routed through **LiteLLM** with true token streaming (key from env or per-request)
 - **rag-service** (2 replicas) — chat with hybrid retrieval (ChromaDB PDFs + Qdrant GitHub docs), streaming chat, PDF ingestion, Redis response cache, and an **OpenAI-compatible `/v1` API** (works with any OpenAI SDK — handy for LangChain later)

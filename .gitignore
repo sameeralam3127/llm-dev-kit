@@ -77,3 +77,7 @@ next-env.d.ts
 # web/ local SQLite database
 *.db
 *.db-journal
+
+# Claude Code — shared skills are committed; personal ones stay local
+.claude/skills/local/
+.claude/settings.local.json

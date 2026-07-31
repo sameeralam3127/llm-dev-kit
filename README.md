@@ -14,11 +14,6 @@ each layer works. See **[docs/ROADMAP.md](docs/ROADMAP.md)** for the 11-phase
 plan, [ARCHITECTURE.md](ARCHITECTURE.md) for diagrams and request flows, and
 [docs/setup.md](docs/setup.md) for step-by-step setup.
 
-Working in **Claude Code**? The repo ships skills that encode its workflows:
-`/roadmap` plans your next learning increment, `/add-provider` connects a new
-LLM host, `/add-feature` lands features through the standard layering, and
-`/smoke-test` proves the chat path end-to-end. See
-[.claude/skills/README.md](.claude/skills/README.md).
 
 ## What You Get
 

@@ -18,9 +18,10 @@ an interface, production-ready before the next begins.
 
 ## Skills
 
-`/roadmap` (plan the next learning increment), `/add-provider` (new LLM host),
-`/add-feature` (standard web/ layering), `/smoke-test` (end-to-end proof).
-Personal skills go in `.claude/skills/local/` (gitignored).
+Skills live in `.claude/skills/` which is **local-only (gitignored, never
+pushed)**: `/roadmap` (plan the next learning increment), `/add-provider`
+(new LLM host), `/add-feature` (standard web/ layering), `/smoke-test`
+(end-to-end proof).
 
 ## Working agreement
 

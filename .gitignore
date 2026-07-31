@@ -78,6 +78,5 @@ next-env.d.ts
 *.db
 *.db-journal
 
-# Claude Code — shared skills are committed; personal ones stay local
-.claude/skills/local/
-.claude/settings.local.json
+# Claude Code — the whole .claude/ directory stays local, never pushed
+.claude/

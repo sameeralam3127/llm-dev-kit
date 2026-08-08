@@ -18,7 +18,7 @@ plan, [ARCHITECTURE.md](ARCHITECTURE.md) for diagrams and request flows, and
 ## What You Get
 
 - **Full chat application** — a Next.js app ([web/](web/)) with accounts, streaming responses, persistent per-user history, chat folders, edit/regenerate with version history, Markdown + syntax highlighting, and revocable share links
-- **Nginx** gateway/load balancer — single entrypoint on `:8080`, serves the UI and round-robins across `rag-service` replicas
+- **Nginx** gateway/load balancer — single entrypoint on `:8080`, reverse-proxies the web app and round-robins across `rag-service` replicas
 - **llm-service** — one API for all models: local Ollama by default; `openai/<model>`, `gemini/<model>` and `anthropic/<model>` routed through **LiteLLM** with true token streaming (key from env or per-request)
 - **rag-service** (2 replicas) — chat with hybrid retrieval (ChromaDB PDFs + Qdrant GitHub docs), streaming chat, PDF ingestion, Redis response cache, and an **OpenAI-compatible `/v1` API** (works with any OpenAI SDK — handy for LangChain later)
 - **webhook-service** — GitHub push webhooks → Kafka events
@@ -30,7 +30,8 @@ plan, [ARCHITECTURE.md](ARCHITECTURE.md) for diagrams and request flows, and
 
 | Service | Port (internal) | Purpose |
 | --- | ---: | --- |
-| `nginx` | `8080` (published) | Gateway + load balancer + static chat UI, the only published app port |
+| `nginx` | `8080` (published) | Gateway + load balancer, the only published port |
+| `web` | 3000 | Next.js chat app — accounts, history, folders, sharing |
 | `llm-service` | 8010 | Model routing: Ollama (offline) + cloud via LiteLLM |
 | `rag-service` ×2 | 8020 | RAG chat (+streaming), `/v1` OpenAI-compatible API, PDF ingest, cache |
 | `webhook-service` | 8030 | GitHub webhook → Kafka |
@@ -69,6 +70,25 @@ plan, [ARCHITECTURE.md](ARCHITECTURE.md) for diagrams and request flows, and
 
 4. Open **http://localhost:8080** — create an account, and you are in.
 
+## Where the project is
+
+The build is phase-wise on purpose: each phase lands as a hot-pluggable module
+behind an interface and is production-ready before the next begins, so you can
+fork this, learn one concept at a time, and still have a working chatbot the
+whole way through.
+
+| | Phase | Seam it plugs into |
+| --- | --- | --- |
+| ✅ | **1 — Foundation** — the full chat app you get today | `ChatProvider` (`web/src/lib/llm/types.ts`) |
+| 🚧 | **2 — Multi-Model AI** — adapters for OpenAI, Anthropic, Gemini, Groq, LM Studio… | `ChatProvider` + a provider registry |
+| | 3 — Memory · 4 — RAG 2.0 · 5 — Agents · 6 — Coding assistant | see the roadmap |
+| | 7 — Workspace · 8 — Voice · 9 — Multimodal · 10 — Enterprise · 11 — Orchestration | see the roadmap |
+
+**Starting Phase 2** means writing one adapter against an interface that
+already exists — no rewiring of routes or UI. That is the whole point of the
+seam. Full detail, including each phase's seam, is in
+**[docs/ROADMAP.md](docs/ROADMAP.md)**.
+
 ## Chat UI
 
 The frontend is a **Next.js** application ([web/](web/)) running as its own
@@ -83,28 +103,33 @@ for its architecture and environment variables.
 - **Sharing** — publish any conversation as a read-only link, revocable at any time.
 - **Dark & light mode** — follows your OS preference, toggleable, remembered.
 
-> **Note:** the retrieval pipeline is unchanged — answers still come from
-> `rag-service`, grounded in your indexed PDFs and GitHub docs. PDF ingestion
-> is available through the `/api/rag/ingest/pdf` endpoint; the in-chat
-> paperclip upload from the old static UI has not been reimplemented yet.
-- **Cache badge** — repeated questions come back instantly from Redis and are marked ⚡ cached. Header shows live LLM/docs/cache status plus one-click cache clear.
+Answers still come from `rag-service`, grounded in your indexed PDFs and GitHub
+docs — the retrieval pipeline is unchanged. The model picker is fed by
+`rag-service`'s `/v1/models`, which lists local Ollama models plus whichever
+cloud models are configured (see [Cloud LLMs](#cloud-llms--bring-your-own-api-key)).
 
-Cloud models in the picker come from curated lists in [litellm_provider.py](services/llm_service/providers/litellm_provider.py) (`DEFAULT_CLOUD_MODELS`) — edit them there to add or pin models.
+**Not carried over from the old static UI** (tracked in
+[docs/ROADMAP.md](docs/ROADMAP.md)): in-chat PDF upload — ingestion still works
+via `POST /api/rag/ingest/pdf`; the ⚡ cache badge and one-click cache clear;
+and pasting a cloud API key from the browser, which is now a server-side
+setting instead.
 
-For UI development with hot reload (requires Node 20+):
+For frontend development with hot reload (requires Node 20+):
 
 ```bash
-cd ui
+cd web
 npm install
-npm run dev   # http://localhost:5173, proxies /api and /v1 to :8080
+cp .env.example .env          # set AUTH_SECRET, point LLM_BASE_URL at the stack
+npm run db:push && npm run db:seed
+npm run dev                   # http://localhost:3000
 ```
 
 ## Cloud LLMs — bring your own API key
 
 The stack is fully offline by default. Cloud calls go through **LiteLLM**, so adding more providers later is a one-line change. To enable cloud models, either:
 
-- **In `.env`** (server-wide): set `OPENAI_API_KEY`, `GEMINI_API_KEY` and/or `ANTHROPIC_API_KEY`. Models are addressed as `openai/gpt-4o`, `gemini/gemini-2.5-flash`, `anthropic/claude-sonnet-5`, etc.
-- **Per request / in the UI**: pick a cloud provider and paste your key — it is sent as `api_key` in the request body and never stored server-side.
+- **In `.env`** (server-wide): set `OPENAI_API_KEY`, `GEMINI_API_KEY` and/or `ANTHROPIC_API_KEY`. Models are addressed as `openai/gpt-4o`, `gemini/gemini-2.5-flash`, `anthropic/claude-sonnet-5`, etc. These then appear in the web app's model picker.
+- **Per request** (direct API calls): pass `api_key` in the request body to `/api/rag/chat`, or as a `Bearer` token to `/v1/chat/completions` — never stored server-side. Note this is an API-level feature; the web app itself has no per-user key field, so it uses the server-wide keys above.
 
 `OPENAI_BASE_URL` may point at any OpenAI-compatible endpoint (Groq, Together, vLLM, LM Studio, ...). Embeddings always stay local so your vector stores keep one consistent embedding space.
 
@@ -182,6 +207,10 @@ docker compose restart nginx   # re-resolve upstream IPs
 
 ```
 web/                       Next.js chat app — auth, history, folders, sharing
+  src/lib/llm/             ChatProvider seam — add a model host here (Phase 2)
+  src/server/services/     all DB mutation + ownership checks live here
+  src/app/api/             routes: parse → delegate → serialise, nothing more
+  README.md                web-specific architecture and env vars
 nginx/nginx.conf           gateway: web + /api/* + /v1 routing, LB across replicas
 services/
   llm_service/             model router — Ollama direct, cloud via LiteLLM
@@ -190,8 +219,16 @@ services/
   embedding_worker/        Kafka consumer → chunk/embed/index into Qdrant
   mcp_service/             MCP tool server
   devkit_common/           shared config, models, Kafka/Redis/Qdrant helpers
+docs/ROADMAP.md            the 11 phases and the seam each one plugs into
+docs/setup.md              step-by-step setup and troubleshooting
 tests/                     unit tests (no containers needed)
 ```
+
+The three boundaries worth knowing before you change anything: token generation
+goes through `ChatProvider`, database writes and ownership checks live only in
+`web/src/server/services/`, and route handlers parse, delegate and serialise —
+they never query the database directly. Keeping to those is what makes each
+roadmap phase a drop-in rather than a rewrite.
 
 ## Local Development (outside Docker)
 
@@ -209,13 +246,19 @@ Use `sample.env` as the starting point for `.env` (set `LLM_SERVICE_URL=http://l
 ## Testing
 
 ```bash
+# python services
 pip install -r requirements-dev.txt
 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest
+
+# web app — the gate before any change lands
+cd web && npm run typecheck && npm run lint && npm run build
 ```
 
 ## Troubleshooting
 
+- **`docker compose up` fails immediately with "required variable AUTH_SECRET is missing"** — expected: the web app's session key has no default. Run `echo "AUTH_SECRET=$(openssl rand -base64 32)" >> .env`.
 - **Nothing loads at `localhost:8080`** — run `docker compose ps`; if services show `Exited`, the stack stopped (Docker Desktop restart, host sleep, or a manual `down`/`stop`) and needs `docker compose up -d`.
+- **Signed in, but every message errors** — the web app reaches `rag-service` directly at `http://rag-service:8020/v1`. Check `docker compose logs -f web rag-service`; a `503` here means the RAG service is not healthy yet.
 - **"no local models found" in the model picker** — check Ollama is running (`ollama list`) and reachable from Docker; the connection URL is `http://host.docker.internal:11434` by default.
 - **Cloud model errors** — `401` means no/invalid API key: set it in `.env` or pass `api_key` per request.
 - **PDF retrieval returns nothing** — the PDF must contain selectable text, not scanned images.

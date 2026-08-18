@@ -38,7 +38,7 @@ interface PromptSuggestionsProps {
 export function PromptSuggestions({ onSelect, disabled }: PromptSuggestionsProps) {
   return (
     <div className="mx-auto flex h-full w-full max-w-3xl flex-col items-center justify-center px-6 py-12 text-center">
-      <div className="mb-4 flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+      <div className="mb-4 flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-violet-500 text-white shadow-sm">
         <Sparkles className="size-6" />
       </div>
 
@@ -58,9 +58,9 @@ export function PromptSuggestions({ onSelect, disabled }: PromptSuggestionsProps
               disabled={disabled}
               onClick={() => onSelect(prompt)}
               className={cn(
-                'group flex h-full w-full items-start gap-3 rounded-xl border border-border bg-card p-3.5 text-left transition-colors',
-                'hover:border-primary/40 hover:bg-accent focus-visible:border-primary/40',
-                'disabled:cursor-not-allowed disabled:opacity-50',
+                'group flex h-full w-full items-start gap-3 rounded-xl border border-border bg-card p-3.5 text-left transition-all',
+                'hover:-translate-y-0.5 hover:border-primary/40 hover:bg-accent hover:shadow-md focus-visible:border-primary/40',
+                'disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-none',
               )}
             >
               <Icon className="mt-0.5 size-4 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />

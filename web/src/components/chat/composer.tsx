@@ -74,7 +74,7 @@ export function Composer({
       >
         <div
           className={cn(
-            'flex items-end gap-2 rounded-2xl border border-input bg-background p-2 shadow-sm transition-colors',
+            'flex items-end gap-2 rounded-3xl border border-input bg-background p-2 shadow-md transition-colors',
             'focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/30',
             disabled && 'opacity-60',
           )}
@@ -102,7 +102,7 @@ export function Composer({
               size="icon"
               variant="secondary"
               onClick={onStop}
-              className="shrink-0 rounded-xl"
+              className="shrink-0 rounded-full"
             >
               <Square className="fill-current" />
               <span className="sr-only">Stop generating</span>
@@ -112,7 +112,7 @@ export function Composer({
               type="submit"
               size="icon"
               disabled={!canSend}
-              className="shrink-0 rounded-xl"
+              className="shrink-0 rounded-full"
             >
               <ArrowUp />
               <span className="sr-only">Send message</span>

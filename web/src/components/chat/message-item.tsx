@@ -96,32 +96,107 @@ export const MessageItem = React.memo(function MessageItem({
     )
   }
 
+  const actionRow = !readOnly && !isStreaming && (
+    <div
+      className={cn(
+        'mt-2 flex items-center gap-0.5 transition-opacity',
+        isUser && 'justify-end',
+        // Always visible on touch, where there is no hover to reveal it.
+        'opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100',
+      )}
+    >
+      {!isUser && (
+        <VersionSwitcher
+          index={versionIndex}
+          total={allVersions.length}
+          onChange={setVersionIndex}
+        />
+      )}
+
+      <ActionButton
+        label={copied ? 'Copied' : 'Copy message'}
+        onClick={() => void copy(displayed, 'Message copied')}
+      >
+        {copied ? <Check className="text-emerald-500" /> : <Copy />}
+      </ActionButton>
+
+      <ActionButton label="Copy link to this message" onClick={copyLink}>
+        <Link2 />
+      </ActionButton>
+
+      {isUser && onEdit && (
+        <ActionButton
+          label="Edit message"
+          disabled={isBusy}
+          onClick={() => setIsEditing(true)}
+        >
+          <Pencil />
+        </ActionButton>
+      )}
+
+      {!isUser && onRegenerate && (
+        <ActionButton
+          label="Regenerate response"
+          disabled={isBusy}
+          onClick={() => onRegenerate(message.id)}
+        >
+          <RefreshCw />
+        </ActionButton>
+      )}
+
+      {!isUser && onDelete && message.error && (
+        <ActionButton
+          label="Remove this response"
+          disabled={isBusy}
+          onClick={() => onDelete(message.id)}
+        >
+          <Trash2 />
+        </ActionButton>
+      )}
+    </div>
+  )
+
+  if (isUser) {
+    return (
+      <article
+        id={`message-${message.id}`}
+        className="group flex w-full items-start justify-end gap-3 px-4 py-3 sm:px-6"
+        aria-label="Your message"
+      >
+        <div className="flex min-w-0 max-w-[85%] flex-col items-end sm:max-w-[70%]">
+          <div className="rounded-2xl bg-primary px-4 py-2.5 text-[0.9375rem] leading-7 text-primary-foreground">
+            <div className="whitespace-pre-wrap break-words">{displayed}</div>
+          </div>
+
+          {message.editedAt && (
+            <Badge variant="secondary" className="mt-1 font-normal">
+              edited
+            </Badge>
+          )}
+
+          {actionRow}
+        </div>
+
+        <MessageAvatar isUser user={user} />
+      </article>
+    )
+  }
+
   return (
     <article
       id={`message-${message.id}`}
       // `group` drives the hover-reveal of the action row on pointer devices;
       // focus-within keeps it reachable by keyboard.
-      className={cn(
-        'group flex w-full gap-3 px-4 py-5 sm:px-6',
-        isUser ? 'bg-transparent' : 'bg-muted/30',
-      )}
-      aria-label={isUser ? 'Your message' : 'Assistant response'}
+      className="group flex w-full gap-3 px-4 py-5 sm:px-6"
+      aria-label="Assistant response"
     >
-      <MessageAvatar isUser={isUser} user={user} />
+      <MessageAvatar isUser={false} user={user} />
 
       <div className="min-w-0 flex-1">
         <header className="mb-1 flex items-center gap-2">
-          <h3 className="text-sm font-semibold">
-            {isUser ? (user?.name ?? 'You') : 'Assistant'}
-          </h3>
+          <h3 className="text-sm font-semibold">Assistant</h3>
 
-          {message.editedAt && (
-            <Badge variant="secondary" className="font-normal">
-              edited
-            </Badge>
-          )}
-
-          {!isUser && message.model && (
+          {message.model && (
             <span className="truncate font-mono text-xs text-muted-foreground">
               {message.model}
             </span>
@@ -134,100 +209,35 @@ export const MessageItem = React.memo(function MessageItem({
           )}
         </header>
 
-        {isUser ? (
-          <div className="whitespace-pre-wrap break-words text-[0.9375rem] leading-7">
-            {displayed}
-          </div>
+        {displayed ? (
+          <Markdown
+            content={displayed}
+            className={cn(isStreaming && 'streaming-caret')}
+          />
         ) : (
-          <>
-            {displayed ? (
-              <Markdown
-                content={displayed}
-                className={cn(isStreaming && 'streaming-caret')}
-              />
-            ) : (
-              isStreaming && <ThinkingIndicator />
-            )}
-
-            {message.error && (
-              <div
-                role="alert"
-                className="mt-3 flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
-              >
-                <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-                <div className="min-w-0">
-                  <p className="font-medium">Generation failed</p>
-                  <p className="break-words opacity-90">{message.error}</p>
-                </div>
-              </div>
-            )}
-
-            {message.truncated && !message.error && displayed && (
-              <p className="mt-2 text-xs text-muted-foreground">
-                Response stopped early.
-              </p>
-            )}
-          </>
+          isStreaming && <ThinkingIndicator />
         )}
 
-        {!readOnly && !isStreaming && (
+        {message.error && (
           <div
-            className={cn(
-              'mt-2 flex items-center gap-0.5 transition-opacity',
-              // Always visible on touch, where there is no hover to reveal it.
-              'opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100',
-            )}
+            role="alert"
+            className="mt-3 flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
           >
-            {!isUser && (
-              <VersionSwitcher
-                index={versionIndex}
-                total={allVersions.length}
-                onChange={setVersionIndex}
-              />
-            )}
-
-            <ActionButton
-              label={copied ? 'Copied' : 'Copy message'}
-              onClick={() => void copy(displayed, 'Message copied')}
-            >
-              {copied ? <Check className="text-emerald-500" /> : <Copy />}
-            </ActionButton>
-
-            <ActionButton label="Copy link to this message" onClick={copyLink}>
-              <Link2 />
-            </ActionButton>
-
-            {isUser && onEdit && (
-              <ActionButton
-                label="Edit message"
-                disabled={isBusy}
-                onClick={() => setIsEditing(true)}
-              >
-                <Pencil />
-              </ActionButton>
-            )}
-
-            {!isUser && onRegenerate && (
-              <ActionButton
-                label="Regenerate response"
-                disabled={isBusy}
-                onClick={() => onRegenerate(message.id)}
-              >
-                <RefreshCw />
-              </ActionButton>
-            )}
-
-            {!isUser && onDelete && message.error && (
-              <ActionButton
-                label="Remove this response"
-                disabled={isBusy}
-                onClick={() => onDelete(message.id)}
-              >
-                <Trash2 />
-              </ActionButton>
-            )}
+            <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+            <div className="min-w-0">
+              <p className="font-medium">Generation failed</p>
+              <p className="break-words opacity-90">{message.error}</p>
+            </div>
           </div>
         )}
+
+        {message.truncated && !message.error && displayed && (
+          <p className="mt-2 text-xs text-muted-foreground">
+            Response stopped early.
+          </p>
+        )}
+
+        {actionRow}
       </div>
     </article>
   )
@@ -244,7 +254,7 @@ function MessageAvatar({
     return (
       <div
         aria-hidden="true"
-        className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary"
+        className="flex size-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary to-violet-500 text-white shadow-sm"
       >
         <Sparkles className="size-4" />
       </div>

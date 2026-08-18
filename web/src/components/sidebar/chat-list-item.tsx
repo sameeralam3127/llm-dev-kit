@@ -122,7 +122,7 @@ export function ChatListItem({
         className={cn(
           'flex items-center gap-2 rounded-md py-2 pl-2 pr-8 text-sm transition-colors',
           isActive
-            ? 'bg-sidebar-accent font-medium text-foreground'
+            ? 'bg-primary/10 font-medium text-primary'
             : 'text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground',
         )}
       >

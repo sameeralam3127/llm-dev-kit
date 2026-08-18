@@ -20,4 +20,12 @@ dev = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["services", "."]
+pythonpath = [
+    "services/devkit_common/src",
+    "services/llm_service/src",
+    "services/rag_service/src",
+    "services/webhook_service/src",
+    "services/embedding_worker/src",
+    "services/mcp_service/src",
+    ".",
+]

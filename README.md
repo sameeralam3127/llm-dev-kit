@@ -51,10 +51,10 @@ plan, [ARCHITECTURE.md](ARCHITECTURE.md) for diagrams and request flows, and
 
    (Or run Ollama in Docker: `docker compose --profile ollama up` and set `OLLAMA_HOST=http://ollama:11434` in `.env` — CPU-only on macOS.)
 
-2. **Configure** — copy `sample.env` to `.env`, then set `AUTH_SECRET`:
+2. **Configure** — copy `.env.example` to `.env`, then set `AUTH_SECRET`:
 
    ```bash
-   cp sample.env .env
+   cp .env.example .env
    echo "AUTH_SECRET=$(openssl rand -base64 32)" >> .env
    ```
 
@@ -212,7 +212,7 @@ web/                       Next.js chat app — auth, history, folders, sharing
   src/app/api/             routes: parse → delegate → serialise, nothing more
   README.md                web-specific architecture and env vars
 nginx/nginx.conf           gateway: web + /api/* + /v1 routing, LB across replicas
-services/
+services/                 each service is an installable package: src/<name>/ + pyproject.toml + requirements.txt
   llm_service/             model router — Ollama direct, cloud via LiteLLM
   rag_service/             RAG chat (+streaming), /v1 API, PDF ingest, Redis cache
   webhook_service/         GitHub push webhooks → Kafka
@@ -234,14 +234,13 @@ roadmap phase a drop-in rather than a rewrite.
 
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements-dev.txt -r services/llm_service/requirements.txt \
-  -r services/rag_service/requirements.txt
-export PYTHONPATH=services
+pip install -r requirements-dev.txt
+pip install -e services/devkit_common -e services/llm_service -e services/rag_service
 uvicorn llm_service.main:app --reload --port 8010
 uvicorn rag_service.main:app --reload --port 8020
 ```
 
-Use `sample.env` as the starting point for `.env` (set `LLM_SERVICE_URL=http://localhost:8010`).
+Use `.env.example` as the starting point for `.env` (set `LLM_SERVICE_URL=http://localhost:8010`).
 
 ## Testing
 

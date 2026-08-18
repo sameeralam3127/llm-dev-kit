@@ -29,7 +29,7 @@ embedding space.
 ## 2. Configure environment
 
 ```bash
-cp sample.env .env
+cp .env.example .env
 ```
 
 Everything works fully offline with the defaults. The sections in `.env` map
@@ -143,14 +143,13 @@ them. If `localhost:8080` stops responding, that's the first thing to check
 
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements-dev.txt -r services/llm_service/requirements.txt \
-  -r services/rag_service/requirements.txt
-export PYTHONPATH=services
+pip install -r requirements-dev.txt
+pip install -e services/devkit_common -e services/llm_service -e services/rag_service
 uvicorn llm_service.main:app --reload --port 8010
 uvicorn rag_service.main:app --reload --port 8020
 ```
 
-Use `sample.env` as a starting point and set `LLM_SERVICE_URL=http://localhost:8010`.
+Use `.env.example` as a starting point and set `LLM_SERVICE_URL=http://localhost:8010`.
 
 ## Running tests
 

@@ -1,0 +1,16 @@
+[project]
+name = "embedding-worker"
+version = "0.1.0"
+description = "Kafka consumer that chunks, embeds, and indexes GitHub markdown into Qdrant."
+requires-python = ">=3.12"
+dynamic = ["dependencies"]
+
+[tool.setuptools.dynamic]
+dependencies = { file = ["requirements.txt"] }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"

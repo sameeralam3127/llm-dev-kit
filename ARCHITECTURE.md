@@ -69,13 +69,12 @@ flowchart TB
 
 ## Services
 
-### nginx (gateway / load balancer / frontend)
-Single entrypoint. Serves the built React chat UI as static files (compiled
-by the `ui-build` Docker stage into the gateway image — no frontend
-container), routes APIs by path, and round-robins across all `rag-service`
-replicas (Docker DNS returns one address per replica; nginx resolves them at
-startup). SSE/NDJSON buffering is disabled so token streaming reaches the
-browser.
+### nginx (gateway / load balancer)
+Single entrypoint. Reverse-proxies the Next.js chat app (`web`), routes APIs
+by path, and round-robins across all `rag-service` replicas (Docker DNS
+returns one address per replica; nginx resolves them via static `upstream {}`
+blocks at startup — see below). SSE/NDJSON buffering is disabled so token
+streaming reaches the browser.
 
 | Route | Target |
 | --- | --- |
@@ -84,6 +83,27 @@ browser.
 | `/api/rag/*` | rag-service REST (prefix stripped) |
 | `/api/llm/*` | llm-service REST (prefix stripped) |
 | `/webhooks/*` | webhook-service |
+
+**Startup and the "starting up" fallback page.** Because nginx uses static
+`upstream {}` blocks (needed for the DNS-at-startup replica round-robin
+above), it can only start once its upstream *containers exist* — a hostname
+that doesn't resolve yet is a hard `nginx -t` failure, not a retryable error.
+`docker-compose.yml` reflects exactly that requirement: nginx's `depends_on`
+uses `condition: service_started` (container exists) rather than
+`service_healthy` (app inside is actually ready) for `web`, `llm-service`,
+`rag-service` and `webhook-service`. That's deliberately weaker than it looks
+— it's what lets `:8080` become reachable within seconds of `docker compose
+up` instead of only after the full backend chain (Kafka, Redis, embedding
+warm-up, etc.) reports healthy.
+
+In the gap between "nginx is up" and "the app behind it is actually ready,"
+`location /` in `nginx.conf` intercepts 502/503/504 from the `web` upstream
+(`proxy_intercept_errors on; error_page 502 503 504 =200 /_starting.html;`)
+and serves a small static page (`nginx/starting.html`, baked into the gateway
+image) with a meta-refresh instead of a raw gateway error. This is scoped to
+the frontend route only — `/v1/`, `/api/*` and `/webhooks/` are left alone so
+API clients keep seeing real error codes during startup rather than a
+surprise 200 with an HTML body.
 
 ### web (Next.js chat app)
 The frontend (`web/`), served as its own container behind nginx: accounts

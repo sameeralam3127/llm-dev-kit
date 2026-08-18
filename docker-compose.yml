@@ -15,15 +15,20 @@ services:
       - "8080:80"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    # service_started, not service_healthy: nginx's static upstream blocks
+    # only need the container to exist (so its hostname resolves) — not to be
+    # fully healthy. This is what lets :8080 come up within seconds instead of
+    # waiting for the whole backend chain, showing the "starting up" fallback
+    # page (see nginx.conf) until each upstream actually starts responding.
     depends_on:
       llm-service:
-        condition: service_healthy
+        condition: service_started
       rag-service:
-        condition: service_healthy
+        condition: service_started
       webhook-service:
-        condition: service_healthy
+        condition: service_started
       web:
-        condition: service_healthy
+        condition: service_started
     restart: unless-stopped
 
   # ---------------------------------------------------------------- frontend
@@ -46,9 +51,12 @@ services:
       ALLOW_REGISTRATION: ${ALLOW_REGISTRATION:-true}
     volumes:
       - web_data:/data
+    # Ordering only, not a hard gate: the Next.js server itself never calls
+    # rag-service at boot (only when a user actually chats), so it doesn't
+    # need rag-service healthy to start and become reachable behind nginx.
     depends_on:
       rag-service:
-        condition: service_healthy
+        condition: service_started
     restart: unless-stopped
 
   # ----------------------------------------------------------- microservices
@@ -67,8 +75,8 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       ANTHROPIC_BASE_URL: ${ANTHROPIC_BASE_URL:-https://api.anthropic.com}
     volumes:
-      - ./services/devkit_common:/app/devkit_common
-      - ./services/llm_service:/app/llm_service
+      - ./services/devkit_common/src/devkit_common:/app/devkit_common
+      - ./services/llm_service/src/llm_service:/app/llm_service
     extra_hosts:
       - "host.docker.internal:host-gateway"
     healthcheck:
@@ -93,8 +101,8 @@ services:
       RETRIEVER_SCORE_THRESHOLD: ${RETRIEVER_SCORE_THRESHOLD:-0.72}
       CACHE_TTL: ${CACHE_TTL:-3600}
     volumes:
-      - ./services/devkit_common:/app/devkit_common
-      - ./services/rag_service:/app/rag_service
+      - ./services/devkit_common/src/devkit_common:/app/devkit_common
+      - ./services/rag_service/src/rag_service:/app/rag_service
     depends_on:
       llm-service:
         condition: service_healthy
@@ -118,8 +126,8 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       GITHUB_WEBHOOK_SECRET: ${GITHUB_WEBHOOK_SECRET:-}
     volumes:
-      - ./services/devkit_common:/app/devkit_common
-      - ./services/webhook_service:/app/webhook_service
+      - ./services/devkit_common/src/devkit_common:/app/devkit_common
+      - ./services/webhook_service/src/webhook_service:/app/webhook_service
     depends_on:
       kafka:
         condition: service_healthy
@@ -143,8 +151,8 @@ services:
       GITHUB_DEFAULT_BRANCH: ${GITHUB_DEFAULT_BRANCH:-main}
       GITHUB_CACHE_TTL: ${GITHUB_CACHE_TTL:-600}
     volumes:
-      - ./services/devkit_common:/app/devkit_common
-      - ./services/embedding_worker:/app/embedding_worker
+      - ./services/devkit_common/src/devkit_common:/app/devkit_common
+      - ./services/embedding_worker/src/embedding_worker:/app/embedding_worker
     depends_on:
       llm-service:
         condition: service_healthy
@@ -164,8 +172,8 @@ services:
       LLM_SERVICE_URL: http://llm-service:8010
       RAG_SERVICE_URL: http://rag-service:8020
     volumes:
-      - ./services/devkit_common:/app/devkit_common
-      - ./services/mcp_service:/app/mcp_service
+      - ./services/devkit_common/src/devkit_common:/app/devkit_common
+      - ./services/mcp_service/src/mcp_service:/app/mcp_service
     depends_on:
       rag-service:
         condition: service_healthy

@@ -185,7 +185,7 @@ as a 500 in the middle of a stream.
 The app is a core service in the root `docker-compose.yml` — no overlay needed:
 
 ```bash
-cp sample.env .env
+cp .env.example .env
 echo "AUTH_SECRET=$(openssl rand -base64 32)" >> .env
 docker compose up --build
 ```

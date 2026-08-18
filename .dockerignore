@@ -13,7 +13,9 @@ ARCHITECTURE.md
 docs
 tests
 data
-nginx
+# nginx.conf itself is bind-mounted at runtime, not baked in — only the
+# static "starting up" fallback page needs to reach the build context.
+nginx/nginx.conf
 docker-compose.yml
 Dockerfile
 mcp.json

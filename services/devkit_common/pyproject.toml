@@ -1,7 +1,7 @@
 [project]
 name = "devkit-common"
 version = "0.1.0"
-description = "Shared config, models, and Kafka/Redis/Qdrant helpers used across llm-dev-kit services."
+description = "Shared config and models used across llm-dev-kit services."
 requires-python = ">=3.12"
 dependencies = [
     "pydantic-settings",

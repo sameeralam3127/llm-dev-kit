@@ -1,26 +1,28 @@
 # syntax=docker/dockerfile:1
 
-# --- deps -------------------------------------------------------------------
-FROM node:20-slim AS deps
+# --- base ---------------------------------------------------------------
+# openssl is required by Prisma's query engine. Shared by every stage below
+# so the apt install (and its network fetch of the package index) happens
+# once per build instead of three times.
+FROM node:20-slim AS base
 WORKDIR /app
 
-# openssl is required by Prisma's query engine.
-RUN apt-get update \
- && apt-get install -y --no-install-recommends openssl ca-certificates \
- && rm -rf /var/lib/apt/lists/*
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+    apt-get update \
+ && apt-get install -y --no-install-recommends openssl ca-certificates
+
+# --- deps -----------------------------------------------------------------
+FROM base AS deps
 
 COPY package.json package-lock.json ./
 COPY prisma ./prisma
 # `npm ci` runs the postinstall (prisma generate), which needs the schema above.
-RUN npm ci
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci
 
 # --- build ------------------------------------------------------------------
-FROM node:20-slim AS build
-WORKDIR /app
-
-RUN apt-get update \
- && apt-get install -y --no-install-recommends openssl ca-certificates \
- && rm -rf /var/lib/apt/lists/*
+FROM base AS build
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -40,13 +42,9 @@ RUN DATABASE_URL="file:/tmp/build.db" \
  && npm prune --omit=dev
 
 # --- runtime ----------------------------------------------------------------
-FROM node:20-slim AS runtime
-WORKDIR /app
+FROM base AS runtime
 
-RUN apt-get update \
- && apt-get install -y --no-install-recommends openssl ca-certificates \
- && rm -rf /var/lib/apt/lists/* \
- && useradd --system --uid 1001 --create-home nextjs
+RUN useradd --system --uid 1001 --create-home nextjs
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1

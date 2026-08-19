@@ -1,6 +1,6 @@
 'use client'
 
-import { FolderPlus, PenSquare, Search, X } from 'lucide-react'
+import { FolderPlus, PenSquare, Search, Sparkles, X } from 'lucide-react'
 import { useParams } from 'next/navigation'
 import * as React from 'react'
 
@@ -85,6 +85,15 @@ export function Sidebar({ user, onNavigate }: SidebarProps) {
 
   return (
     <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
+      <div className="flex items-center gap-2 px-4 pb-1 pt-4">
+        <div className="flex size-6 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-primary to-violet-500 text-white">
+          <Sparkles className="size-3.5" />
+        </div>
+        <span className="truncate text-sm font-semibold tracking-tight">
+          LLM Dev Kit
+        </span>
+      </div>
+
       <div className="flex flex-col gap-2 p-3">
         <div className="flex items-center gap-1.5">
           <Button

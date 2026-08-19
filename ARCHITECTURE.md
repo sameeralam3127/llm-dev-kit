@@ -3,7 +3,7 @@
 The LLM Dev Kit is a set of small, independently built and deployed services
 behind an Nginx gateway. The only published application port is the gateway
 (`:8080`). Every service has its own Docker image stage, its own dependency
-set, and communicates over HTTP or Kafka — no shared in-process imports across
+set, and communicates over HTTP — no shared in-process imports across
 service boundaries (only the thin `devkit_common` library is shared at build
 time).
 
@@ -13,7 +13,6 @@ time).
 flowchart TB
     subgraph Client
         B[Browser]
-        GH[GitHub Push]
         SDK[Any OpenAI SDK / curl]
         MCPC[MCP Client]
     end
@@ -26,16 +25,12 @@ flowchart TB
         R1[rag-service replica 1 :8020]
         R2[rag-service replica 2 :8020]
         L[llm-service :8010]
-        W[webhook-service :8030]
-        EW[embedding-worker]
         MCP[mcp-service stdio]
     end
 
     subgraph Infrastructure
         RD[(Redis<br/>response cache)]
         CH[(ChromaDB<br/>PDF vectors)]
-        QD[(Qdrant<br/>GitHub doc vectors)]
-        K[[Kafka<br/>docs.changed / indexed / failed]]
     end
 
     subgraph Models
@@ -45,21 +40,13 @@ flowchart TB
 
     B -->|/ static chat UI| N
     SDK --> N
-    GH -->|/webhooks/github| N
     N -->|/v1 and /api/rag round-robin| R1
     N --> R2
     N -->|/api/llm| L
-    N --> W
     R1 --> RD
     R1 --> CH
-    R1 --> QD
     R1 --> L
     R2 --> L
-    W --> K
-    K --> EW
-    EW --> L
-    EW --> QD
-    EW --> RD
     MCPC --> MCP
     MCP --> R1
     MCP --> L
@@ -82,7 +69,6 @@ streaming reaches the browser.
 | `/v1/*` | rag-service — OpenAI-compatible API |
 | `/api/rag/*` | rag-service REST (prefix stripped) |
 | `/api/llm/*` | llm-service REST (prefix stripped) |
-| `/webhooks/*` | webhook-service |
 
 **Startup and the "starting up" fallback page.** Because nginx uses static
 `upstream {}` blocks (needed for the DNS-at-startup replica round-robin
@@ -90,20 +76,19 @@ above), it can only start once its upstream *containers exist* — a hostname
 that doesn't resolve yet is a hard `nginx -t` failure, not a retryable error.
 `docker-compose.yml` reflects exactly that requirement: nginx's `depends_on`
 uses `condition: service_started` (container exists) rather than
-`service_healthy` (app inside is actually ready) for `web`, `llm-service`,
-`rag-service` and `webhook-service`. That's deliberately weaker than it looks
-— it's what lets `:8080` become reachable within seconds of `docker compose
-up` instead of only after the full backend chain (Kafka, Redis, embedding
-warm-up, etc.) reports healthy.
+`service_healthy` (app inside is actually ready) for `web`, `llm-service` and
+`rag-service`. That's deliberately weaker than it looks — it's what lets
+`:8080` become reachable within seconds of `docker compose up` instead of
+only after the full backend chain reports healthy.
 
 In the gap between "nginx is up" and "the app behind it is actually ready,"
 `location /` in `nginx.conf` intercepts 502/503/504 from the `web` upstream
 (`proxy_intercept_errors on; error_page 502 503 504 =200 /_starting.html;`)
 and serves a small static page (`nginx/starting.html`, baked into the gateway
 image) with a meta-refresh instead of a raw gateway error. This is scoped to
-the frontend route only — `/v1/`, `/api/*` and `/webhooks/` are left alone so
-API clients keep seeing real error codes during startup rather than a
-surprise 200 with an HTML body.
+the frontend route only — `/v1/` and `/api/*` are left alone so API clients
+keep seeing real error codes during startup rather than a surprise 200 with
+an HTML body.
 
 ### web (Next.js chat app)
 The frontend (`web/`), served as its own container behind nginx: accounts
@@ -141,29 +126,13 @@ Endpoints: `/health`, `/providers`, `/models`, `/generate`,
 
 ### rag-service (×2 replicas)
 Chat orchestration: Redis cache check → embed query (via llm-service) →
-retrieve context from **ChromaDB** (uploaded PDFs) and **Qdrant** (GitHub
-docs, score-thresholded) → build prompt → generate via llm-service → cache
-successful responses (keys namespaced `chat:*`, so clearing chat cache never
-touches worker state).
+retrieve context from **ChromaDB** (uploaded PDFs) → build prompt → generate
+via llm-service → cache successful responses (keys namespaced `chat:*`, so
+clearing chat cache never touches other state).
 
 Also serves `/chat/stream` (NDJSON token streaming for the chat UI), the
 OpenAI-compatible `/v1/models` and `/v1/chat/completions` (streaming SSE and
 non-streaming), `/ingest/pdf`, `/cache/*`, `/documents/*`.
-
-### webhook-service
-Verifies the GitHub `X-Hub-Signature-256` (HMAC) when a secret is configured,
-extracts changed `.md`/`.mdx` files from push payloads, and publishes one
-`docs.changed` event per file to Kafka **keyed by file path** so per-file
-ordering is preserved across partitions. The Kafka producer is created once
-at startup and closed on shutdown.
-
-### embedding-worker
-Kafka consumer (`embedding-workers` group, manual commits). Per event:
-dedup-check in Redis → download markdown from GitHub (Redis-cached per
-commit) → chunk → embed via llm-service → **delete the file's previous
-vectors** → upsert into Qdrant → publish `docs.indexed`. Failures publish
-`docs.failed` and the worker moves on — a poison message can never crash-loop
-the consumer. Removed files delete their vectors.
 
 ### mcp-service
 MCP tools (`list_models`, `ask_llm_dev_kit`) that call llm-service and
@@ -177,7 +146,7 @@ sequenceDiagram
     participant N as Nginx
     participant R as rag-service (replica)
     participant L as llm-service
-    participant V as Chroma + Qdrant
+    participant V as Chroma
     participant M as Ollama / LiteLLM cloud
 
     U->>N: POST /api/rag/chat/stream
@@ -185,33 +154,11 @@ sequenceDiagram
     R->>R: Redis cache check (hit → stream cached answer)
     R->>L: POST /embed (query)
     L->>M: local embedding model
-    R->>V: vector search (PDFs + GitHub docs)
+    R->>V: vector search (uploaded PDFs)
     R->>L: POST /generate/stream (prompt + context)
     L->>M: Ollama or LiteLLM token stream
     L-->>R: NDJSON deltas
     R-->>U: NDJSON (meta + deltas + done), full answer cached
-```
-
-## GitHub Doc Sync Flow
-
-```mermaid
-sequenceDiagram
-    participant GH as GitHub
-    participant N as Nginx
-    participant W as webhook-service
-    participant K as Kafka
-    participant E as embedding-worker
-    participant L as llm-service
-    participant Q as Qdrant
-
-    GH->>N: POST /webhooks/github (push)
-    N->>W: verify HMAC signature
-    W->>K: docs.changed (key = file path)
-    K->>E: consume (manual commit)
-    E->>GH: download raw markdown
-    E->>L: POST /embed (chunks)
-    E->>Q: delete old vectors, upsert new
-    E->>K: docs.indexed | docs.failed
 ```
 
 ## Docker Build Strategy
@@ -221,12 +168,24 @@ base:
 
 - each stage installs **only that service's** `requirements.txt` (rag-service
   uses the thin `chromadb-client` instead of the full chromadb package);
+- `pip install` and the base stage's `apt-get` both use BuildKit cache mounts
+  (`--mount=type=cache`), so a `requirements.txt` change re-downloads nothing
+  that's already been fetched — only the packages that actually changed. The
+  `web/` Next.js image does the same for `npm ci`, and its three stages
+  (`base`/`deps`/`build`/`runtime`) share one `apt-get install` instead of
+  repeating it per stage;
 - containers run as a non-root `appuser`;
 - healthchecks use the Python stdlib (no curl in the images);
 - in dev, `docker-compose.yml` bind-mounts the service source and runs
   uvicorn `--reload` for hot reload;
 - `deploy.replicas: 2` on rag-service demonstrates horizontal scaling behind
-  the load balancer (`docker compose up -d --scale rag-service=N`).
+  the load balancer (`docker compose up -d --scale rag-service=N`);
+- every service in `docker-compose.yml` carries `deploy.resources`
+  (reservations + limits on cpus/memory), sized to the service's actual load
+  (chroma and rag-service get the most headroom; nginx/mcp the least) —
+  Compose v2 enforces these even outside Swarm mode. nginx, llm-service and
+  rag-service also raise their open-file ulimit (`nofile: 65536`), the
+  default (1024) being the first thing to bite under concurrent connections.
 
 ## Offline / Cloud Model Matrix
 

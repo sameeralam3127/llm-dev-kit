@@ -2,10 +2,10 @@
 
 A local-first **microservices** LLM workspace — and a **learning journey**.
 Chat through a full-featured **Next.js app** (accounts, persistent history,
-folders, sharing), answer with retrieval-augmented generation over your PDFs
-and GitHub docs, run **fully offline on Ollama**, and optionally route to
-**cloud LLMs (OpenAI, Gemini, Anthropic) via LiteLLM** by adding an API key.
-All traffic enters through an **Nginx load balancer**.
+folders, sharing), answer with retrieval-augmented generation over your PDFs,
+run **fully offline on Ollama**, and optionally route to **cloud LLMs
+(OpenAI, Gemini, Anthropic) via LiteLLM** by adding an API key. All traffic
+enters through an **Nginx load balancer**.
 
 The project grows in phases — each one a hot-pluggable module behind an
 interface, production-ready before the next begins — so you can fork it,
@@ -20,9 +20,7 @@ plan, [ARCHITECTURE.md](ARCHITECTURE.md) for diagrams and request flows, and
 - **Full chat application** — a Next.js app ([web/](web/)) with accounts, streaming responses, persistent per-user history, chat folders, edit/regenerate with version history, Markdown + syntax highlighting, and revocable share links
 - **Nginx** gateway/load balancer — single entrypoint on `:8080`, reverse-proxies the web app and round-robins across `rag-service` replicas
 - **llm-service** — one API for all models: local Ollama by default; `openai/<model>`, `gemini/<model>` and `anthropic/<model>` routed through **LiteLLM** with true token streaming (key from env or per-request)
-- **rag-service** (2 replicas) — chat with hybrid retrieval (ChromaDB PDFs + Qdrant GitHub docs), streaming chat, PDF ingestion, Redis response cache, and an **OpenAI-compatible `/v1` API** (works with any OpenAI SDK — handy for LangChain later)
-- **webhook-service** — GitHub push webhooks → Kafka events
-- **embedding-worker** — Kafka consumer that chunks, embeds, and indexes GitHub markdown into Qdrant
+- **rag-service** (2 replicas) — chat with retrieval over ChromaDB (uploaded PDFs), streaming chat, PDF ingestion, Redis response cache, and an **OpenAI-compatible `/v1` API** (works with any OpenAI SDK — handy for LangChain later)
 - **mcp-service** — MCP tools backed by the same services
 - Optimized Docker: one slim stage per service, per-service dependencies, non-root containers, healthchecks, hot reload in dev
 
@@ -34,10 +32,8 @@ plan, [ARCHITECTURE.md](ARCHITECTURE.md) for diagrams and request flows, and
 | `web` | 3000 | Next.js chat app — accounts, history, folders, sharing |
 | `llm-service` | 8010 | Model routing: Ollama (offline) + cloud via LiteLLM |
 | `rag-service` ×2 | 8020 | RAG chat (+streaming), `/v1` OpenAI-compatible API, PDF ingest, cache |
-| `webhook-service` | 8030 | GitHub webhook → Kafka |
-| `embedding-worker` | — | Kafka consumer → Qdrant indexer |
 | `mcp` | stdio | MCP tool server (profile `mcp`) |
-| `redis` / `chroma` / `qdrant` / `kafka` | 6379 / 8000 / 6333 / 9092 | Infrastructure |
+| `redis` / `chroma` | 6379 / 8000 | Infrastructure |
 
 ## Quick Start
 
@@ -103,8 +99,8 @@ for its architecture and environment variables.
 - **Sharing** — publish any conversation as a read-only link, revocable at any time.
 - **Dark & light mode** — follows your OS preference, toggleable, remembered.
 
-Answers still come from `rag-service`, grounded in your indexed PDFs and GitHub
-docs — the retrieval pipeline is unchanged. The model picker is fed by
+Answers still come from `rag-service`, grounded in your indexed PDFs — the
+retrieval pipeline is unchanged. The model picker is fed by
 `rag-service`'s `/v1/models`, which lists local Ollama models plus whichever
 cloud models are configured (see [Cloud LLMs](#cloud-llms--bring-your-own-api-key)).
 
@@ -161,7 +157,7 @@ curl -X POST http://localhost:8080/api/rag/chat \
 # OpenAI-compatible API (works with any OpenAI SDK)
 curl -X POST http://localhost:8080/v1/chat/completions \
   -H "Content-Type: application/json" \
-  -d '{"model":"llama3.1","messages":[{"role":"user","content":"What changed in the docs?"}]}'
+  -d '{"model":"llama3.1","messages":[{"role":"user","content":"Summarize my knowledge base"}]}'
 
 # ingest a PDF into the RAG index
 curl -X POST http://localhost:8080/api/rag/ingest/pdf -F "file=@mydoc.pdf"
@@ -181,10 +177,6 @@ llm = ChatOpenAI(
 )
 print(llm.invoke("Summarize my knowledge base").content)
 ```
-
-## GitHub Documentation Sync
-
-`POST http://localhost:8080/webhooks/github` receives GitHub Push events (signature-verified when `GITHUB_WEBHOOK_SECRET` is set), publishes per-file events to Kafka `docs.changed`, and the embedding worker indexes changed `.md`/`.mdx` files into Qdrant. RAG chat automatically searches these documents alongside uploaded PDFs. Details in [docs/github-doc-sync.md](docs/github-doc-sync.md).
 
 ## MCP Usage
 
@@ -215,10 +207,8 @@ nginx/nginx.conf           gateway: web + /api/* + /v1 routing, LB across replic
 services/                 each service is an installable package: src/<name>/ + pyproject.toml + requirements.txt
   llm_service/             model router — Ollama direct, cloud via LiteLLM
   rag_service/             RAG chat (+streaming), /v1 API, PDF ingest, Redis cache
-  webhook_service/         GitHub push webhooks → Kafka
-  embedding_worker/        Kafka consumer → chunk/embed/index into Qdrant
   mcp_service/             MCP tool server
-  devkit_common/           shared config, models, Kafka/Redis/Qdrant helpers
+  devkit_common/           shared config, models
 docs/ROADMAP.md            the 11 phases and the seam each one plugs into
 docs/setup.md              step-by-step setup and troubleshooting
 tests/                     unit tests (no containers needed)
@@ -261,6 +251,5 @@ cd web && npm run typecheck && npm run lint && npm run build
 - **"no local models found" in the model picker** — check Ollama is running (`ollama list`) and reachable from Docker; the connection URL is `http://host.docker.internal:11434` by default.
 - **Cloud model errors** — `401` means no/invalid API key: set it in `.env` or pass `api_key` per request.
 - **PDF retrieval returns nothing** — the PDF must contain selectable text, not scanned images.
-- **`docs.failed` events** — inspect worker logs: `docker compose logs -f embedding-worker`.
 
 Full walkthrough and more failure modes: [docs/setup.md](docs/setup.md).

@@ -3,10 +3,18 @@ x-python-healthcheck: &python-healthcheck
   timeout: 5s
   retries: 10
 
+# Raises the open-file-descriptor ceiling for services that hold many
+# concurrent connections (nginx, and anything proxying/streaming requests).
+# The container default (1024) is the first thing to bite under real load.
+x-high-connection-ulimits: &high-connection-ulimits
+  nofile:
+    soft: 65536
+    hard: 65536
+
 services:
   # ----------------------------------------------------------------- gateway
-  # The single published port. Routes /v1/, /api/rag/, /api/llm/ and
-  # /webhooks/ to the Python services and everything else to the web app.
+  # The single published port. Routes /v1/, /api/rag/, /api/llm/ to the
+  # Python services and everything else to the web app.
   nginx:
     build:
       context: .
@@ -15,6 +23,15 @@ services:
       - "8080:80"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    ulimits: *high-connection-ulimits
+    deploy:
+      resources:
+        reservations:
+          cpus: "0.1"
+          memory: 64M
+        limits:
+          cpus: "0.5"
+          memory: 128M
     # service_started, not service_healthy: nginx's static upstream blocks
     # only need the container to exist (so its hostname resolves) — not to be
     # fully healthy. This is what lets :8080 come up within seconds instead of
@@ -24,8 +41,6 @@ services:
       llm-service:
         condition: service_started
       rag-service:
-        condition: service_started
-      webhook-service:
         condition: service_started
       web:
         condition: service_started
@@ -51,6 +66,14 @@ services:
       ALLOW_REGISTRATION: ${ALLOW_REGISTRATION:-true}
     volumes:
       - web_data:/data
+    deploy:
+      resources:
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+        limits:
+          cpus: "1.0"
+          memory: 768M
     # Ordering only, not a hard gate: the Next.js server itself never calls
     # rag-service at boot (only when a user actually chats), so it doesn't
     # need rag-service healthy to start and become reachable behind nginx.
@@ -79,6 +102,15 @@ services:
       - ./services/llm_service/src/llm_service:/app/llm_service
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    ulimits: *high-connection-ulimits
+    deploy:
+      resources:
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+        limits:
+          cpus: "1.0"
+          memory: 768M
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8010/health', timeout=3)"]
       <<: *python-healthcheck
@@ -91,18 +123,24 @@ services:
     command: uvicorn rag_service.main:app --host 0.0.0.0 --port 8020 --reload
     deploy:
       replicas: 2
+      resources:
+        reservations:
+          cpus: "0.5"
+          memory: 512M
+        limits:
+          cpus: "1.5"
+          memory: 1536M
     environment:
       LLM_SERVICE_URL: http://llm-service:8010
       REDIS_URL: redis://redis:6379/0
       CHROMA_HOST: chroma
       CHROMA_PORT: 8000
-      QDRANT_URL: http://qdrant:6333
       DEFAULT_CHAT_MODEL: ${DEFAULT_CHAT_MODEL:-llama3.1}
-      RETRIEVER_SCORE_THRESHOLD: ${RETRIEVER_SCORE_THRESHOLD:-0.72}
       CACHE_TTL: ${CACHE_TTL:-3600}
     volumes:
       - ./services/devkit_common/src/devkit_common:/app/devkit_common
       - ./services/rag_service/src/rag_service:/app/rag_service
+    ulimits: *high-connection-ulimits
     depends_on:
       llm-service:
         condition: service_healthy
@@ -110,58 +148,9 @@ services:
         condition: service_healthy
       chroma:
         condition: service_started
-      qdrant:
-        condition: service_started
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8020/health', timeout=3)"]
       <<: *python-healthcheck
-    restart: unless-stopped
-
-  webhook-service:
-    build:
-      context: .
-      target: webhook-service
-    command: uvicorn webhook_service.main:app --host 0.0.0.0 --port 8030 --reload
-    environment:
-      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      GITHUB_WEBHOOK_SECRET: ${GITHUB_WEBHOOK_SECRET:-}
-    volumes:
-      - ./services/devkit_common/src/devkit_common:/app/devkit_common
-      - ./services/webhook_service/src/webhook_service:/app/webhook_service
-    depends_on:
-      kafka:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8030/health', timeout=3)"]
-      <<: *python-healthcheck
-    restart: unless-stopped
-
-  embedding-worker:
-    build:
-      context: .
-      target: embedding-worker
-    environment:
-      LLM_SERVICE_URL: http://llm-service:8010
-      REDIS_URL: redis://redis:6379/0
-      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      QDRANT_URL: http://qdrant:6333
-      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
-      GITHUB_DEFAULT_OWNER: ${GITHUB_DEFAULT_OWNER:-}
-      GITHUB_DEFAULT_REPO: ${GITHUB_DEFAULT_REPO:-}
-      GITHUB_DEFAULT_BRANCH: ${GITHUB_DEFAULT_BRANCH:-main}
-      GITHUB_CACHE_TTL: ${GITHUB_CACHE_TTL:-600}
-    volumes:
-      - ./services/devkit_common/src/devkit_common:/app/devkit_common
-      - ./services/embedding_worker/src/embedding_worker:/app/embedding_worker
-    depends_on:
-      llm-service:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      qdrant:
-        condition: service_started
     restart: unless-stopped
 
   mcp:
@@ -174,6 +163,14 @@ services:
     volumes:
       - ./services/devkit_common/src/devkit_common:/app/devkit_common
       - ./services/mcp_service/src/mcp_service:/app/mcp_service
+    deploy:
+      resources:
+        reservations:
+          cpus: "0.1"
+          memory: 128M
+        limits:
+          cpus: "0.5"
+          memory: 256M
     depends_on:
       rag-service:
         condition: service_healthy
@@ -186,6 +183,14 @@ services:
     command: redis-server --save "" --appendonly no
     ports:
       - "6379:6379"
+    deploy:
+      resources:
+        reservations:
+          cpus: "0.1"
+          memory: 64M
+        limits:
+          cpus: "0.5"
+          memory: 512M
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -194,7 +199,7 @@ services:
     restart: unless-stopped
 
   chroma:
-    image: chromadb/chroma:latest
+    image: chromadb/chroma:1.5.9
     ports:
       - "8000:8000"
     volumes:
@@ -202,57 +207,39 @@ services:
     environment:
       IS_PERSISTENT: "TRUE"
       ANONYMIZED_TELEMETRY: "FALSE"
-    restart: unless-stopped
-
-  qdrant:
-    image: qdrant/qdrant:latest
-    ports:
-      - "6333:6333"
-      - "6334:6334"
-    volumes:
-      - qdrant_data:/qdrant/storage
-    restart: unless-stopped
-
-  kafka:
-    image: apache/kafka:3.7.0
-    ports:
-      - "9092:29092"
-    environment:
-      KAFKA_NODE_ID: 1
-      KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_LISTENERS: INTERNAL://:9092,EXTERNAL://:29092,CONTROLLER://:9093
-      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL://localhost:9092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
-      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-    healthcheck:
-      test: ["CMD", "/opt/kafka/bin/kafka-topics.sh", "--bootstrap-server", "localhost:9092", "--list"]
-      interval: 10s
-      timeout: 5s
-      retries: 20
+    deploy:
+      resources:
+        reservations:
+          cpus: "0.5"
+          memory: 512M
+        limits:
+          cpus: "2.0"
+          memory: 2048M
     restart: unless-stopped
 
   # Optional: run Ollama in Docker instead of on the host. Enable with
   # `docker compose --profile ollama up` and set OLLAMA_HOST=http://ollama:11434
   # in .env. Note: on macOS this runs CPU-only; host Ollama is faster.
   ollama:
-    image: ollama/ollama:latest
+    image: ollama/ollama:0.32.14
     ports:
       - "11434:11434"
     volumes:
       - ollama_data:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          cpus: "1.0"
+          memory: 1024M
+        limits:
+          cpus: "4.0"
+          memory: 6144M
     profiles:
       - ollama
     restart: unless-stopped
 
 volumes:
   chroma_data:
-  qdrant_data:
   ollama_data:
   web_data:
 

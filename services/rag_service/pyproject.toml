@@ -1,7 +1,7 @@
 [project]
 name = "rag-service"
 version = "0.1.0"
-description = "RAG chat orchestration: retrieval over ChromaDB and Qdrant, streaming chat, PDF ingest, Redis cache."
+description = "RAG chat orchestration: retrieval over ChromaDB, streaming chat, PDF ingest, Redis cache."
 requires-python = ">=3.12"
 dynamic = ["dependencies"]
 

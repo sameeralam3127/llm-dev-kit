@@ -11,8 +11,6 @@ overview see [../README.md](../README.md); for request-flow diagrams see
 - [Ollama](https://ollama.com) installed on the host (or use the `ollama`
   compose profile to run it in a container instead — CPU-only on macOS)
 - Optional: an OpenAI and/or Anthropic API key, if you want cloud models
-- Optional: a GitHub token + webhook secret, if you want GitHub doc sync
-  (see [github-doc-sync.md](github-doc-sync.md))
 
 ## 1. Pull the local models
 
@@ -23,8 +21,7 @@ ollama pull nomic-embed-text
 ```
 
 `nomic-embed-text` is required even if you only ever use cloud chat models —
-embeddings always run locally so both vector stores share one consistent
-embedding space.
+embeddings always run locally.
 
 ## 2. Configure environment
 
@@ -41,9 +38,7 @@ to:
 | Cloud providers | `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` — leave blank to stay offline |
 | Service URLs | Only used when running a service outside Docker |
 | Cache | Redis URL + response cache TTL |
-| Vector stores | Chroma (PDFs) + Qdrant (GitHub docs) connection info |
-| Kafka | Broker address + topic names for doc sync |
-| GitHub sync | Token, webhook secret, default owner/repo/branch |
+| Vector store | Chroma (PDFs) connection info |
 
 ## 3. Start the stack
 
@@ -109,14 +104,7 @@ curl -X POST http://localhost:8080/api/rag/documents/clear
 The PDF must contain selectable text — scanned image pages produce zero
 chunks and a 400 response.
 
-## 6. GitHub documentation sync (optional)
-
-Point a GitHub webhook at `http://<host>:8080/webhooks/github` and set
-`GITHUB_WEBHOOK_SECRET`; pushed `.md`/`.mdx` changes are chunked and indexed
-into Qdrant automatically, and RAG chat searches them alongside uploaded
-PDFs. Full details in [github-doc-sync.md](github-doc-sync.md).
-
-## 7. Cloud models (optional)
+## 6. Cloud models (optional)
 
 Cloud calls are routed through LiteLLM. Set `OPENAI_API_KEY`,
 `GEMINI_API_KEY` and/or `ANTHROPIC_API_KEY` in `.env` (server-wide), pass
@@ -184,5 +172,3 @@ docker compose restart nginx   # re-resolve upstream IPs
 - **PDF retrieval returns nothing** — the PDF must contain selectable text,
   not scanned images; confirm chunks were actually indexed with
   `curl http://localhost:8080/api/rag/documents/stats`.
-- **`docs.failed` events** — inspect worker logs:
-  `docker compose logs -f embedding-worker`.

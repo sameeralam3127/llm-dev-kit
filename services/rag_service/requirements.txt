@@ -4,6 +4,5 @@ httpx
 pydantic-settings
 pypdf
 python-multipart
-qdrant-client
 redis
 uvicorn[standard]

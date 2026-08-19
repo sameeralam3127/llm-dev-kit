@@ -6,14 +6,13 @@ from fastapi.responses import StreamingResponse
 
 from devkit_common.config import get_settings
 from devkit_common.models import ChatRequest, ChatResponse, IngestResponse
-from devkit_common.qdrant_store import QdrantVectorStore
 from rag_service.cache import ChatCache
 from rag_service.chat import answer_query, stream_answer
 from rag_service.chroma_store import ChromaStore
 from rag_service.llm_client import LLMServiceClient
 from rag_service.openai_api import router as openai_router
 from rag_service.pdf import chunk_text, load_pdf
-from rag_service.retrieval import HybridRetriever
+from rag_service.retrieval import Retriever
 
 settings = get_settings()
 
@@ -26,12 +25,7 @@ async def lifespan(app: FastAPI):
     )
     app.state.cache = ChatCache(settings.redis_url, settings.cache_ttl)
     app.state.chroma = ChromaStore(settings.chroma_host, settings.chroma_port)
-    app.state.qdrant = QdrantVectorStore.from_settings(settings)
-    app.state.retriever = HybridRetriever(
-        chroma=app.state.chroma,
-        qdrant=app.state.qdrant,
-        score_threshold=settings.retriever_score_threshold,
-    )
+    app.state.retriever = Retriever(chroma=app.state.chroma)
     yield
     await app.state.llm.close()
     await app.state.cache.close()

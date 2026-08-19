@@ -1,5 +1,0 @@
-aiokafka
-httpx
-pydantic-settings
-qdrant-client
-redis

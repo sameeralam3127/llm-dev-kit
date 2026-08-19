@@ -110,6 +110,18 @@ The build is phase-wise on purpose: each phase lands as a hot-pluggable module b
 
 Every service builds off its own Dockerfile stage with only the dependencies it needs, runs as a non-root user, and carries a CPU/memory limit sized to its actual workload — see [ARCHITECTURE.md](ARCHITECTURE.md#docker-build-strategy) for the full breakdown.
 
+Each one is also published as its own image to GitHub Container Registry on every push to `main` ([.github/workflows/publish.yml](.github/workflows/publish.yml)), tagged `latest` and by commit SHA:
+
+```bash
+docker pull ghcr.io/sameeralam3127/llm-dev-kit-gateway:latest
+docker pull ghcr.io/sameeralam3127/llm-dev-kit-web:latest
+docker pull ghcr.io/sameeralam3127/llm-dev-kit-llm-service:latest
+docker pull ghcr.io/sameeralam3127/llm-dev-kit-rag-service:latest
+docker pull ghcr.io/sameeralam3127/llm-dev-kit-mcp-service:latest
+```
+
+`docker-compose.yml` still builds locally by default — pulling from GHCR is for running the stack without a local build (or in another environment) rather than a replacement for `docker compose up`.
+
 ## Chat UI
 
 The frontend is a **Next.js** application ([web/](web/)) running as its own container, reverse-proxied by nginx at `/`. See [web/README.md](web/README.md) for its architecture and environment variables.

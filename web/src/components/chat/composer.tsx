@@ -64,7 +64,7 @@ export function Composer({
   }
 
   return (
-    <div className="border-t border-border bg-background/80 backdrop-blur">
+    <div className="bg-background/80 backdrop-blur">
       <form
         className="mx-auto w-full max-w-3xl px-4 py-3 sm:px-6"
         onSubmit={(event) => {
@@ -93,7 +93,7 @@ export function Composer({
             autoFocus={autoFocus}
             rows={1}
             aria-describedby="composer-hint"
-            className="scrollbar-thin max-h-60 flex-1 resize-none bg-transparent px-2 py-1.5 text-[0.9375rem] leading-6 outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed"
+            className="scrollbar-thin max-h-60 flex-1 resize-none bg-transparent px-2 py-1.5 text-[0.9375rem] leading-6 outline-none focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground disabled:cursor-not-allowed"
           />
 
           {isBusy ? (

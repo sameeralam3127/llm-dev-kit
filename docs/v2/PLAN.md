@@ -1,6 +1,7 @@
 # v2 Plan — a sovereign, local-first private AI workspace
 
-Working name: **{{PROJECT_NAME}}** (placeholder — see [Open questions](#open-questions)).
+Name: **llm-dev-kit** (kept — Python core package `ldk_core`, entry-point group
+`llm_dev_kit.plugins`, API key prefix `sk-ldk-`, Keycloak realm `llm-dev-kit`).
 Status: **awaiting approval. No code changes beyond this document.**
 
 This is a production refactor of `llm-dev-kit`, not a rewrite. The Next.js app,
@@ -16,7 +17,7 @@ identity and rate limiting become per-user and enforced in the data layer.
 - [5. Migration plan](#5-migration-plan)
 - [6. Risks](#6-risks)
 - [7. Phase breakdown](#7-phase-breakdown)
-- [Open questions](#open-questions)
+- [Decisions taken on review](#decisions-taken-on-review)
 
 ---
 
@@ -184,7 +185,7 @@ flowchart TB
 
 ```text
 services/
-  core/src/{{project}}_core/      # NEW — the hexagon
+  core/src/ldk_core/      # NEW — the hexagon
     ports/            llm.py embedding.py vector_store.py loader.py chunker.py
                       auth.py rate_limit.py tool.py storage.py
     plugins/          manifest.py discovery.py registry.py signing.py
@@ -290,7 +291,7 @@ user becomes `admin` in the same transaction that creates them.
 
 This is the one place a break is unavoidable, so it is called out loudly.
 Today `Bearer` on `/v1` means *a cloud provider key to spend on this request*.
-In v2, `Bearer` means *who you are*: a personal API key (`sk-{{project}}-…`,
+In v2, `Bearer` means *who you are*: a personal API key (`sk-ldk-…`,
 hashed at rest, issued in the UI) or a service JWT. Paths, request bodies,
 response bodies and SSE framing are unchanged, so every OpenAI SDK keeps
 working after adding a key.
@@ -330,10 +331,10 @@ Telemetry kill list: `NEXT_TELEMETRY_DISABLED=1`, `DO_NOT_TRACK=1`,
 
 ### D6 — Plugins are signed Python distributions discovered by entry point.
 
-Manifest (`{{project}}-plugin.json`, validated by `PluginManifest`) declares
+Manifest (`llm-dev-kit-plugin.json`, validated by `PluginManifest`) declares
 name, version, kind, permissions (`network`, `filesystem`, `secrets`) and a
 config JSON Schema. Discovery is `importlib.metadata.entry_points(group=
-"{{project}}.plugins")`. Install writes the wheel to a plugins volume and
+"llm_dev_kit.plugins")`. Install writes the wheel to a plugins volume and
 installs it with `pip --no-index` into an overlay directory on `PYTHONPATH`, so
 no core image is rebuilt; enable/disable is a row in `rag.plugins`.
 Verification is `cosign verify-blob` against a pinned public key — works fully
@@ -364,7 +365,7 @@ build-and-mount behaviour. This is what makes "download one file and run" real.
 | M4 | Chroma → pgvector: `scripts/migrate_chroma_to_pgvector.py` copies documents **and existing embeddings** (same `nomic-embed-text` 768 space, so no re-embed) into a `legacy` collection owned by the first admin | index preserved; attribution is coarse because today's rows have no owner |
 | M5 | Auth lands: Python services reject unauthenticated calls. Gateway keeps `/v1` path shape; `ALLOW_LEGACY_ANONYMOUS=true` offers a **one-release** escape hatch, default `false`, logged as a warning on every use | the documented break (D3) |
 | M6 | Store originals from here on (`StorageBackend`); documents ingested before v2 have no original file and are flagged `reindexable: false` in the UI | explicit, visible |
-| M7 | Images move to Docker Hub `sameeralam3127/{{project}}-<service>`; GHCR keeps publishing `llm-dev-kit-*` for one release, then redirects via a deprecation note in the README | old pulls keep working for a release |
+| M7 | Images move to Docker Hub `sameeralam3127/llm-dev-kit-<service>`; GHCR keeps publishing `llm-dev-kit-*` for one release, then redirects via a deprecation note in the README | old pulls keep working for a release |
 
 Every step is independently revertible: M3/M4 are additive copies, and the old
 volumes stay until an explicit `make wipe-legacy`.
@@ -399,8 +400,11 @@ results, decisions to review. Conventional commits, small and separated.
 registry + manifest, pydantic-settings config, structlog + correlation ids, the
 `ServiceError` envelope. Existing providers/loaders/chunkers/stores move behind
 ports with no behaviour change. `ruff`, `mypy --strict`, docstrings on every
-public symbol, contract-test harness. *Exit:* existing tests green, strict
-typecheck clean, no consumer imports an implementation.
+public symbol, contract-test harness. Also retires the superseded roadmaps
+(deletes `docs/ROADMAP.md` and `docs/ROADMAP-v2.md`; `docs/v2/` becomes the
+single plan of record, and the `/roadmap` skill is removed with them). *Exit:*
+existing tests green, strict typecheck clean, no consumer imports an
+implementation.
 
 **Phase 3 — Sovereign mode.** `SOVEREIGN_MODE=true` default, internal network,
 request-key rejection, telemetry kill list, `deploy/compose*.yml` profile split,
@@ -442,44 +446,27 @@ after install with no rebuild.
 
 **Phase 9 — Distribution and docs.** Multi-arch buildx to Docker Hub, semver
 tags, `lint → typecheck → test → build → Trivy (fail HIGH/CRITICAL) → Syft SBOM
-→ cosign sign → push`, standalone `compose.yml`, README rewrite, `MIGRATION.md`,
+→ cosign sign → push`, standalone `compose.yml`, README rewrite (product framing,
+not the learning journey), `MIGRATION.md`,
 `ARCHITECTURE.md` update. *Exit:* a clean machine runs the published stack from
 one downloaded file; CI refuses to publish on a failing test or a HIGH CVE.
 
 ---
 
-## Open questions
+## Decisions taken on review
 
-Blocking, because they change file names, image names and the public API.
+Resolved before Phase 2; the rest of this document already reflects them.
 
-**Q1 — Project name.** `{{PROJECT_NAME}}` is still a placeholder. It lands in
-the Python package (`{{project}}_core`), the entry-point group, Docker Hub image
-names, the API key prefix and the Keycloak realm. Renaming later touches all
-five. Name needed before Phase 2.
+| | Decision | Consequence |
+|---|---|---|
+| Name | **Keep `llm-dev-kit`.** | No rename churn. Python core package `ldk_core`, entry-point group `llm_dev_kit.plugins`, API key prefix `sk-ldk-`, Keycloak realm `llm-dev-kit`. The GitHub About text still describes a Streamlit app and is corrected in Phase 9. |
+| `/v1` break | **Accepted, with the one-release escape hatch** (D3). | `/v1` requires a personal API key or a service JWT; unauthenticated calls return 401. `ALLOW_LEGACY_ANONYMOUS=true` preserves today's behaviour for one release, default `false`, warning logged on every use. Lands in Phase 4, documented in `MIGRATION.md`. |
+| Registry | **Docker Hub primary, GHCR for one more release** (M7). | `sameeralam3127/llm-dev-kit-<service>` becomes canonical; the existing `ghcr.io/sameeralam3127/llm-dev-kit-*` images keep publishing with a deprecation note. Needs a `DOCKERHUB_TOKEN` repository secret before Phase 9. |
+| Roadmap | **v2 supersedes the 11-phase learning roadmap.** | Phase 2 deletes `docs/ROADMAP.md` and `docs/ROADMAP-v2.md`; `docs/v2/` is the single plan of record. The `/roadmap` skill goes with them, and Phase 9's README rewrite drops the learning-journey framing for the product one. |
 
-**Q2 — Approve the `/v1` break (D3)?** Authentication on `/v1` and the removal
-of per-request cloud keys in sovereign mode cannot both be avoided while
-meeting features 1 and 3. Proposal: accept the break, ship
-`ALLOW_LEGACY_ANONYMOUS=true` for one release. Alternative: keep `/v1`
-anonymous but bind it to a read-only "public" scope with no document access.
+Scope boundaries, assumed unless you say otherwise:
 
-**Q3 — Docker Hub, GHCR, or both?** The repo publishes five images to GHCR
-today; the brief says Docker Hub. Dual-publishing for one release is cheap and
-is what M7 assumes — confirm, and confirm the Docker Hub namespace is
-`sameeralam3127`.
-
-**Q4 — Is `llm-dev-kit` the learning journey or the product?** `docs/ROADMAP.md`
-is explicit that each phase exists to be learned from, one concept at a time,
-and v2 overlaps it heavily (Phase 2 multi-model, Phase 3 memory, Phase 4 RAG
-2.0, Phase 10 enterprise). Two options: v2 *supersedes* the 11-phase roadmap
-(delete it, keep `docs/v2/`), or v2 is a *fork* of it (`llm-dev-kit` stays the
-teaching repo, `{{PROJECT_NAME}}` becomes a separate product repo). I need the
-answer before Phase 2 because it decides whether Phase 2 deletes
-`docs/ROADMAP.md` and `docs/ROADMAP-v2.md` or leaves them alone.
-
-Smaller ones, defaults assumed unless you say otherwise:
-
-- **Memory tier** (roadmap Phase 3) is **out of scope** for v2.
+- **Memory tier** (old roadmap Phase 3) is **out of scope** for v2.
 - **Hybrid search and reranking** are out of scope; the `VectorStore` and a
   future `Reranker` port leave room.
 - **Multi-tenancy** stays out; collections and grants are per-user within one

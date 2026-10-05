@@ -39,9 +39,7 @@ class OllamaProvider:
             raise ProviderError(f"Ollama returned no response: {str(data)[:200]}")
         return data["response"]
 
-    async def generate_stream(
-        self, model: str, prompt: str, options: dict
-    ) -> AsyncIterator[str]:
+    async def generate_stream(self, model: str, prompt: str, options: dict) -> AsyncIterator[str]:
         payload = {
             "model": model,
             "prompt": prompt,
@@ -49,14 +47,10 @@ class OllamaProvider:
             "options": {"temperature": 0.7, "num_predict": 1024, **options},
         }
         try:
-            async with self.client.stream(
-                "POST", f"{self.host}/api/generate", json=payload
-            ) as res:
+            async with self.client.stream("POST", f"{self.host}/api/generate", json=payload) as res:
                 if res.status_code >= 400:
                     body = (await res.aread()).decode(errors="replace")
-                    raise ProviderError(
-                        f"Ollama error {res.status_code}: {body[:200]}"
-                    )
+                    raise ProviderError(f"Ollama error {res.status_code}: {body[:200]}")
                 async for line in res.aiter_lines():
                     if not line:
                         continue
@@ -77,17 +71,11 @@ class OllamaProvider:
                     json={"model": model, "prompt": text},
                 )
             except httpx.HTTPError as exc:
-                raise ProviderError(
-                    f"Ollama unreachable: {exc}", status_code=503
-                ) from exc
+                raise ProviderError(f"Ollama unreachable: {exc}", status_code=503) from exc
             if res.is_error:
-                raise ProviderError(
-                    f"Ollama embedding error {res.status_code}: {res.text[:200]}"
-                )
+                raise ProviderError(f"Ollama embedding error {res.status_code}: {res.text[:200]}")
             embedding = res.json().get("embedding")
             if not embedding:
-                raise ProviderError(
-                    f"Ollama returned an empty embedding for model '{model}'"
-                )
+                raise ProviderError(f"Ollama returned an empty embedding for model '{model}'")
             embeddings.append(list(embedding))
         return embeddings

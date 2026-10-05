@@ -21,14 +21,10 @@ class Settings(BaseSettings):
 
     # Cloud providers (optional — the stack is fully functional offline without them)
     openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
-    openai_base_url: str = Field(
-        default="https://api.openai.com/v1", alias="OPENAI_BASE_URL"
-    )
+    openai_base_url: str = Field(default="https://api.openai.com/v1", alias="OPENAI_BASE_URL")
     gemini_api_key: str | None = Field(default=None, alias="GEMINI_API_KEY")
     anthropic_api_key: str | None = Field(default=None, alias="ANTHROPIC_API_KEY")
-    anthropic_base_url: str = Field(
-        default="https://api.anthropic.com", alias="ANTHROPIC_BASE_URL"
-    )
+    anthropic_base_url: str = Field(default="https://api.anthropic.com", alias="ANTHROPIC_BASE_URL")
 
     # Cache
     redis_url: str = Field(default="redis://localhost:6379/0", alias="REDIS_URL")

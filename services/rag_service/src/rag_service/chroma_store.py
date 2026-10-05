@@ -14,9 +14,7 @@ class ChromaStore:
             import chromadb
 
             self._client = chromadb.HttpClient(host=self.host, port=self.port)
-            self._collection = self._client.get_or_create_collection(
-                name=self.collection_name
-            )
+            self._collection = self._client.get_or_create_collection(name=self.collection_name)
         return self._collection
 
     def add(self, texts: list[str], embeddings: list[list[float]]) -> None:

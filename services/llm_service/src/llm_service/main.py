@@ -29,9 +29,7 @@ async def lifespan(app: FastAPI):
             timeout=timeout,
         ),
         "gemini": LiteLLMProvider("gemini", settings.gemini_api_key, timeout=timeout),
-        "anthropic": LiteLLMProvider(
-            "anthropic", settings.anthropic_api_key, timeout=timeout
-        ),
+        "anthropic": LiteLLMProvider("anthropic", settings.anthropic_api_key, timeout=timeout),
     }
     yield
     await client.aclose()
@@ -70,8 +68,7 @@ async def health(request: Request) -> dict:
         "status": "ok" if offline_ready else "degraded",
         "offline_ready": offline_ready,
         "cloud_providers": {
-            name: request.app.state.providers[name].configured
-            for name in CLOUD_PROVIDERS
+            name: request.app.state.providers[name].configured for name in CLOUD_PROVIDERS
         },
     }
 
@@ -115,9 +112,7 @@ async def generate(req: GenerateRequest, request: Request) -> dict:
         if provider_name == "ollama":
             text = await provider.generate(model_name, req.prompt, req.options)
         else:
-            text = await provider.generate(
-                model_name, req.prompt, req.options, api_key=req.api_key
-            )
+            text = await provider.generate(model_name, req.prompt, req.options, api_key=req.api_key)
     except ProviderError as exc:
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
     return {"response": text, "model": model, "provider": provider_name}
@@ -139,9 +134,7 @@ async def generate_stream(req: GenerateRequest, request: Request) -> StreamingRe
                 )
             async for chunk in stream:
                 yield json.dumps({"delta": chunk}) + "\n"
-            yield json.dumps(
-                {"done": True, "model": model, "provider": provider_name}
-            ) + "\n"
+            yield json.dumps({"done": True, "model": model, "provider": provider_name}) + "\n"
         except ProviderError as exc:
             yield json.dumps({"error": str(exc)}) + "\n"
 

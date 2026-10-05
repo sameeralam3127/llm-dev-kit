@@ -20,9 +20,7 @@ settings = get_settings()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     app.state.settings = settings
-    app.state.llm = LLMServiceClient(
-        settings.llm_service_url, settings.request_timeout_seconds
-    )
+    app.state.llm = LLMServiceClient(settings.llm_service_url, settings.request_timeout_seconds)
     app.state.cache = ChatCache(settings.redis_url, settings.cache_ttl)
     app.state.chroma = ChromaStore(settings.chroma_host, settings.chroma_port)
     app.state.retriever = Retriever(chroma=app.state.chroma)

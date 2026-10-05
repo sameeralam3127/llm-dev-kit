@@ -76,9 +76,7 @@ class LiteLLMProvider:
         self, model: str, prompt: str, options: dict, api_key: str | None = None
     ) -> str:
         try:
-            res = await litellm.acompletion(
-                **self._call_kwargs(model, prompt, options, api_key)
-            )
+            res = await litellm.acompletion(**self._call_kwargs(model, prompt, options, api_key))
         except ProviderError:
             raise
         except Exception as exc:

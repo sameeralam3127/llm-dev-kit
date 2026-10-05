@@ -9,9 +9,7 @@ class LLMServiceClient:
     """HTTP client for the llm-service. All chat/embedding traffic goes here."""
 
     def __init__(self, base_url: str, timeout: float) -> None:
-        self._client = httpx.AsyncClient(
-            base_url=base_url.rstrip("/"), timeout=timeout
-        )
+        self._client = httpx.AsyncClient(base_url=base_url.rstrip("/"), timeout=timeout)
 
     async def models(self) -> list[str]:
         try:
@@ -41,9 +39,7 @@ class LLMServiceClient:
             return []
         except httpx.HTTPError as exc:
             if strict:
-                raise HTTPException(
-                    status_code=503, detail=f"LLM service unavailable: {exc}"
-                )
+                raise HTTPException(status_code=503, detail=f"LLM service unavailable: {exc}")
             return []
         return res.json()["embeddings"]
 
@@ -83,9 +79,7 @@ class LLMServiceClient:
             "options": options or {},
         }
         try:
-            async with self._client.stream(
-                "POST", "/generate/stream", json=payload
-            ) as res:
+            async with self._client.stream("POST", "/generate/stream", json=payload) as res:
                 if res.status_code >= 400:
                     body = (await res.aread()).decode(errors="replace")
                     raise HTTPException(status_code=502, detail=body[:200])

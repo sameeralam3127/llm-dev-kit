@@ -83,10 +83,7 @@ async def list_models(request: Request) -> dict:
     models = await request.app.state.llm.models()
     return {
         "object": "list",
-        "data": [
-            {"id": model, "object": "model", "owned_by": "llm-dev-kit"}
-            for model in models
-        ],
+        "data": [{"id": model, "object": "model", "owned_by": "llm-dev-kit"} for model in models],
     }
 
 
@@ -128,9 +125,7 @@ async def chat_completions(
             "object": "chat.completion.chunk",
             "created": created,
             "model": model,
-            "choices": [
-                {"index": 0, "delta": delta, "finish_reason": finish_reason}
-            ],
+            "choices": [{"index": 0, "delta": delta, "finish_reason": finish_reason}],
         }
         return f"data: {json.dumps(payload)}\n\n"
 

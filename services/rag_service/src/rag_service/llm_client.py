@@ -16,7 +16,7 @@ class LLMServiceClient:
             res = await self._client.get("/models")
             res.raise_for_status()
         except httpx.HTTPError as exc:
-            raise HTTPException(status_code=503, detail=f"LLM service unavailable: {exc}")
+            raise HTTPException(status_code=503, detail=f"LLM service unavailable: {exc}") from exc
         return res.json().get("models", [])
 
     async def embed_one(self, text: str) -> list[float] | None:
@@ -35,11 +35,13 @@ class LLMServiceClient:
                 raise HTTPException(
                     status_code=502,
                     detail=f"Embedding failed: {_detail(exc.response)}",
-                )
+                ) from exc
             return []
         except httpx.HTTPError as exc:
             if strict:
-                raise HTTPException(status_code=503, detail=f"LLM service unavailable: {exc}")
+                raise HTTPException(
+                    status_code=503, detail=f"LLM service unavailable: {exc}"
+                ) from exc
             return []
         return res.json()["embeddings"]
 
@@ -59,7 +61,7 @@ class LLMServiceClient:
         try:
             res = await self._client.post("/generate", json=payload)
         except httpx.HTTPError as exc:
-            raise HTTPException(status_code=503, detail=f"LLM service unavailable: {exc}")
+            raise HTTPException(status_code=503, detail=f"LLM service unavailable: {exc}") from exc
         if res.is_error:
             status = res.status_code if res.status_code < 500 else 502
             raise HTTPException(status_code=status, detail=_detail(res))
@@ -94,7 +96,7 @@ class LLMServiceClient:
                     if data.get("done"):
                         return
         except httpx.HTTPError as exc:
-            raise HTTPException(status_code=503, detail=f"LLM service unavailable: {exc}")
+            raise HTTPException(status_code=503, detail=f"LLM service unavailable: {exc}") from exc
 
     async def close(self) -> None:
         await self._client.aclose()
@@ -103,5 +105,5 @@ class LLMServiceClient:
 def _detail(response) -> str:
     try:
         return response.json().get("detail", response.text[:200])
-    except Exception:
+    except Exception:  # noqa: BLE001 - best-effort error text, never raise
         return response.text[:200]

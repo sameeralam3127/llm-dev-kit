@@ -1,3 +1,4 @@
+import contextlib
 import json
 from contextlib import asynccontextmanager
 
@@ -93,10 +94,8 @@ async def models(request: Request) -> dict:
     """Local models come from Ollama live; cloud models are curated LiteLLM
     lists (always shown — users can bring their own key per request)."""
     available: list[str] = []
-    try:
+    with contextlib.suppress(ProviderError):
         available.extend(await _provider(request, "ollama").list_models())
-    except ProviderError:
-        pass
     for name in CLOUD_PROVIDERS:
         provider = request.app.state.providers[name]
         available.extend(f"{name}/{m}" for m in provider.list_models())

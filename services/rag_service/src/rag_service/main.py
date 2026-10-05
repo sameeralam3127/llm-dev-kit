@@ -100,7 +100,7 @@ async def document_stats(request: Request) -> dict:
     try:
         count = await asyncio.to_thread(request.app.state.chroma.count)
         return {"status": "connected", "document_count": count}
-    except Exception:
+    except Exception:  # noqa: BLE001 - stats report "offline" rather than fail
         return {"status": "offline", "document_count": 0}
 
 

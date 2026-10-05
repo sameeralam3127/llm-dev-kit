@@ -1,9 +1,9 @@
-# Union of what the tests need locally; runtime deps are per-service in
-# services/*/requirements.txt
-fastapi
-httpx
-pydantic-settings
-pypdf
+# Everything needed to test, lint and typecheck the Python services locally
+# and in CI: each service's runtime deps plus the dev tools.
+-r services/llm_service/requirements.txt
+-r services/rag_service/requirements.txt
+-r services/mcp_service/requirements.txt
+
+mypy
 pytest
-python-multipart
-redis
+ruff

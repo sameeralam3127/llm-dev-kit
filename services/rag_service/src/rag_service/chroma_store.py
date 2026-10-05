@@ -1,3 +1,4 @@
+from typing import Any
 from uuid import uuid4
 
 
@@ -6,10 +7,11 @@ class ChromaStore:
         self.host = host
         self.port = port
         self.collection_name = collection_name
-        self._client = None
-        self._collection = None
+        # chromadb is imported lazily, so its types are not referenced here.
+        self._client: Any = None
+        self._collection: Any = None
 
-    def _get_collection(self):
+    def _get_collection(self) -> Any:
         if self._collection is None:
             import chromadb
 
@@ -45,5 +47,5 @@ class ChromaStore:
             self._collection = None
             self._get_collection()
             return True
-        except Exception:
+        except Exception:  # noqa: BLE001 - clear reports failure as False
             return False

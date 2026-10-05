@@ -4,19 +4,64 @@ version = "0.2.0"
 description = "Local-first microservices LLM development kit: offline Ollama plus cloud providers via LiteLLM, RAG, a built-in static chat UI, and an Nginx load balancer."
 readme = "README.md"
 requires-python = ">=3.12"
-# Runtime dependencies are per-service: see services/*/requirements.txt
+# Runtime dependencies are per-service: see services/*/requirements.txt.
+# Dev tooling lives in requirements-dev.txt.
 dependencies = []
 
-[project.optional-dependencies]
-dev = [
-    "fastapi",
-    "httpx",
-    "pydantic-settings",
-    "pypdf",
-    "pytest",
-    "python-multipart",
-    "redis",
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = [
+    "services/devkit_common/src",
+    "services/llm_service/src",
+    "services/rag_service/src",
+    "services/mcp_service/src",
 ]
+
+[tool.ruff.lint]
+select = [
+    "E", "W", "F",  # pycodestyle, pyflakes
+    "I",            # import order
+    "B",            # bugbear
+    "UP",           # pyupgrade
+    "SIM",          # simplify
+    "RUF",          # ruff-specific
+    "BLE",          # blind except
+    "S",            # bandit
+]
+ignore = [
+    "S101",  # assert is how pytest works
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S", "BLE"]
+# Prompt text is sent verbatim; wrapping it would change the prompt.
+"services/rag_service/src/rag_service/prompts.py" = ["E501"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI dependency injection is a function call in a default argument by design.
+extend-immutable-calls = ["fastapi.Depends", "fastapi.File", "fastapi.Query", "fastapi.Body"]
+
+[tool.mypy]
+python_version = "3.12"
+mypy_path = [
+    "services/devkit_common/src",
+    "services/llm_service/src",
+    "services/rag_service/src",
+    "services/mcp_service/src",
+]
+explicit_package_bases = true
+packages = ["devkit_common", "llm_service", "rag_service", "mcp_service"]
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+check_untyped_defs = true
+# Existing service packages are ratcheted toward strict as they move behind
+# the ldk_core ports (#11); ldk_core itself is strict from day one (#9).
+
+[[tool.mypy.overrides]]
+module = ["litellm.*", "chromadb.*", "pypdf.*"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

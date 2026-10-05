@@ -14,7 +14,7 @@ class Retriever:
     async def retrieve(self, embedding: list[float]) -> list[str]:
         try:
             docs = await asyncio.to_thread(self.chroma.query, embedding, self.top_k)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - retrieval degrades to no context
             logger.warning("Chroma retrieval failed: %s", exc)
             return []
 

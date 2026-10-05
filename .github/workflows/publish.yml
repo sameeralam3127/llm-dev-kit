@@ -3,7 +3,8 @@ name: Publish images
 # Builds every service image and pushes it to GitHub Container Registry
 # (ghcr.io/<owner>/llm-dev-kit-<service>). Runs on pushes to main (tagged
 # `latest` + the commit SHA) and on version tags like v1.2.3 (tagged with
-# that version too). Manual runs are also supported.
+# that version too). Manual runs are also supported. Nothing is pushed unless
+# the CI workflow (lint, typecheck, test, build) passes first.
 on:
   push:
     branches: [main]
@@ -18,9 +19,13 @@ permissions:
   packages: write
 
 jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
   # Four of the five images share the root Dockerfile (one stage each);
   # only `web` has its own Dockerfile at web/Dockerfile.
   build-root-services:
+    needs: ci
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -56,6 +61,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
 
   build-web:
+    needs: ci
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

@@ -261,8 +261,10 @@ Use `.env.example` as the starting point for `.env` (set `LLM_SERVICE_URL=http:/
 ## Testing
 
 ```bash
-# python services
+# python services — the same checks CI runs (.github/workflows/ci.yml)
 pip install -r requirements-dev.txt
+ruff check services tests && ruff format --check services tests
+mypy
 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest
 
 # web app — the gate before any change lands

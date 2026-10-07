@@ -86,16 +86,14 @@ The project grows in phases — each one a hot-pluggable module behind an interf
 
 ## Where the Project Is
 
-The build is phase-wise on purpose: each phase lands as a hot-pluggable module behind an interface and is production-ready before the next begins, so you can fork this, learn one concept at a time, and still have a working chatbot the whole way through.
+v2 turns the kit into a sovereign, local-first private AI workspace: every swappable capability sits behind an interface with a plugin registry, the stack runs offline by default, and documents, identity and rate limits are per-user. The plan of record is **[docs/v2/PLAN.md](docs/v2/PLAN.md)**; progress is tracked in [issue #20](https://github.com/sameeralam3127/llm-dev-kit/issues/20).
 
-| | Phase | Seam it plugs into |
+| | Phase | |
 | --- | --- | --- |
-| ✅ | **1 — Foundation** — the full chat app you get today | `ChatProvider` (`web/src/lib/llm/types.ts`) |
-| 🚧 | **2 — Multi-Model AI** — adapters for OpenAI, Anthropic, Gemini, Groq, LM Studio… | `ChatProvider` + a provider registry |
-| | 3 — Memory · 4 — RAG 2.0 · 5 — Agents · 6 — Coding assistant | see the roadmap |
-| | 7 — Workspace · 8 — Voice · 9 — Multimodal · 10 — Enterprise · 11 — Orchestration | see the roadmap |
-
-**Starting Phase 2** means writing one adapter against an interface that already exists — no rewiring of routes or UI. That is the whole point of the seam. Full detail, including each phase's seam, is in **[docs/ROADMAP.md](docs/ROADMAP.md)**.
+| ✅ | **1 — Plan** | [docs/v2/PLAN.md](docs/v2/PLAN.md) |
+| ✅ | **2 — Core refactor** | `ldk_core` ports + plugin registry; providers, stores, loaders, chunkers and MCP tools are plugins |
+| | 3 — Sovereign mode · 4 — Auth · 5 — Per-user ingestion on pgvector | |
+| | 6 — Limits, observability, audit · 7 — Admin · 8 — Plugin marketplace · 9 — Distribution | |
 
 ## Services
 
@@ -136,7 +134,7 @@ The frontend is a **Next.js** application ([web/](web/)) running as its own cont
 
 Answers come from `rag-service`, grounded in your indexed PDFs — the retrieval pipeline is unchanged. The model picker is fed by `rag-service`'s `/v1/models`, which lists local Ollama models plus whichever cloud models are configured (see [Configuration & Cloud LLMs](#configuration--cloud-llms)).
 
-> **Note:** three things from the project's earlier static UI didn't carry over as-is: in-chat PDF upload (ingestion still works via `POST /api/rag/ingest/pdf`), the cache badge and one-click cache clear, and pasting a cloud API key from the browser — that's now a server-side setting instead. Tracked in [docs/ROADMAP.md](docs/ROADMAP.md).
+> **Note:** three things from the project's earlier static UI didn't carry over as-is: in-chat PDF upload (ingestion still works via `POST /api/rag/ingest/pdf`), the cache badge and one-click cache clear, and pasting a cloud API key from the browser — that's now a server-side setting instead. Upload in the UI returns with per-user ingestion ([#15](https://github.com/sameeralam3127/llm-dev-kit/issues/15)).
 
 For frontend development with hot reload:
 
@@ -235,16 +233,18 @@ web/                       Next.js chat app — auth, history, folders, sharing
   README.md                web-specific architecture and env vars
 nginx/nginx.conf           gateway: web + /api/* + /v1 routing, LB across replicas
 services/                  each service is an installable package: src/<name>/ + pyproject.toml + requirements.txt
-  llm_service/              model router — Ollama direct, cloud via LiteLLM
+  core/                     ldk_core: the ports, plugin registry, errors, settings, logging
+  plugins/                  first-party plugins (ollama, litellm, chroma, loader_pdf, chunker_fixed, tools)
+  llm_service/              model router over the LLM and embedder plugins
   rag_service/              RAG chat (+streaming), /v1 API, PDF ingest, Redis cache
-  mcp_service/              MCP tool server
-  devkit_common/            shared config, models
-docs/ROADMAP.md            the 11 phases and the seam each one plugs into
+  mcp_service/              MCP server exposing every Tool plugin
+  devkit_common/            shared config, models, FastAPI service setup
+docs/v2/PLAN.md            the v2 plan: architecture, interfaces, phases
 docs/setup.md              step-by-step setup and troubleshooting
 tests/                     unit tests (no containers needed)
 ```
 
-The three boundaries worth knowing before you change anything: token generation goes through `ChatProvider`, database writes and ownership checks live only in `web/src/server/services/`, and route handlers parse, delegate and serialise — they never query the database directly. Keeping to those is what makes each roadmap phase a drop-in rather than a rewrite.
+The three boundaries worth knowing before you change anything: token generation goes through `ChatProvider`, database writes and ownership checks live only in `web/src/server/services/`, and route handlers parse, delegate and serialise — they never query the database directly. On the Python side the same rule holds: services get implementations from the plugin registry and never import a plugin directly (`tests/test_architecture.py` enforces it).
 
 ## Local Development (outside Docker)
 
@@ -289,6 +289,6 @@ Full walkthrough and more failure modes: [docs/setup.md](docs/setup.md).
 | Document | Covers |
 | --- | --- |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | System diagrams, request flows, and the Docker build strategy |
-| [docs/ROADMAP.md](docs/ROADMAP.md) | The full 11-phase plan and the seam each phase plugs into |
+| [docs/v2/PLAN.md](docs/v2/PLAN.md) | The v2 plan: target architecture, interfaces, migration and phases |
 | [docs/setup.md](docs/setup.md) | Step-by-step setup, PDF ingestion, and troubleshooting |
 | [web/README.md](web/README.md) | Frontend architecture, environment variables, and feature detail |

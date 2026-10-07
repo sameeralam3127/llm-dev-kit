@@ -8,6 +8,7 @@ from ldk_core.errors import (
     ErrorCode,
     ServiceError,
     bad_request,
+    code_for_status,
     not_found,
     to_service_error,
 )
@@ -66,3 +67,24 @@ def test_unknown_exceptions_become_generic_internal_errors() -> None:
 def test_service_errors_pass_through_unchanged() -> None:
     original = not_found()
     assert to_service_error(original) is original
+
+
+@pytest.mark.parametrize(
+    ("status", "code"),
+    [
+        (400, ErrorCode.INVALID_REQUEST),
+        (401, ErrorCode.UNAUTHORIZED),
+        (404, ErrorCode.NOT_FOUND),
+        (408, ErrorCode.TIMEOUT),
+        (422, ErrorCode.INVALID_REQUEST),
+        (429, ErrorCode.RATE_LIMITED),
+        (418, ErrorCode.INVALID_REQUEST),
+        (500, ErrorCode.UPSTREAM_ERROR),
+        (502, ErrorCode.UPSTREAM_ERROR),
+        (503, ErrorCode.UPSTREAM_UNAVAILABLE),
+        (504, ErrorCode.TIMEOUT),
+        (529, ErrorCode.UPSTREAM_ERROR),
+    ],
+)
+def test_code_for_status(status: int, code: ErrorCode) -> None:
+    assert code_for_status(status) is code

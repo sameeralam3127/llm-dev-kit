@@ -108,6 +108,28 @@ def bad_request(message: str, details: Any = None) -> ServiceError:
     return ServiceError(ErrorCode.INVALID_REQUEST, message, details=details)
 
 
+_CODE_BY_STATUS: Mapping[int, ErrorCode] = MappingProxyType(
+    {
+        # A 500 from elsewhere is their failure, not ours: upstream_error.
+        **{s: c for c, s in STATUS_BY_CODE.items() if c is not ErrorCode.INTERNAL},
+        408: ErrorCode.TIMEOUT,
+        422: ErrorCode.INVALID_REQUEST,
+    }
+)
+
+
+def code_for_status(status: int) -> ErrorCode:
+    """Pick the error code for an HTTP status from an upstream or a framework.
+
+    Exact matches use :data:`STATUS_BY_CODE` in reverse (plus 408 and 422).
+    Any other 4xx is ``invalid_request`` and any other 5xx, 500 included, is
+    ``upstream_error``: the failure happened on the other side.
+    """
+    if status in _CODE_BY_STATUS:
+        return _CODE_BY_STATUS[status]
+    return ErrorCode.INVALID_REQUEST if 400 <= status < 500 else ErrorCode.UPSTREAM_ERROR
+
+
 def to_service_error(error: BaseException) -> ServiceError:
     """Map any exception to a ``ServiceError`` without leaking internals.
 

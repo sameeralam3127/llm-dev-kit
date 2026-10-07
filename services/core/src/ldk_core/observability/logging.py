@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import logging
 import sys
-from typing import cast
+from typing import Any, cast
 
 import structlog
 from structlog.typing import EventDict, Processor, WrappedLogger
@@ -65,7 +65,7 @@ def configure_logging(*, service: str, level: LogLevel = "INFO", fmt: LogFormat 
             renderer,
         ],
     )
-    handler = logging.StreamHandler(sys.stderr)
+    handler = _StderrHandler()
     handler.setFormatter(formatter)
 
     root = logging.getLogger()
@@ -81,6 +81,27 @@ def configure_logging(*, service: str, level: LogLevel = "INFO", fmt: LogFormat 
 def get_logger(name: str | None = None) -> structlog.stdlib.BoundLogger:
     """Return a structured logger; pass ``__name__`` to record the module."""
     return cast(structlog.stdlib.BoundLogger, structlog.get_logger(name))
+
+
+class _StderrHandler(logging.StreamHandler):  # type: ignore[type-arg]
+    """Write to whatever ``sys.stderr`` is at emit time.
+
+    A plain ``StreamHandler(sys.stderr)`` keeps the stream object it was given,
+    so output is lost once something swaps ``sys.stderr`` (test capture,
+    reconfigured stdio).
+    """
+
+    def __init__(self) -> None:
+        super().__init__(sys.stderr)
+
+    @property
+    def stream(self) -> Any:
+        """The current ``sys.stderr``."""
+        return sys.stderr
+
+    @stream.setter
+    def stream(self, _: Any) -> None:
+        """Ignore assignments; the stream is always looked up live."""
 
 
 class _ServiceStamp:

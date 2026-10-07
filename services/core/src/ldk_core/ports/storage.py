@@ -32,7 +32,8 @@ class StorageBackend(Protocol):
     """A flat key/value store for file content.
 
     Keys are ``/``-separated relative paths. An implementation rejects keys
-    that are absolute or escape its root (``..``).
+    that are empty, absolute, contain empty segments or escape its root
+    (``..``) with ``ServiceError(invalid_request)``.
     """
 
     @property

@@ -6,6 +6,7 @@
 -e ./services/plugins/chroma
 -e ./services/plugins/loader_pdf
 -e ./services/plugins/chunker_fixed
+-e ./services/plugins/tools
 -r services/llm_service/requirements.txt
 -r services/rag_service/requirements.txt
 -r services/mcp_service/requirements.txt

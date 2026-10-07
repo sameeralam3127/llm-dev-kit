@@ -37,7 +37,8 @@ class Tool(Protocol):
         Args:
             arguments: Input matching :attr:`input_schema`.
             principal: The caller, so the tool can apply the caller's access
-                (e.g. search only their documents). ``None`` only in tests.
+                (e.g. search only their documents). ``None`` when the transport
+                has no authentication yet (MCP until Phase 4) and in tests.
 
         Returns:
             A JSON-serialisable result.

@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "name": "list_models",
+  "version": "0.1.0",
+  "kind": "tool",
+  "description": "Lists the models llm-service can serve.",
+  "permissions": [],
+  "config_schema": {
+    "type": "object",
+    "properties": {
+      "llm_service_url": {"type": "string", "minLength": 1},
+      "timeout_seconds": {"type": "number", "exclusiveMinimum": 0}
+    },
+    "required": ["llm_service_url"],
+    "additionalProperties": false
+  }
+}

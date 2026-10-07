@@ -18,6 +18,7 @@ src = [
     "services/plugins/chroma/src",
     "services/plugins/loader_pdf/src",
     "services/plugins/chunker_fixed/src",
+    "services/plugins/tools/src",
     "services/devkit_common/src",
     "services/llm_service/src",
     "services/rag_service/src",
@@ -65,6 +66,7 @@ mypy_path = [
     "services/plugins/chroma/src",
     "services/plugins/loader_pdf/src",
     "services/plugins/chunker_fixed/src",
+    "services/plugins/tools/src",
     "services/devkit_common/src",
     "services/llm_service/src",
     "services/rag_service/src",
@@ -78,6 +80,7 @@ packages = [
     "ldk_plugin_chroma",
     "ldk_plugin_loader_pdf",
     "ldk_plugin_chunker_fixed",
+    "ldk_plugin_tools",
     "devkit_common",
     "llm_service",
     "rag_service",
@@ -105,6 +108,8 @@ module = [
     "ldk_plugin_loader_pdf.*",
     "ldk_plugin_chunker_fixed",
     "ldk_plugin_chunker_fixed.*",
+    "ldk_plugin_tools",
+    "ldk_plugin_tools.*",
 ]
 disallow_any_generics = true
 disallow_subclassing_any = true
@@ -130,6 +135,7 @@ pythonpath = [
     "services/plugins/chroma/src",
     "services/plugins/loader_pdf/src",
     "services/plugins/chunker_fixed/src",
+    "services/plugins/tools/src",
     "services/devkit_common/src",
     "services/llm_service/src",
     "services/rag_service/src",

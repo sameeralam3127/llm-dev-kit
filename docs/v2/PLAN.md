@@ -49,7 +49,7 @@ identity and rate limiting become per-user and enforced in the data layer.
    `/api/rag/chat`, `/api/rag/ingest/pdf`, `/api/rag/documents/clear`,
    `/api/llm/*` are all reachable from the gateway with no credential. Anyone
    who can reach `:8080` can read the entire index or wipe it.
-2. **Documents have no owner.** [chroma_store.py](../../services/rag_service/src/rag_service/chroma_store.py)
+2. **Documents have no owner.** `rag_service/chroma_store.py` (now the `chroma` plugin)
    uses one hard-coded collection `documents`, no metadata, no user id. Every
    user retrieves from everyone's PDFs.
 3. **The response cache is keyed on `md5(prompt + model)`**

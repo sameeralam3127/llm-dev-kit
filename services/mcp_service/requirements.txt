@@ -1,3 +1,2 @@
-httpx
-mcp<2  # 2.x renamed FastMCP; port tracked in #11
+mcp<2  # 2.x reworked the server API; upgrade with the marketplace work in #18
 pydantic-settings

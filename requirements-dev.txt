@@ -6,5 +6,6 @@
 -r services/mcp_service/requirements.txt
 
 mypy
+types-jsonschema
 pytest
 ruff

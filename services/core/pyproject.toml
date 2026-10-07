@@ -1,0 +1,20 @@
+[project]
+name = "ldk-core"
+version = "0.1.0"
+description = "llm-dev-kit core: ports, errors, settings and observability shared by every service and plugin."
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic>=2.7",
+    "pydantic-settings>=2.3",
+    "structlog>=24.1",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+ldk_core = ["py.typed"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"

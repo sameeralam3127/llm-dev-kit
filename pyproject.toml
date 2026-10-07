@@ -12,6 +12,7 @@ dependencies = []
 target-version = "py312"
 line-length = 100
 src = [
+    "services/core/src",
     "services/devkit_common/src",
     "services/llm_service/src",
     "services/rag_service/src",
@@ -28,15 +29,23 @@ select = [
     "RUF",          # ruff-specific
     "BLE",          # blind except
     "S",            # bandit
+    "D",            # docstrings: required on every public ldk_core symbol
 ]
 ignore = [
     "S101",  # assert is how pytest works
+    "D105",  # magic methods document themselves
+    "D107",  # Google style documents constructor args on the class
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S", "BLE"]
+"tests/**" = ["S", "BLE", "D"]
+# Docstrings are enforced on new code first; the services adopt them in #11.
+"services/{devkit_common,llm_service,rag_service,mcp_service}/**" = ["D"]
 # Prompt text is sent verbatim; wrapping it would change the prompt.
 "services/rag_service/src/rag_service/prompts.py" = ["E501"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
 
 [tool.ruff.lint.flake8-bugbear]
 # FastAPI dependency injection is a function call in a default argument by design.
@@ -45,13 +54,14 @@ extend-immutable-calls = ["fastapi.Depends", "fastapi.File", "fastapi.Query", "f
 [tool.mypy]
 python_version = "3.12"
 mypy_path = [
+    "services/core/src",
     "services/devkit_common/src",
     "services/llm_service/src",
     "services/rag_service/src",
     "services/mcp_service/src",
 ]
 explicit_package_bases = true
-packages = ["devkit_common", "llm_service", "rag_service", "mcp_service"]
+packages = ["ldk_core", "devkit_common", "llm_service", "rag_service", "mcp_service"]
 warn_unused_configs = true
 warn_redundant_casts = true
 warn_unused_ignores = true
@@ -60,12 +70,27 @@ check_untyped_defs = true
 # the ldk_core ports (#11); ldk_core itself is strict from day one (#9).
 
 [[tool.mypy.overrides]]
+# Every per-module flag that --strict turns on.
+module = ["ldk_core", "ldk_core.*"]
+disallow_any_generics = true
+disallow_subclassing_any = true
+disallow_untyped_calls = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+disallow_untyped_decorators = true
+warn_return_any = true
+no_implicit_reexport = true
+strict_equality = true
+extra_checks = true
+
+[[tool.mypy.overrides]]
 module = ["litellm.*", "chromadb.*", "pypdf.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = [
+    "services/core/src",
     "services/devkit_common/src",
     "services/llm_service/src",
     "services/rag_service/src",

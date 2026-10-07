@@ -1,5 +1,6 @@
 # Everything needed to test, lint and typecheck the Python services locally
 # and in CI: each service's runtime deps plus the dev tools.
+-e ./services/core
 -r services/llm_service/requirements.txt
 -r services/rag_service/requirements.txt
 -r services/mcp_service/requirements.txt

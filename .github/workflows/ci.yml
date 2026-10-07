@@ -32,6 +32,7 @@ jobs:
           cache-dependency-path: |
             requirements-dev.txt
             services/*/requirements.txt
+            services/core/pyproject.toml
 
       - run: pip install -r requirements-dev.txt
 

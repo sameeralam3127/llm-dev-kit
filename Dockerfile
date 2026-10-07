@@ -29,10 +29,16 @@ RUN useradd --create-home appuser
 WORKDIR /app
 
 
+# ldk_core and each service's first-party plugins are installed as real
+# distributions (not just copied), because plugins are found through their
+# entry-point metadata.
 FROM base AS llm-service
 COPY services/llm_service/requirements.txt /tmp/requirements.txt
+COPY services/core /src/core
+COPY services/plugins/ollama /src/plugins/ollama
+COPY services/plugins/litellm /src/plugins/litellm
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install -r /tmp/requirements.txt
+    pip install -r /tmp/requirements.txt /src/core /src/plugins/ollama /src/plugins/litellm
 COPY services/devkit_common/src/devkit_common ./devkit_common
 COPY services/llm_service/src/llm_service ./llm_service
 USER appuser
@@ -42,8 +48,9 @@ CMD ["uvicorn", "llm_service.main:app", "--host", "0.0.0.0", "--port", "8010"]
 
 FROM base AS rag-service
 COPY services/rag_service/requirements.txt /tmp/requirements.txt
+COPY services/core /src/core
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install -r /tmp/requirements.txt
+    pip install -r /tmp/requirements.txt /src/core
 COPY services/devkit_common/src/devkit_common ./devkit_common
 COPY services/rag_service/src/rag_service ./rag_service
 USER appuser
@@ -53,8 +60,9 @@ CMD ["uvicorn", "rag_service.main:app", "--host", "0.0.0.0", "--port", "8020"]
 
 FROM base AS mcp-service
 COPY services/mcp_service/requirements.txt /tmp/requirements.txt
+COPY services/core /src/core
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install -r /tmp/requirements.txt
+    pip install -r /tmp/requirements.txt /src/core
 COPY services/devkit_common/src/devkit_common ./devkit_common
 COPY services/mcp_service/src/mcp_service ./mcp_service
 USER appuser

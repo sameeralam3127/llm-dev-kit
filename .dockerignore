@@ -3,6 +3,8 @@
 web/node_modules
 web/.next
 __pycache__
+*.egg-info
+build
 *.pyc
 .venv
 venv

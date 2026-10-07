@@ -13,6 +13,8 @@ target-version = "py312"
 line-length = 100
 src = [
     "services/core/src",
+    "services/plugins/ollama/src",
+    "services/plugins/litellm/src",
     "services/devkit_common/src",
     "services/llm_service/src",
     "services/rag_service/src",
@@ -55,13 +57,23 @@ extend-immutable-calls = ["fastapi.Depends", "fastapi.File", "fastapi.Query", "f
 python_version = "3.12"
 mypy_path = [
     "services/core/src",
+    "services/plugins/ollama/src",
+    "services/plugins/litellm/src",
     "services/devkit_common/src",
     "services/llm_service/src",
     "services/rag_service/src",
     "services/mcp_service/src",
 ]
 explicit_package_bases = true
-packages = ["ldk_core", "devkit_common", "llm_service", "rag_service", "mcp_service"]
+packages = [
+    "ldk_core",
+    "ldk_plugin_ollama",
+    "ldk_plugin_litellm",
+    "devkit_common",
+    "llm_service",
+    "rag_service",
+    "mcp_service",
+]
 warn_unused_configs = true
 warn_redundant_casts = true
 warn_unused_ignores = true
@@ -71,7 +83,14 @@ check_untyped_defs = true
 
 [[tool.mypy.overrides]]
 # Every per-module flag that --strict turns on.
-module = ["ldk_core", "ldk_core.*"]
+module = [
+    "ldk_core",
+    "ldk_core.*",
+    "ldk_plugin_ollama",
+    "ldk_plugin_ollama.*",
+    "ldk_plugin_litellm",
+    "ldk_plugin_litellm.*",
+]
 disallow_any_generics = true
 disallow_subclassing_any = true
 disallow_untyped_calls = true
@@ -91,9 +110,12 @@ ignore_missing_imports = true
 testpaths = ["tests"]
 pythonpath = [
     "services/core/src",
+    "services/plugins/ollama/src",
+    "services/plugins/litellm/src",
     "services/devkit_common/src",
     "services/llm_service/src",
     "services/rag_service/src",
     "services/mcp_service/src",
+    "tests/support",
     ".",
 ]

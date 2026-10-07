@@ -4,6 +4,8 @@ from collections.abc import AsyncIterator
 import httpx
 from fastapi import HTTPException
 
+from devkit_common.http import error_detail
+
 
 class LLMServiceClient:
     """HTTP client for the llm-service. All chat/embedding traffic goes here."""
@@ -102,8 +104,10 @@ class LLMServiceClient:
         await self._client.aclose()
 
 
-def _detail(response) -> str:
+def _detail(response: httpx.Response) -> str:
+    """The upstream's error message, from the envelope or a legacy body."""
     try:
-        return response.json().get("detail", response.text[:200])
-    except Exception:  # noqa: BLE001 - best-effort error text, never raise
+        body = response.json()
+    except ValueError:
         return response.text[:200]
+    return error_detail(body) or response.text[:200]

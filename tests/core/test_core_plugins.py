@@ -4,6 +4,7 @@ import json
 import sys
 import textwrap
 from collections.abc import AsyncIterator, Mapping
+from importlib.metadata import EntryPoint, entry_points
 from pathlib import Path
 from typing import Any
 
@@ -306,6 +307,19 @@ PLUGIN_MODULE = textwrap.dedent(
 )
 
 
+def _example_eps() -> list[EntryPoint]:
+    """The fake distribution's entry points, found the normal way.
+
+    Real first-party plugins are installed in the dev environment too, so
+    the tests look only at the distribution they installed.
+    """
+    return [
+        ep
+        for ep in entry_points(group="llm_dev_kit.plugins")
+        if ep.dist is not None and ep.dist.name == "ldk-example-plugin"
+    ]
+
+
 @pytest.fixture
 def installed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     """Install a fake distribution whose entry points are given per test."""
@@ -329,7 +343,7 @@ def installed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
 def test_entry_point_plugin_is_discovered_and_usable(installed) -> None:
     installed({"tool.upper": "ldk_example_plugin:plugin"})
     registry = PluginRegistry()
-    result = registry.load_entry_points()
+    result = registry.load_entry_points(eps=_example_eps())
 
     assert [p.manifest.name for p in result.plugins] == ["upper"]
     assert result.failures == []
@@ -348,7 +362,7 @@ def test_bad_entry_points_are_reported_not_raised(installed) -> None:
     )
     registry = PluginRegistry()
     with capture_logs() as logs:
-        result = registry.load_entry_points()
+        result = registry.load_entry_points(eps=_example_eps())
 
     assert [p.manifest.name for p in result.plugins] == ["upper"]
     reasons = {f.entry_point.split(" = ")[0]: f.error for f in result.failures}
@@ -372,7 +386,7 @@ def test_entry_point_conflicting_with_a_registered_plugin(installed) -> None:
             factory=lambda _: None,
         )
     )
-    result = registry.load_entry_points()
+    result = registry.load_entry_points(eps=_example_eps())
     assert result.plugins == []
     (failure,) = result.failures
     assert "already registered (version 9.9.9)" in failure.error

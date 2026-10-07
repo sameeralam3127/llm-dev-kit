@@ -80,3 +80,47 @@ jobs:
         env:
           DATABASE_URL: file:/tmp/build.db
           AUTH_SECRET: build-placeholder-not-a-real-credential
+
+  # Build each Python image and prove it starts: plugins are discovered from
+  # installed entry points, so a Dockerfile that copies instead of installing
+  # only fails at runtime. Nothing is pushed.
+  images:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: llm-service
+            port: "8010"
+          - service: rag-service
+            port: "8020"
+          - service: mcp-service
+            port: ""
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: ${{ matrix.service }}
+          load: true
+          push: false
+          tags: ldk-ci/${{ matrix.service }}:test
+          cache-from: type=gha,scope=${{ matrix.service }}
+
+      - name: Start and wait for /health
+        if: matrix.port != ''
+        run: |
+          docker run -d --name svc -p ${{ matrix.port }}:${{ matrix.port }} ldk-ci/${{ matrix.service }}:test
+          for _ in $(seq 1 30); do
+            if curl -fsS localhost:${{ matrix.port }}/health; then echo; exit 0; fi
+            sleep 1
+          done
+          docker logs svc
+          exit 1
+
+      - name: Import check
+        if: matrix.port == ''
+        run: docker run --rm ldk-ci/${{ matrix.service }}:test python -c "import mcp_service.main"

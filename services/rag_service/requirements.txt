@@ -1,8 +1,6 @@
-chromadb-client
 fastapi
 httpx
 pydantic-settings
-pypdf
 python-multipart
 redis
 uvicorn[standard]

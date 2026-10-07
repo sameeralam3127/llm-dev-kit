@@ -1,9 +1,8 @@
 import json
 from collections.abc import AsyncIterator
 
-from fastapi import HTTPException
-
 from devkit_common.models import ChatResponse
+from ldk_core.errors import ServiceError
 from rag_service.prompts import build_prompt
 
 
@@ -68,8 +67,8 @@ async def stream_answer(
     try:
         embedding = await llm.embed_one(query)
         docs = await retriever.retrieve(embedding) if embedding else []
-    except HTTPException as exc:
-        yield json.dumps({"error": exc.detail}) + "\n"
+    except ServiceError as exc:
+        yield json.dumps({"error": exc.message}) + "\n"
         return
 
     yield json.dumps({"meta": {"cached": False, "sources": docs}}) + "\n"
@@ -80,9 +79,8 @@ async def stream_answer(
         async for delta in llm.generate_stream(prompt, model=model, api_key=api_key):
             parts.append(delta)
             yield json.dumps({"delta": delta}) + "\n"
-    except (HTTPException, RuntimeError) as exc:
-        detail = exc.detail if isinstance(exc, HTTPException) else str(exc)
-        yield json.dumps({"error": detail}) + "\n"
+    except ServiceError as exc:
+        yield json.dumps({"error": exc.message}) + "\n"
         return
 
     response = "".join(parts)

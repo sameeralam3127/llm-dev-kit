@@ -11,9 +11,10 @@ import json
 import time
 from uuid import uuid4
 
-from fastapi import APIRouter, Header, HTTPException, Request
+from fastapi import APIRouter, Header, Request
 from fastapi.responses import StreamingResponse
 
+from ldk_core.errors import ServiceError, bad_request
 from rag_service.prompts import build_prompt
 
 router = APIRouter(prefix="/v1", tags=["openai-compat"])
@@ -101,7 +102,7 @@ async def chat_completions(
 
     query, history = _extract_query(messages)
     if not query.strip():
-        raise HTTPException(status_code=400, detail="No user message provided")
+        raise bad_request("No user message provided")
 
     llm = request.app.state.llm
     retriever = request.app.state.retriever
@@ -134,8 +135,8 @@ async def chat_completions(
         try:
             async for piece in llm.generate_stream(prompt, model=model, api_key=api_key):
                 yield chunk({"content": piece})
-        except RuntimeError as exc:
-            yield chunk({"content": f"\n[error] {exc}"})
+        except ServiceError as exc:
+            yield chunk({"content": f"\n[error] {exc.message}"})
         yield chunk({}, "stop")
         yield "data: [DONE]\n\n"
 

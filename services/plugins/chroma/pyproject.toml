@@ -1,0 +1,22 @@
+[project]
+name = "ldk-plugin-chroma"
+version = "0.1.0"
+description = "llm-dev-kit plugin: ChromaDB as the vector store (deprecated; pgvector replaces it in Phase 5)."
+requires-python = ">=3.12"
+dependencies = [
+    "ldk-core",
+    "chromadb-client>=1.5,<2",
+]
+
+[project.entry-points."llm_dev_kit.plugins"]
+"vector_store.chroma" = "ldk_plugin_chroma:plugin"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+ldk_plugin_chroma = ["py.typed", "manifests/*.json"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"

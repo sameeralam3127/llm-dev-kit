@@ -49,8 +49,12 @@ CMD ["uvicorn", "llm_service.main:app", "--host", "0.0.0.0", "--port", "8010"]
 FROM base AS rag-service
 COPY services/rag_service/requirements.txt /tmp/requirements.txt
 COPY services/core /src/core
+COPY services/plugins/chroma /src/plugins/chroma
+COPY services/plugins/loader_pdf /src/plugins/loader_pdf
+COPY services/plugins/chunker_fixed /src/plugins/chunker_fixed
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install -r /tmp/requirements.txt /src/core
+    pip install -r /tmp/requirements.txt /src/core \
+        /src/plugins/chroma /src/plugins/loader_pdf /src/plugins/chunker_fixed
 COPY services/devkit_common/src/devkit_common ./devkit_common
 COPY services/rag_service/src/rag_service ./rag_service
 USER appuser

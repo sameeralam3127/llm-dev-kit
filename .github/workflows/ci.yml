@@ -21,6 +21,16 @@ concurrency:
 jobs:
   python:
     runs-on: ubuntu-latest
+    # A real Chroma for the vector_store.chroma contract suite; same version
+    # as docker-compose.yml.
+    services:
+      chroma:
+        image: chromadb/chroma:1.5.9
+        ports:
+          - 8000:8000
+    env:
+      LDK_TEST_CHROMA_HOST: localhost
+      LDK_TEST_CHROMA_PORT: "8000"
     steps:
       - uses: actions/checkout@v7
 

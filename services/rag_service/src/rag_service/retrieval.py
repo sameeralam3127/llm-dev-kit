@@ -1,21 +1,30 @@
-import asyncio
-import logging
+from ldk_core.errors import ServiceError
+from ldk_core.observability import get_logger
+from ldk_core.ports import SearchScope, VectorStore
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
+
+LEGACY_COLLECTION = "documents"
+"""The single shared collection every upload lands in until Phase 5 adds
+per-user collections."""
 
 
 class Retriever:
-    """Retrieves context from ChromaDB (PDF uploads)."""
+    """Retrieves context for a query embedding from the vector store."""
 
-    def __init__(self, *, chroma, top_k: int = 3) -> None:
-        self.chroma = chroma
+    def __init__(
+        self, *, store: VectorStore, collection_id: str = LEGACY_COLLECTION, top_k: int = 3
+    ) -> None:
+        self.store = store
+        self.scope = SearchScope(collection_ids=frozenset({collection_id}))
         self.top_k = top_k
 
     async def retrieve(self, embedding: list[float]) -> list[str]:
         try:
-            docs = await asyncio.to_thread(self.chroma.query, embedding, self.top_k)
-        except Exception as exc:  # noqa: BLE001 - retrieval degrades to no context
-            logger.warning("Chroma retrieval failed: %s", exc)
+            results = await self.store.search(embedding, scope=self.scope, top_k=self.top_k)
+        except ServiceError as exc:
+            # Retrieval degrades to answering without context rather than failing.
+            logger.warning("retrieval failed", store=self.store.name, error=exc.message)
             return []
 
-        return [doc for doc in docs if doc.strip()]
+        return [r.text for r in results if r.text.strip()]

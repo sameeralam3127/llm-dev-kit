@@ -7,10 +7,10 @@ that the matching suite test fails.
 from collections.abc import AsyncIterator, Sequence
 
 import pytest
+from memory_store import MemoryVectorStore
 from test_document_contracts import WordWindowChunker
 from test_llm_contracts import EchoProvider
 from test_platform_contracts import MemoryStorage, MemoryTokenBucket, StaticTokenAuth
-from test_vector_store_contract import MemoryVectorStore
 
 from ldk_core.errors import ErrorCode, ServiceError
 from ldk_core.ports import (

@@ -1,14 +1,19 @@
 import json
 from collections.abc import AsyncIterator
+from typing import Any
 
 import httpx
-from fastapi import HTTPException
 
 from devkit_common.http import error_detail
+from ldk_core.errors import ErrorCode, ServiceError, code_for_status
 
 
 class LLMServiceClient:
-    """HTTP client for the llm-service. All chat/embedding traffic goes here."""
+    """HTTP client for the llm-service. All chat/embedding traffic goes here.
+
+    Failures raise ServiceError: upstream_unavailable when llm-service cannot
+    be reached, otherwise the code matching its response status.
+    """
 
     def __init__(self, base_url: str, timeout: float) -> None:
         self._client = httpx.AsyncClient(base_url=base_url.rstrip("/"), timeout=timeout)
@@ -18,8 +23,9 @@ class LLMServiceClient:
             res = await self._client.get("/models")
             res.raise_for_status()
         except httpx.HTTPError as exc:
-            raise HTTPException(status_code=503, detail=f"LLM service unavailable: {exc}") from exc
-        return res.json().get("models", [])
+            raise _unavailable(exc) from exc
+        models: list[str] = res.json().get("models", [])
+        return models
 
     async def embed_one(self, text: str) -> list[float] | None:
         embeddings = await self._embed([text], strict=False)
@@ -34,26 +40,24 @@ class LLMServiceClient:
             res.raise_for_status()
         except httpx.HTTPStatusError as exc:
             if strict:
-                raise HTTPException(
-                    status_code=502,
-                    detail=f"Embedding failed: {_detail(exc.response)}",
+                raise ServiceError(
+                    ErrorCode.UPSTREAM_ERROR, f"Embedding failed: {_detail(exc.response)}"
                 ) from exc
             return []
         except httpx.HTTPError as exc:
             if strict:
-                raise HTTPException(
-                    status_code=503, detail=f"LLM service unavailable: {exc}"
-                ) from exc
+                raise _unavailable(exc) from exc
             return []
-        return res.json()["embeddings"]
+        embeddings: list[list[float]] = res.json()["embeddings"]
+        return embeddings
 
     async def generate(
         self,
         prompt: str,
         model: str | None = None,
         api_key: str | None = None,
-        options: dict | None = None,
-    ) -> dict:
+        options: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         payload = {
             "prompt": prompt,
             "model": model,
@@ -63,18 +67,22 @@ class LLMServiceClient:
         try:
             res = await self._client.post("/generate", json=payload)
         except httpx.HTTPError as exc:
-            raise HTTPException(status_code=503, detail=f"LLM service unavailable: {exc}") from exc
+            raise _unavailable(exc) from exc
         if res.is_error:
-            status = res.status_code if res.status_code < 500 else 502
-            raise HTTPException(status_code=status, detail=_detail(res))
-        return res.json()
+            # As before: a 4xx keeps its meaning (a missing cloud key stays a
+            # 401); any 5xx from llm-service is a 502 from here.
+            status = res.status_code
+            code = code_for_status(status) if status < 500 else ErrorCode.UPSTREAM_ERROR
+            raise ServiceError(code, _detail(res))
+        body: dict[str, Any] = res.json()
+        return body
 
     async def generate_stream(
         self,
         prompt: str,
         model: str | None = None,
         api_key: str | None = None,
-        options: dict | None = None,
+        options: dict[str, Any] | None = None,
     ) -> AsyncIterator[str]:
         payload = {
             "prompt": prompt,
@@ -86,22 +94,26 @@ class LLMServiceClient:
             async with self._client.stream("POST", "/generate/stream", json=payload) as res:
                 if res.status_code >= 400:
                     body = (await res.aread()).decode(errors="replace")
-                    raise HTTPException(status_code=502, detail=body[:200])
+                    raise ServiceError(ErrorCode.UPSTREAM_ERROR, _text_detail(body))
                 async for line in res.aiter_lines():
                     if not line:
                         continue
                     data = json.loads(line)
                     if "error" in data:
-                        raise RuntimeError(data["error"])
+                        raise ServiceError(ErrorCode.UPSTREAM_ERROR, str(data["error"]))
                     if data.get("delta"):
                         yield data["delta"]
                     if data.get("done"):
                         return
         except httpx.HTTPError as exc:
-            raise HTTPException(status_code=503, detail=f"LLM service unavailable: {exc}") from exc
+            raise _unavailable(exc) from exc
 
     async def close(self) -> None:
         await self._client.aclose()
+
+
+def _unavailable(exc: httpx.HTTPError) -> ServiceError:
+    return ServiceError(ErrorCode.UPSTREAM_UNAVAILABLE, f"LLM service unavailable: {exc}")
 
 
 def _detail(response: httpx.Response) -> str:
@@ -111,3 +123,10 @@ def _detail(response: httpx.Response) -> str:
     except ValueError:
         return response.text[:200]
     return error_detail(body) or response.text[:200]
+
+
+def _text_detail(body: str) -> str:
+    try:
+        return error_detail(json.loads(body)) or body[:200]
+    except ValueError:
+        return body[:200]

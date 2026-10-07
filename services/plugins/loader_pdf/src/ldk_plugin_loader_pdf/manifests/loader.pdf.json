@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "name": "pdf",
+  "version": "0.1.0",
+  "kind": "loader",
+  "description": "Extracts text from PDF files page by page with pypdf. Scanned (image-only) PDFs yield no text.",
+  "permissions": [],
+  "config_schema": {"type": "object", "additionalProperties": false}
+}

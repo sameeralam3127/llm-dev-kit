@@ -3,11 +3,16 @@
 A plugin distribution declares, in its ``pyproject.toml``::
 
     [project.entry-points."llm_dev_kit.plugins"]
-    ollama = "ldk_plugin_ollama:plugin"
+    "llm.ollama" = "ldk_plugin_ollama:llm_plugin"
+    "embedder.ollama" = "ldk_plugin_ollama:embedder_plugin"
 
-where ``plugin`` is a :class:`~ldk_core.plugins.manifest.Plugin`. Discovery
-never raises for a single bad plugin: it reports the failure and moves on, so
-one broken install cannot stop a service from starting.
+where each target is a :class:`~ldk_core.plugins.manifest.Plugin`. The entry
+point is named ``<kind>.<name>``, matching its manifest, because one
+distribution may offer the same name for several kinds and entry-point names
+must be unique.
+
+Discovery never raises for a single bad plugin: it reports the failure and
+moves on, so one broken install cannot stop a service from starting.
 """
 
 from __future__ import annotations
@@ -45,6 +50,11 @@ class DiscoveryResult:
     failures: list[DiscoveryFailure] = field(default_factory=list)
 
 
+def entry_point_name(plugin: Plugin) -> str:
+    """The entry-point name a plugin must be registered under: ``<kind>.<name>``."""
+    return f"{plugin.manifest.kind.value}.{plugin.manifest.name}"
+
+
 def discover(
     group: str = ENTRY_POINT_GROUP, *, eps: Iterable[EntryPoint] | None = None
 ) -> DiscoveryResult:
@@ -75,13 +85,14 @@ def discover(
                 DiscoveryFailure(declared, dist, f"expected a Plugin, got {type(obj).__name__}")
             )
             continue
-        if obj.manifest.name != ep.name:
+        expected = entry_point_name(obj)
+        if ep.name != expected:
             result.failures.append(
                 DiscoveryFailure(
                     declared,
                     dist,
-                    f"entry point name '{ep.name}' does not match manifest name "
-                    f"'{obj.manifest.name}'",
+                    f"entry point name '{ep.name}' does not match the manifest; "
+                    f"expected '{expected}'",
                 )
             )
             continue

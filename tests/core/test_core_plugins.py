@@ -327,7 +327,7 @@ def installed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
 
 
 def test_entry_point_plugin_is_discovered_and_usable(installed) -> None:
-    installed({"upper": "ldk_example_plugin:plugin"})
+    installed({"tool.upper": "ldk_example_plugin:plugin"})
     registry = PluginRegistry()
     result = registry.load_entry_points()
 
@@ -340,10 +340,10 @@ def test_entry_point_plugin_is_discovered_and_usable(installed) -> None:
 def test_bad_entry_points_are_reported_not_raised(installed) -> None:
     installed(
         {
-            "upper": "ldk_example_plugin:plugin",
+            "tool.upper": "ldk_example_plugin:plugin",
             "missing": "ldk_no_such_module:plugin",
             "wrongtype": "ldk_example_plugin:not_a_plugin",
-            "renamed": "ldk_example_plugin:plugin",
+            "upper": "ldk_example_plugin:plugin",
         }
     )
     registry = PluginRegistry()
@@ -354,7 +354,7 @@ def test_bad_entry_points_are_reported_not_raised(installed) -> None:
     reasons = {f.entry_point.split(" = ")[0]: f.error for f in result.failures}
     assert reasons["missing"].startswith("import failed: ModuleNotFoundError")
     assert reasons["wrongtype"] == "expected a Plugin, got int"
-    assert "does not match manifest name 'upper'" in reasons["renamed"]
+    assert "expected 'tool.upper'" in reasons["upper"]
     assert all(f.distribution == "ldk-example-plugin" for f in result.failures)
     skipped = [e for e in logs if e["event"] == "plugin skipped"]
     assert [e["log_level"] for e in skipped] == ["warning"] * 3
@@ -362,7 +362,7 @@ def test_bad_entry_points_are_reported_not_raised(installed) -> None:
 
 
 def test_entry_point_conflicting_with_a_registered_plugin(installed) -> None:
-    installed({"upper": "ldk_example_plugin:plugin"})
+    installed({"tool.upper": "ldk_example_plugin:plugin"})
     registry = PluginRegistry()
     registry.register(
         Plugin(
@@ -376,3 +376,27 @@ def test_entry_point_conflicting_with_a_registered_plugin(installed) -> None:
     assert result.plugins == []
     (failure,) = result.failures
     assert "already registered (version 9.9.9)" in failure.error
+
+
+def test_aclose_closes_built_instances_and_survives_failures() -> None:
+    closed: list[str] = []
+
+    class Closing(Echo):
+        async def aclose(self) -> None:
+            if self.name == "bad":
+                raise RuntimeError("socket already gone")
+            closed.append(self.name)
+
+    registry = PluginRegistry()
+    for name in ("bad", "good", "unused"):
+        registry.register(
+            Plugin(parse_manifest(_manifest(name=name)), factory=lambda _, n=name: Closing(name=n))
+        )
+    registry.get(LLM, "bad")
+    registry.get(LLM, "good")
+    with capture_logs() as logs:
+        asyncio.run(registry.aclose())
+    assert closed == ["good"]
+    assert [e["name"] for e in logs if e["event"] == "plugin close failed"] == ["bad"]
+    # A later get builds a fresh instance.
+    assert registry.get(LLM, "good") is not None

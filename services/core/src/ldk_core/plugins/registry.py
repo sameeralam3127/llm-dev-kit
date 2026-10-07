@@ -193,6 +193,25 @@ class PluginRegistry:
         """Return every enabled implementation of ``spec``, sorted by name."""
         return [self.get(spec, name) for name in self.names(spec)]
 
+    async def aclose(self) -> None:
+        """Release every built instance's resources; call on service shutdown.
+
+        Instances that hold connections expose an ``async def aclose()``;
+        each is awaited once and forgotten. One failing close is logged and
+        does not stop the others.
+        """
+        with self._lock:
+            instances = list(self._instances.items())
+            self._instances.clear()
+        for (kind, name), instance in instances:
+            close = getattr(instance, "aclose", None)
+            if close is None:
+                continue
+            try:
+                await close()
+            except Exception as exc:  # noqa: BLE001 - shutdown must reach every plugin
+                _log.warning("plugin close failed", kind=kind.value, name=name, error=str(exc))
+
     def _build(self, spec: PortSpec[Any], plugin: Plugin) -> object:
         """Instantiate ``plugin`` and check the result against its port."""
         manifest = plugin.manifest

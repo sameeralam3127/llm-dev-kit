@@ -14,7 +14,11 @@ class Settings(CoreSettings):
     plugin never reads the environment itself.
     """
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore", frozen=True)
+    # env_ignore_empty: compose passes unset optional variables as "", which
+    # must mean "not set" rather than an invalid value.
+    model_config = SettingsConfigDict(
+        env_file=".env", extra="ignore", frozen=True, env_ignore_empty=True
+    )
 
     app_name: str = "LLM Dev Kit"
 

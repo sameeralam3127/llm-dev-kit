@@ -1,0 +1,23 @@
+[project]
+name = "ldk-plugin-tools"
+version = "0.1.0"
+description = "llm-dev-kit plugin: the built-in MCP tools (list models, ask the assistant)."
+requires-python = ">=3.12"
+dependencies = [
+    "httpx>=0.27",
+    "ldk-core",
+]
+
+[project.entry-points."llm_dev_kit.plugins"]
+"tool.list_models" = "ldk_plugin_tools:list_models_plugin"
+"tool.ask_llm_dev_kit" = "ldk_plugin_tools:ask_plugin"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+ldk_plugin_tools = ["py.typed", "manifests/*.json"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"

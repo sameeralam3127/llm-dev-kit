@@ -108,6 +108,18 @@ Two details that matter in practice:
 - **Tokens are batched per animation frame.** A fast local model emits far more
   tokens than the screen can paint; committing each one individually turns into
   hundreds of renders a second.
+- **Only the growing message re-renders.** `ChatView` hands memoised children
+  stable callbacks, so finished messages, the header and the composer skip the
+  per-frame renders while an answer streams (`chat-view.test.tsx` pins this).
+- **Only the growing block re-parses.** `Markdown` splits an answer into
+  top-level blocks (`lib/markdown-blocks.ts`) and memoises each, so a frame
+  costs one block's parse instead of the whole answer's. Streaming a
+  12,000-character answer dropped from ~2,050 ms to ~170 ms of render work
+  (`npm run bench`).
+- **Highlighting loads on demand.** highlight.js lives in its own chunk
+  (`components/markdown/highlight.ts`), fetched only when an answer contains
+  code, and a code block is highlighted once it closes rather than on every
+  frame. That took ~47 kB off the chat and share pages' first load.
 
 `X-Accel-Buffering: no` is set because nginx buffers proxied responses by
 default, which would silently defeat streaming behind the gateway.
@@ -157,6 +169,8 @@ paths to prevent an open redirect. GitHub OAuth registers itself only when both
 | `npm run start` | Serve the production build |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run lint` | ESLint |
+| `npm test` | Vitest (jsdom): Markdown splitting, render counts, streaming behaviour |
+| `npm run bench` | Streaming render cost, old vs new Markdown (not run in CI) |
 | `npm run db:push` | Apply the schema without a migration |
 | `npm run db:migrate` | Create and apply a migration |
 | `npm run db:seed` | Demo account and example chat |

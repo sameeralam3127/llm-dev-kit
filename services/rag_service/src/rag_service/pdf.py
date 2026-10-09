@@ -1,27 +1,23 @@
-from pypdf import PdfReader
+"""Deprecated: the PDF loader and the chunker are plugins now.
+
+These two functions keep the old call signatures working by delegating to
+``loader.pdf`` and ``chunker.fixed``. rag-service itself no longer uses
+them; they go when Phase 5 (#15) replaces the ingestion path.
+"""
+
+from typing import BinaryIO
+
+from ldk_core.errors import ServiceError
+from ldk_plugin_chunker_fixed import split_text
+from ldk_plugin_loader_pdf import PdfLoader
 
 
-def load_pdf(file) -> str:
-    reader = PdfReader(file, strict=False)
-    text = "\n".join(filter(None, (page.extract_text() for page in reader.pages)))
-
-    if not text.strip():
-        raise ValueError("No readable text in PDF")
-
-    return text
+def load_pdf(file: BinaryIO) -> str:
+    try:
+        return PdfLoader().load(file.read()).text
+    except ServiceError as exc:
+        raise ValueError(exc.message) from exc
 
 
 def chunk_text(text: str, chunk_size: int = 500, overlap: int = 50) -> list[str]:
-    if chunk_size <= 0:
-        raise ValueError("chunk_size must be positive")
-    if overlap < 0 or overlap >= chunk_size:
-        raise ValueError("overlap must be between 0 and chunk_size")
-
-    chunks: list[str] = []
-    start = 0
-    while start < len(text):
-        chunk = text[start : start + chunk_size].strip()
-        if chunk:
-            chunks.append(chunk)
-        start += chunk_size - overlap
-    return chunks
+    return split_text(text, chunk_size, overlap)

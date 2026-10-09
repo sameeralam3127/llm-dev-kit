@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "name": "openai",
+  "version": "0.1.0",
+  "kind": "llm",
+  "description": "OpenAI models (gpt-4o, gpt-4.1, o4-mini, ...) through LiteLLM. Model ids look like openai/gpt-4o.",
+  "permissions": ["network", "secrets"],
+  "config_schema": {
+    "type": "object",
+    "properties": {
+      "api_key": {"type": ["string", "null"], "description": "Server-side key; a request may bring its own unless sovereign mode forbids it."},
+      "base_url": {"type": ["string", "null"], "description": "Override the provider's API base URL."},
+      "timeout_seconds": {"type": "number", "exclusiveMinimum": 0, "default": 120}
+    },
+    "additionalProperties": false
+  }
+}

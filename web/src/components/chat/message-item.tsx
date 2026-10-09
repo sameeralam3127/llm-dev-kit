@@ -212,6 +212,7 @@ export const MessageItem = React.memo(function MessageItem({
         {displayed ? (
           <Markdown
             content={displayed}
+            streaming={isStreaming}
             className={cn(isStreaming && 'streaming-caret')}
           />
         ) : (

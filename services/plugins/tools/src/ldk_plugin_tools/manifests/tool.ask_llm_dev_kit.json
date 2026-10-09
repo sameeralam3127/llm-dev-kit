@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "name": "ask_llm_dev_kit",
+  "version": "0.1.0",
+  "kind": "tool",
+  "description": "Asks the RAG-enabled assistant a question through rag-service.",
+  "permissions": [],
+  "config_schema": {
+    "type": "object",
+    "properties": {
+      "rag_service_url": {"type": "string", "minLength": 1},
+      "timeout_seconds": {"type": "number", "exclusiveMinimum": 0}
+    },
+    "required": ["rag_service_url"],
+    "additionalProperties": false
+  }
+}

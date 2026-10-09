@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "name": "ollama",
+  "version": "0.1.0",
+  "kind": "embedder",
+  "description": "Text embeddings from a local Ollama model (nomic-embed-text by default).",
+  "permissions": [],
+  "config_schema": {
+    "type": "object",
+    "properties": {
+      "host": {"type": "string", "minLength": 1},
+      "model": {"type": "string", "minLength": 1, "default": "nomic-embed-text"},
+      "dimension": {"type": "integer", "minimum": 1, "description": "Required only for models the plugin does not know."},
+      "timeout_seconds": {"type": "number", "exclusiveMinimum": 0, "default": 120}
+    },
+    "required": ["host"],
+    "additionalProperties": false
+  }
+}

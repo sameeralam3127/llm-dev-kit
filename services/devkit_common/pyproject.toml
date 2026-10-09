@@ -4,8 +4,13 @@ version = "0.1.0"
 description = "Shared config and models used across llm-dev-kit services."
 requires-python = ">=3.12"
 dependencies = [
+    "ldk-core",
     "pydantic-settings",
 ]
+
+[project.optional-dependencies]
+# devkit_common.http, used by the FastAPI services.
+http = ["fastapi"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

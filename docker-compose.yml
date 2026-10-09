@@ -89,6 +89,9 @@ services:
       target: llm-service
     command: uvicorn llm_service.main:app --host 0.0.0.0 --port 8010 --reload
     environment:
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      LOG_FORMAT: ${LOG_FORMAT:-json}
+      EMBEDDING_DIMENSION: ${EMBEDDING_DIMENSION:-}
       OLLAMA_HOST: ${OLLAMA_HOST:-http://host.docker.internal:11434}
       DEFAULT_CHAT_MODEL: ${DEFAULT_CHAT_MODEL:-llama3.1}
       DEFAULT_EMBEDDING_MODEL: ${DEFAULT_EMBEDDING_MODEL:-nomic-embed-text}
@@ -131,6 +134,8 @@ services:
           cpus: "1.5"
           memory: 1536M
     environment:
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      LOG_FORMAT: ${LOG_FORMAT:-json}
       LLM_SERVICE_URL: http://llm-service:8010
       REDIS_URL: redis://redis:6379/0
       CHROMA_HOST: chroma
@@ -158,6 +163,8 @@ services:
       context: .
       target: mcp-service
     environment:
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      LOG_FORMAT: ${LOG_FORMAT:-json}
       LLM_SERVICE_URL: http://llm-service:8010
       RAG_SERVICE_URL: http://rag-service:8020
     volumes:

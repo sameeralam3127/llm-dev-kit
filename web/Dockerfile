@@ -4,7 +4,7 @@
 # openssl is required by Prisma's query engine. Shared by every stage below
 # so the apt install (and its network fetch of the package index) happens
 # once per build instead of three times.
-FROM node:20-slim AS base
+FROM node:22-slim AS base
 WORKDIR /app
 
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \

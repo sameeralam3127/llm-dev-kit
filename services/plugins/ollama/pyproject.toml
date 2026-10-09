@@ -1,0 +1,23 @@
+[project]
+name = "ldk-plugin-ollama"
+version = "0.1.0"
+description = "llm-dev-kit plugin: Ollama chat models and embeddings."
+requires-python = ">=3.12"
+dependencies = [
+    "httpx>=0.27",
+    "ldk-core",
+]
+
+[project.entry-points."llm_dev_kit.plugins"]
+"llm.ollama" = "ldk_plugin_ollama:llm_plugin"
+"embedder.ollama" = "ldk_plugin_ollama:embedder_plugin"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+ldk_plugin_ollama = ["py.typed", "manifests/*.json"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"

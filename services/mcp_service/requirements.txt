@@ -1,3 +1,2 @@
-httpx
-mcp
+mcp<2  # 2.x reworked the server API; upgrade with the marketplace work in #18
 pydantic-settings

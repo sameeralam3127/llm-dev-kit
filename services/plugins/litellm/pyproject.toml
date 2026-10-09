@@ -1,0 +1,24 @@
+[project]
+name = "ldk-plugin-litellm"
+version = "0.1.0"
+description = "llm-dev-kit plugin: OpenAI, Gemini and Anthropic chat models through LiteLLM."
+requires-python = ">=3.12"
+dependencies = [
+    "ldk-core",
+    "litellm",
+]
+
+[project.entry-points."llm_dev_kit.plugins"]
+"llm.openai" = "ldk_plugin_litellm:openai_plugin"
+"llm.gemini" = "ldk_plugin_litellm:gemini_plugin"
+"llm.anthropic" = "ldk_plugin_litellm:anthropic_plugin"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+ldk_plugin_litellm = ["py.typed", "manifests/*.json"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"

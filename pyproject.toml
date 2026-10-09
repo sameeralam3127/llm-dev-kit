@@ -4,26 +4,142 @@ version = "0.2.0"
 description = "Local-first microservices LLM development kit: offline Ollama plus cloud providers via LiteLLM, RAG, a built-in static chat UI, and an Nginx load balancer."
 readme = "README.md"
 requires-python = ">=3.12"
-# Runtime dependencies are per-service: see services/*/requirements.txt
+# Runtime dependencies are per-service: see services/*/requirements.txt.
+# Dev tooling lives in requirements-dev.txt.
 dependencies = []
 
-[project.optional-dependencies]
-dev = [
-    "fastapi",
-    "httpx",
-    "pydantic-settings",
-    "pypdf",
-    "pytest",
-    "python-multipart",
-    "redis",
-]
-
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-pythonpath = [
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = [
+    "services/core/src",
+    "services/plugins/ollama/src",
+    "services/plugins/litellm/src",
+    "services/plugins/chroma/src",
+    "services/plugins/loader_pdf/src",
+    "services/plugins/chunker_fixed/src",
+    "services/plugins/tools/src",
     "services/devkit_common/src",
     "services/llm_service/src",
     "services/rag_service/src",
     "services/mcp_service/src",
+]
+
+[tool.ruff.lint]
+select = [
+    "E", "W", "F",  # pycodestyle, pyflakes
+    "I",            # import order
+    "B",            # bugbear
+    "UP",           # pyupgrade
+    "SIM",          # simplify
+    "RUF",          # ruff-specific
+    "BLE",          # blind except
+    "S",            # bandit
+    "D",            # docstrings: required on every public ldk_core symbol
+]
+ignore = [
+    "S101",  # assert is how pytest works
+    "D105",  # magic methods document themselves
+    "D107",  # Google style documents constructor args on the class
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S", "BLE", "D"]
+# Docstrings are enforced on new code first; the services adopt them in #11.
+"services/{devkit_common,llm_service,rag_service,mcp_service}/**" = ["D"]
+# Prompt text is sent verbatim; wrapping it would change the prompt.
+"services/rag_service/src/rag_service/prompts.py" = ["E501"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI dependency injection is a function call in a default argument by design.
+extend-immutable-calls = ["fastapi.Depends", "fastapi.File", "fastapi.Query", "fastapi.Body"]
+
+[tool.mypy]
+python_version = "3.12"
+mypy_path = [
+    "services/core/src",
+    "services/plugins/ollama/src",
+    "services/plugins/litellm/src",
+    "services/plugins/chroma/src",
+    "services/plugins/loader_pdf/src",
+    "services/plugins/chunker_fixed/src",
+    "services/plugins/tools/src",
+    "services/devkit_common/src",
+    "services/llm_service/src",
+    "services/rag_service/src",
+    "services/mcp_service/src",
+]
+explicit_package_bases = true
+packages = [
+    "ldk_core",
+    "ldk_plugin_ollama",
+    "ldk_plugin_litellm",
+    "ldk_plugin_chroma",
+    "ldk_plugin_loader_pdf",
+    "ldk_plugin_chunker_fixed",
+    "ldk_plugin_tools",
+    "devkit_common",
+    "llm_service",
+    "rag_service",
+    "mcp_service",
+]
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+check_untyped_defs = true
+# Existing service packages are ratcheted toward strict as they move behind
+# the ldk_core ports (#11); ldk_core itself is strict from day one (#9).
+
+[[tool.mypy.overrides]]
+# Every per-module flag that --strict turns on.
+module = [
+    "ldk_core",
+    "ldk_core.*",
+    "ldk_plugin_ollama",
+    "ldk_plugin_ollama.*",
+    "ldk_plugin_litellm",
+    "ldk_plugin_litellm.*",
+    "ldk_plugin_chroma",
+    "ldk_plugin_chroma.*",
+    "ldk_plugin_loader_pdf",
+    "ldk_plugin_loader_pdf.*",
+    "ldk_plugin_chunker_fixed",
+    "ldk_plugin_chunker_fixed.*",
+    "ldk_plugin_tools",
+    "ldk_plugin_tools.*",
+]
+disallow_any_generics = true
+disallow_subclassing_any = true
+disallow_untyped_calls = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+disallow_untyped_decorators = true
+warn_return_any = true
+no_implicit_reexport = true
+strict_equality = true
+extra_checks = true
+
+[[tool.mypy.overrides]]
+module = ["litellm.*", "chromadb.*", "pypdf.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = [
+    "services/core/src",
+    "services/plugins/ollama/src",
+    "services/plugins/litellm/src",
+    "services/plugins/chroma/src",
+    "services/plugins/loader_pdf/src",
+    "services/plugins/chunker_fixed/src",
+    "services/plugins/tools/src",
+    "services/devkit_common/src",
+    "services/llm_service/src",
+    "services/rag_service/src",
+    "services/mcp_service/src",
+    "tests/support",
     ".",
 ]

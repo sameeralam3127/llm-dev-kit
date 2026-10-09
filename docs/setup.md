@@ -143,8 +143,13 @@ Use `.env.example` as a starting point and set `LLM_SERVICE_URL=http://localhost
 
 ```bash
 pip install -r requirements-dev.txt
+ruff check services tests && ruff format --check services tests
+mypy
 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest
 ```
+
+CI runs these plus the web app's typecheck, lint and build on every push and
+pull request; images are published only after it passes.
 
 ## Scaling rag-service
 

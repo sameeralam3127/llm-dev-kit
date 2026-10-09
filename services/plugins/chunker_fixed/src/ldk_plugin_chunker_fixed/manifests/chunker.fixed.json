@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "fixed",
+  "version": "0.1.0",
+  "kind": "chunker",
+  "description": "Splits text into fixed-size character windows that overlap, ignoring sentence and word boundaries.",
+  "permissions": [],
+  "config_schema": {
+    "type": "object",
+    "properties": {
+      "size": {"type": "integer", "minimum": 1, "default": 500},
+      "overlap": {"type": "integer", "minimum": 0, "default": 50}
+    },
+    "additionalProperties": false
+  }
+}

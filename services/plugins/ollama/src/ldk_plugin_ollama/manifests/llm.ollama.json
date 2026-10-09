@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "name": "ollama",
+  "version": "0.1.0",
+  "kind": "llm",
+  "description": "Local chat models served by Ollama. Model ids without a provider prefix route here.",
+  "permissions": [],
+  "config_schema": {
+    "type": "object",
+    "properties": {
+      "host": {"type": "string", "minLength": 1, "description": "Ollama base URL, e.g. http://ollama:11434"},
+      "timeout_seconds": {"type": "number", "exclusiveMinimum": 0, "default": 120}
+    },
+    "required": ["host"],
+    "additionalProperties": false
+  }
+}

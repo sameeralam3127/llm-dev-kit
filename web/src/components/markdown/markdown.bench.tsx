@@ -83,7 +83,9 @@ function median(run: () => void): number {
 }
 
 describe('streaming render cost', () => {
-  it(`streams a ${ANSWER.length}-character answer in ${FRAMES.length} frames`, () => {
+  it(`streams a ${ANSWER.length}-character answer in ${FRAMES.length} frames`, async ({
+    annotate,
+  }) => {
     const before = median(() => {
       const { rerender, unmount } = render(<WholeDocument content="" />)
       for (const frame of FRAMES) act(() => rerender(<WholeDocument content={frame} />))
@@ -96,7 +98,8 @@ describe('streaming render cost', () => {
       unmount()
     })
 
-    console.log(
+    // Reported as test annotations, so the numbers appear in the run output.
+    await annotate(
       [
         `whole document per frame (before): ${before.toFixed(0)} ms`,
         `block-memoised Markdown   (after): ${after.toFixed(0)} ms`,

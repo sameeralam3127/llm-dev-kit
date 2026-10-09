@@ -16,7 +16,7 @@
     "db:seed": "tsx prisma/seed.ts",
     "postinstall": "prisma generate",
     "test": "vitest run",
-    "bench": "vitest run --mode bench"
+    "bench": "vitest run --mode bench --reporter=verbose"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

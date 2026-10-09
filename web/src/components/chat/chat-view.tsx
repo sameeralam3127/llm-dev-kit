@@ -21,9 +21,13 @@ interface ChatViewProps {
 
 export function ChatView({ chat, user }: ChatViewProps) {
   const queryClient = useQueryClient()
-  const updateChat = useUpdateChat()
+  // `mutate` is stable across renders; the mutation object is not.
+  const { mutate: updateChat } = useUpdateChat()
 
   const [model, setModel] = React.useState(chat.model)
+  // Read by the callbacks below so they can stay stable while the model changes.
+  const modelRef = React.useRef(model)
+  modelRef.current = model
 
   const {
     messages,
@@ -60,17 +64,43 @@ export function ChatView({ chat, user }: ChatViewProps) {
     if (pending?.trim()) sendRef.current(pending, chat.model)
   }, [chat.id, chat.messages.length, chat.model])
 
-  const handleModelChange = (next: string) => {
-    setModel(next)
-    // Persist the choice so returning to this chat keeps it, rather than
-    // silently reverting to whatever it was created with.
-    updateChat.mutate({ chatId: chat.id, input: { model: next } })
-  }
+  // Every callback below is referentially stable. ChatView re-renders once per
+  // animation frame while an answer streams; stable props are what let the
+  // memoised header, composer and finished messages skip those renders.
+  const handleModelChange = React.useCallback(
+    (next: string) => {
+      setModel(next)
+      // Persist the choice so returning to this chat keeps it, rather than
+      // silently reverting to whatever it was created with.
+      updateChat({ chatId: chat.id, input: { model: next } })
+    },
+    [chat.id, updateChat],
+  )
 
-  const handleDelete = async (messageId: string) => {
-    await api.chats.removeMessage(chat.id, messageId)
-    await queryClient.invalidateQueries({ queryKey: queryKeys.chat(chat.id) })
-  }
+  const handleSend = React.useCallback(
+    (content: string) => send(content, modelRef.current),
+    [send],
+  )
+
+  const handleEdit = React.useCallback(
+    (messageId: string, content: string) => editMessage(messageId, content, modelRef.current),
+    [editMessage],
+  )
+
+  const handleRegenerate = React.useCallback(
+    (messageId: string) => regenerate(messageId, modelRef.current),
+    [regenerate],
+  )
+
+  const handleDelete = React.useCallback(
+    (messageId: string) => {
+      void (async () => {
+        await api.chats.removeMessage(chat.id, messageId)
+        await queryClient.invalidateQueries({ queryKey: queryKeys.chat(chat.id) })
+      })()
+    },
+    [chat.id, queryClient],
+  )
 
   return (
     <div className="flex h-full min-w-0 flex-1 flex-col">
@@ -91,20 +121,15 @@ export function ChatView({ chat, user }: ChatViewProps) {
           isStreaming={status === 'streaming' || status === 'submitting'}
           isBusy={isBusy}
           user={user}
-          onEdit={(messageId, content) => editMessage(messageId, content, model)}
-          onRegenerate={(messageId) => regenerate(messageId, model)}
-          onDelete={(messageId) => void handleDelete(messageId)}
-          emptyState={
-            <PromptSuggestions
-              onSelect={(prompt) => send(prompt, model)}
-              disabled={isBusy}
-            />
-          }
+          onEdit={handleEdit}
+          onRegenerate={handleRegenerate}
+          onDelete={handleDelete}
+          emptyState={<PromptSuggestions onSelect={handleSend} disabled={isBusy} />}
         />
       )}
 
       <Composer
-        onSend={(content) => send(content, model)}
+        onSend={handleSend}
         onStop={stop}
         isBusy={isBusy}
         autoFocus

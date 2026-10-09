@@ -1,13 +1,22 @@
 'use client'
 
 import type { Element, Root, RootContent } from 'hast'
-import { memo } from 'react'
-import ReactMarkdown, { type Components } from 'react-markdown'
-import rehypeHighlight from 'rehype-highlight'
+import { memo, useMemo } from 'react'
+import ReactMarkdown, { type Components, type Options } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
 import { CodeBlock } from '@/components/markdown/code-block'
+import { useHighlighter } from '@/hooks/use-highlighter'
+import { hasCodeBlock, splitMarkdownBlocks } from '@/lib/markdown-blocks'
 import { cn } from '@/lib/utils'
+
+type RehypePlugins = NonNullable<Options['rehypePlugins']>
+
+// Module-level so every block gets the same array identities; a fresh array
+// per render would make react-markdown rebuild its processor each time.
+const REMARK_PLUGINS: NonNullable<Options['remarkPlugins']> = [remarkGfm]
+const NO_REHYPE_PLUGINS: RehypePlugins = []
+const highlightPlugins = new WeakMap<object, RehypePlugins>()
 
 /** Anything not on this list is dropped, which kills `javascript:` payloads. */
 const SAFE_PROTOCOLS = new Set(['http:', 'https:', 'mailto:', 'tel:'])
@@ -93,25 +102,71 @@ const components: Components = {
 interface MarkdownProps {
   content: string
   className?: string
+  /**
+   * The content is still arriving. Its last block may be incomplete (an open
+   * code fence, half a table), so it is rendered without highlighting until
+   * the next block starts or the stream ends.
+   */
+  streaming?: boolean
 }
 
 /**
- * Memoised on `content`: a streaming answer re-renders roughly once per frame,
- * and without this every sibling message would be re-parsed alongside it.
+ * Renders block by block (see `splitMarkdownBlocks`) so a streaming answer
+ * re-parses only its growing last block per frame instead of the whole text.
+ * Memoised on its props, so sibling messages are never re-parsed alongside it.
  */
-export const Markdown = memo(function Markdown({ content, className }: MarkdownProps) {
+export const Markdown = memo(function Markdown({
+  content,
+  className,
+  streaming = false,
+}: MarkdownProps) {
+  const blocks = useMemo(() => splitMarkdownBlocks(content), [content])
+  const highlight = useHighlighter(hasCodeBlock(content))
+  const highlighted = highlight ? pluginsFor(highlight) : NO_REHYPE_PLUGINS
+
   return (
     <div className={cn('markdown-body', className)}>
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        // `ignoreMissing` keeps an unknown fence language from throwing
-        // mid-stream, which would blank the whole message.
-        rehypePlugins={[[rehypeHighlight, { detect: true, ignoreMissing: true }]]}
-        urlTransform={sanitizeUrl}
-        components={components}
-      >
-        {content}
-      </ReactMarkdown>
+      {blocks.map((block, index) => (
+        <MarkdownBlock
+          // Blocks only ever append; the index is a stable identity.
+          // eslint-disable-next-line react/no-array-index-key
+          key={index}
+          content={block}
+          rehypePlugins={
+            streaming && index === blocks.length - 1 ? NO_REHYPE_PLUGINS : highlighted
+          }
+        />
+      ))}
     </div>
   )
 })
+
+const MarkdownBlock = memo(function MarkdownBlock({
+  content,
+  rehypePlugins,
+}: {
+  content: string
+  rehypePlugins: RehypePlugins
+}) {
+  return (
+    <ReactMarkdown
+      remarkPlugins={REMARK_PLUGINS}
+      rehypePlugins={rehypePlugins}
+      urlTransform={sanitizeUrl}
+      components={components}
+    >
+      {content}
+    </ReactMarkdown>
+  )
+})
+
+/** One stable plugin list per loaded highlighter, so memoised blocks stay memoised. */
+function pluginsFor(plugin: RehypePlugins[number]): RehypePlugins {
+  const key = plugin as object
+  let list = highlightPlugins.get(key)
+  if (!list) {
+    list = [plugin]
+    highlightPlugins.set(key, list)
+  }
+  return list
+}

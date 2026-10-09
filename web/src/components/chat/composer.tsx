@@ -18,7 +18,7 @@ interface ComposerProps {
   autoFocus?: boolean
 }
 
-export function Composer({
+export const Composer = React.memo(function Composer({
   onSend,
   onStop,
   isBusy,
@@ -143,4 +143,4 @@ export function Composer({
       </form>
     </div>
   )
-}
+})

@@ -47,7 +47,8 @@ interface ChatHeaderProps {
   isBusy: boolean
 }
 
-export function ChatHeader({
+/** Memoised: its props stay stable while a response streams. */
+export const ChatHeader = React.memo(function ChatHeader({
   chat,
   model,
   onModelChange,
@@ -220,4 +221,4 @@ export function ChatHeader({
       </AlertDialog>
     </header>
   )
-}
+})

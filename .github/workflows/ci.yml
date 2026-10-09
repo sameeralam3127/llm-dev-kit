@@ -83,6 +83,9 @@ jobs:
       - name: lint
         run: npm run lint
 
+      - name: test
+        run: npm test
+
       # Placeholders mirror web/Dockerfile: next build evaluates the env schema
       # while prerendering, but no real credential is needed.
       - name: build

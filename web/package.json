@@ -79,7 +79,7 @@
     "vitest": "5.0.3"
   },
   "engines": {
-    "node": ">=20.9.0"
+    "node": ">=22.12.0"
   },
   "allowScripts": {
     "@prisma/engines@6.2.1": true,

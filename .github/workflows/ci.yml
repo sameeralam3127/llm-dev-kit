@@ -68,10 +68,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # Matches the node:20-slim base in web/Dockerfile.
+      # Matches the node:22-slim base in web/Dockerfile (Node 20 is end-of-life,
+      # and Vitest 5 needs 22.12+).
       - uses: actions/setup-node@v7
         with:
-          node-version: "20"
+          node-version: "22"
           cache: npm
           cache-dependency-path: web/package-lock.json
 
@@ -104,11 +105,27 @@ jobs:
       matrix:
         include:
           - service: llm-service
+            context: .
             port: "8010"
+            health: /health
           - service: rag-service
+            context: .
             port: "8020"
+            health: /health
           - service: mcp-service
+            context: .
             port: ""
+          # The web image pushes its SQLite schema on boot; a throwaway path
+          # and placeholder secret are enough to prove it starts.
+          - service: web
+            context: web
+            target: runtime
+            port: "3000"
+            health: /login
+            run_args: >-
+              -e DATABASE_URL=file:/data/ci.db
+              -e AUTH_SECRET=ci-placeholder-not-a-real-credential-0123
+              -e LLM_BASE_URL=http://127.0.0.1:9/v1
     steps:
       - uses: actions/checkout@v7
 
@@ -116,8 +133,8 @@ jobs:
 
       - uses: docker/build-push-action@v6
         with:
-          context: .
-          target: ${{ matrix.service }}
+          context: ${{ matrix.context }}
+          target: ${{ matrix.target || matrix.service }}
           load: true
           push: false
           tags: ldk-ci/${{ matrix.service }}:test
@@ -126,9 +143,9 @@ jobs:
       - name: Start and wait for /health
         if: matrix.port != ''
         run: |
-          docker run -d --name svc -p ${{ matrix.port }}:${{ matrix.port }} ldk-ci/${{ matrix.service }}:test
-          for _ in $(seq 1 30); do
-            if curl -fsS localhost:${{ matrix.port }}/health; then echo; exit 0; fi
+          docker run -d --name svc ${{ matrix.run_args }} -p ${{ matrix.port }}:${{ matrix.port }} ldk-ci/${{ matrix.service }}:test
+          for _ in $(seq 1 60); do
+            if curl -fsS -o /dev/null localhost:${{ matrix.port }}${{ matrix.health }}; then echo up; exit 0; fi
             sleep 1
           done
           docker logs svc

@@ -55,7 +55,7 @@ Every swappable piece — model providers, embeddings, the vector store, documen
 | Running the full stack | Docker with Compose v2 (`docker compose`, not the standalone `docker-compose`) |
 | Chat + embeddings, fully offline | [Ollama](https://ollama.com) installed on the host — or run it in the `ollama` Compose profile instead |
 | Cloud models (optional) | An API key for OpenAI, Gemini and/or Anthropic |
-| Frontend development outside Docker | Node.js 20+ |
+| Frontend development outside Docker | Node.js 22.12+ |
 | Python service development outside Docker | Python 3.12+ |
 
 ## Quick Start

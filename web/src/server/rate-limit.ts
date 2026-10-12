@@ -49,10 +49,17 @@ export function rateLimit(
 
 /** Best-effort client identity for anonymous endpoints. */
 export function clientKey(request: Request, scope: string): string {
+  // X-Real-IP is set by the gateway from $remote_addr, which a client cannot
+  // override. X-Forwarded-For's first entry is client-chosen: the gateway
+  // appends the real address, so trusting the first entry would let a client
+  // get a fresh rate-limit bucket on every request by rotating the header.
+  const real = request.headers.get('x-real-ip')?.trim()
+  if (real) return `${scope}:${real}`
+  // Without X-Real-IP, use the last X-Forwarded-For entry: the one the
+  // nearest trusted proxy appended.
   const forwarded = request.headers.get('x-forwarded-for')
   const ip =
-    forwarded?.split(',')[0]?.trim() ||
-    request.headers.get('x-real-ip') ||
+    forwarded?.split(',').map((entry) => entry.trim()).filter(Boolean).pop() ||
     'unknown'
   return `${scope}:${ip}`
 }

@@ -404,6 +404,11 @@ development and not yet released.** The plan of record is
 every user until per-user collections arrive. Models whose names end in
 `-cloud` run on ollama.com, not on your machine.
 
+**Next: v3 (proposed).** Postgres with pgvector as the single store,
+workspaces, a background ingestion queue, hybrid search with citations, and
+sovereign mode enforced at the network level. Milestones and open decisions are
+in [docs/v3/ROADMAP.md](docs/v3/ROADMAP.md).
+
 ## Troubleshooting
 
 | Symptom | Fix |
@@ -424,7 +429,8 @@ More in [docs/setup.md](docs/setup.md#troubleshooting).
 | [docs/usage.md](docs/usage.md) | Add documents, chat, and bring in your team |
 | [docs/v2/MIGRATION.md](docs/v2/MIGRATION.md) | Upgrade clients to API keys |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Understand request flows and the Docker build |
-| [docs/v2/PLAN.md](docs/v2/PLAN.md) | See where the project is going |
+| [docs/v2/PLAN.md](docs/v2/PLAN.md) | See how v2 was planned |
+| [docs/v3/ROADMAP.md](docs/v3/ROADMAP.md) | See where the project is going next |
 | [web/README.md](web/README.md) | Work on the web app |
 
 ## License

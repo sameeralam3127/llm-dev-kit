@@ -180,7 +180,7 @@ when its turn comes.
 - More loaders: text and Markdown (#29).
 
 ### Milestone 3 — Operate at scale
-- Rate limits per user and per IP, done properly (#16; fixes #28).
+- Rate limits per user and per IP, shared across replicas instead of held in each process (#16).
 - An `observability` profile: OpenTelemetry, Prometheus, Grafana, with the
   audit log visible to admins.
 - An optional Redis cache.
@@ -211,7 +211,7 @@ when its turn comes.
 | #35 batch embeddings, #37 one RAG pipeline | Solved by Milestone 1 (ingest-worker and core-api) |
 | #36 race conditions | Chroma part removed with Chroma; JWKS part still applies (Milestone 1, step b) |
 | #31 web health endpoint, #32 MCP client reuse, #33 CONTRIBUTING, #34 cloud model badge | Independent, good first issues, any time |
-| #28 rate-limit header | Good first issue now; replaced by Milestone 3 rate limits |
+| #28 rate-limit header | Fixed in #46 |
 | #13, #15, #16 | Folded into Milestones 1–3 once decision 5 is settled |
 | #19, #38, #41, #42, #43 | Milestone 3 |
 | #17, #30, #39, #40, #44 | Milestone 4 |

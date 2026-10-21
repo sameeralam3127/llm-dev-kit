@@ -6,7 +6,7 @@ import itertools
 from contextlib import asynccontextmanager
 
 import psycopg
-from core_api_helpers import add_member, as_user, bearer, new_key, new_workspace
+from core_api_helpers import FakeEmbedder, add_member, as_user, bearer, new_key, new_workspace
 from pdfs import make_pdf
 from psycopg_pool import AsyncConnectionPool
 
@@ -18,25 +18,6 @@ from ldk_plugin_loader_pdf import PdfLoader
 
 # Long enough to make several chunks with the default 500-character window.
 LONG_TEXT = " ".join(f"Sentence {i} about the BLUEFIN-42 launch on 14 March." for i in range(60))
-
-
-class FakeEmbedder:
-    """Deterministic 768-d vectors. Can fail on demand, after ``ok_calls`` calls."""
-
-    name = "fake"
-    model = "fake-embed"
-    dimension = 768
-
-    def __init__(self, *, fail: ServiceError | None = None, ok_calls: int = 0) -> None:
-        self.fail = fail
-        self.ok_calls = ok_calls
-        self.calls = 0
-
-    async def embed(self, texts):
-        self.calls += 1
-        if self.fail is not None and self.calls > self.ok_calls:
-            raise self.fail
-        return [[(len(t) % 7) / 7.0] + [0.0] * 767 for t in texts]
 
 
 UNAVAILABLE = ServiceError(ErrorCode.UPSTREAM_UNAVAILABLE, "model-gateway unreachable")

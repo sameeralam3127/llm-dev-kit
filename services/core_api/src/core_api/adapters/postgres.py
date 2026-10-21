@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import datetime
 from typing import Any
 from uuid import UUID
@@ -12,6 +13,7 @@ from psycopg_pool import AsyncConnectionPool
 
 from core_api.domain.access import Role, Scope
 from core_api.domain.ingestion import IndexedChunk
+from core_api.domain.retrieval import Hit
 from core_api.ports.jobs import Blob, Job
 from core_api.ports.stores import ApiKeyRecord, AuditEvent, DocumentRecord, Workspace
 
@@ -413,3 +415,111 @@ class PostgresStore:
                 (job.id,),
             )
             return True
+
+    # -------------------------------------------------------------- retrieval
+
+    async def search(
+        self, workspace_id: UUID, *, text: str, vector: Sequence[float], k: int
+    ) -> tuple[list[Hit], list[Hit]]:
+        """Top-``k`` by cosine distance and top-``k`` by full-text rank, in one workspace.
+
+        **Tenancy is in the SQL.** Both queries filter ``workspace_id`` in their
+        WHERE clause, so another workspace's chunks are never read, let alone
+        returned; nothing is filtered afterwards in Python.
+
+        **Filtered vector search.** An HNSW index walks the graph for its best
+        ``ef_search`` candidates and only then applies the WHERE clause, so a
+        small workspace among many could get back fewer than ``k`` rows.
+        ``hnsw.iterative_scan`` (pgvector 0.8) makes the index keep searching
+        until enough rows pass the filter. ``relaxed_order`` allows slightly
+        out-of-order results, which is fine because RRF re-ranks them anyway.
+
+        **Full-text terms are OR-ed.** ``plainto_tsquery`` stems the question and
+        drops stop words, but joins the terms with AND, so a chunk would need
+        every word of the question. A question nearly always has words its
+        answer lacks ("date" in "BLUEFIN-42 ship date"), so the terms are joined
+        with OR instead, and ``ts_rank_cd`` ranks chunks matching more of them
+        higher.
+        """
+        hit_columns = "c.id, c.document_id, d.title, c.page, c.text"
+        async with self._pool.connection() as conn, conn.transaction():
+            await conn.execute("SET LOCAL hnsw.iterative_scan = relaxed_order")
+            semantic = await conn.execute(
+                f"""SELECT {hit_columns}
+                    FROM core.chunks c JOIN core.documents d ON d.id = c.document_id
+                    WHERE c.workspace_id = %s
+                    ORDER BY c.embedding <=> %s::vector
+                    LIMIT %s""",  # noqa: S608
+                (workspace_id, _vector(list(vector)), k),
+            )
+            semantic_rows = await semantic.fetchall()
+            lexical = await conn.execute(
+                f"""SELECT {hit_columns}
+                    FROM core.chunks c JOIN core.documents d ON d.id = c.document_id,
+                         to_tsquery('english', replace(
+                             plainto_tsquery('english', %s)::text, ' & ', ' | ')) AS q
+                    WHERE c.workspace_id = %s AND c.tsv @@ q
+                    ORDER BY ts_rank_cd(c.tsv, q) DESC
+                    LIMIT %s""",  # noqa: S608
+                (text, workspace_id, k),
+            )
+            lexical_rows = await lexical.fetchall()
+        return [Hit(*row) for row in semantic_rows], [Hit(*row) for row in lexical_rows]
+
+    async def record_exchange(
+        self,
+        *,
+        workspace_id: UUID,
+        user_id: str,
+        external_id: str | None,
+        question: str,
+        answer: str,
+        model: str,
+        chunk_ids: Sequence[UUID],
+        tokens_in: int | None,
+        tokens_out: int | None,
+        request_id: str | None,
+    ) -> None:
+        """One conversation per external chat id (or per exchange without one)."""
+        async with self._pool.connection() as conn, conn.transaction():
+            if external_id is not None:
+                cur = await conn.execute(
+                    """INSERT INTO core.conversations (workspace_id, user_id, external_id)
+                       VALUES (%s, %s, %s)
+                       ON CONFLICT (workspace_id, external_id)
+                       DO UPDATE SET external_id = EXCLUDED.external_id
+                       RETURNING id""",
+                    (workspace_id, user_id, external_id),
+                )
+            else:
+                cur = await conn.execute(
+                    "INSERT INTO core.conversations (workspace_id, user_id)"
+                    " VALUES (%s, %s) RETURNING id",
+                    (workspace_id, user_id),
+                )
+            row = await cur.fetchone()
+            assert row is not None
+            conversation_id = row[0]
+            cur = await conn.execute(
+                """INSERT INTO core.messages (conversation_id, role, content, request_id)
+                   VALUES (%s, 'user', %s, %s) RETURNING id""",
+                (conversation_id, question, request_id),
+            )
+            asked = await cur.fetchone()
+            assert asked is not None
+            await conn.execute(
+                """INSERT INTO core.messages
+                       (conversation_id, parent_id, role, content, model,
+                        retrieved_chunk_ids, tokens_in, tokens_out, request_id)
+                   VALUES (%s, %s, 'assistant', %s, %s, %s, %s, %s, %s)""",
+                (
+                    conversation_id,
+                    asked[0],
+                    answer,
+                    model,
+                    list(chunk_ids),
+                    tokens_in,
+                    tokens_out,
+                    request_id,
+                ),
+            )

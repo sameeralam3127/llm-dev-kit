@@ -12,9 +12,9 @@ import signal
 
 from psycopg_pool import AsyncConnectionPool
 
+from core_api.adapters.gateway import GatewayEmbedder
 from core_api.adapters.postgres import PostgresStore
 from ingest_worker.config import Settings
-from ingest_worker.gateway import GatewayEmbedder
 from ingest_worker.pipeline import process_next
 from ldk_core.config import load_settings
 from ldk_core.observability import configure_logging, get_logger

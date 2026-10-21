@@ -27,3 +27,14 @@ class Settings(CoreSettings):
     )
     auth_issuer: str = Field(default="llm-dev-kit-web", alias="AUTH_ISSUER")
     auth_audience: str = Field(default="llm-dev-kit", alias="AUTH_AUDIENCE")
+
+    # model-gateway is the only path to a model (architecture decision 3).
+    model_gateway_url: str = Field(default="http://model-gateway:8010", alias="MODEL_GATEWAY_URL")
+    #: core-api's own service credential for model-gateway.
+    model_gateway_token: SecretStr = Field(alias="MODEL_GATEWAY_TOKEN")
+    default_chat_model: str = Field(default="llama3.1", alias="DEFAULT_CHAT_MODEL")
+    embed_model: str = Field(default="nomic-embed-text", alias="EMBED_MODEL")
+    embed_dimension: int = Field(default=768, alias="EMBED_DIMENSION")
+    #: Candidates from each search before fusion, and chunks given to the model.
+    retrieval_top_k: int = Field(default=20, gt=0, alias="RETRIEVAL_TOP_K")
+    context_chunks: int = Field(default=5, gt=0, alias="CONTEXT_CHUNKS")

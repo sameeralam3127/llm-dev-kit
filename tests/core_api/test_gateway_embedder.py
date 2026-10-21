@@ -6,7 +6,7 @@ import json
 import httpx
 import pytest
 
-from ingest_worker.gateway import GatewayEmbedder
+from core_api.adapters.gateway import GatewayEmbedder
 from ldk_core.errors import ErrorCode, ServiceError
 
 

@@ -5,68 +5,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 
 import psycopg
-import pytest
-from fastapi.testclient import TestClient
-from identity import Issuer
-
-from core_api.config import Settings
-from core_api.main import create_app
-
-PEPPER = "pepper-for-tests-only-0123456789abcdef"
-
-
-@pytest.fixture
-def issuer() -> Issuer:
-    return Issuer()
-
-
-@pytest.fixture
-def app(db_url, issuer):
-    settings = Settings(DATABASE_URL=db_url, API_KEY_PEPPER=PEPPER, LOG_FORMAT="console")
-    return create_app(settings, sessions=issuer.provider())
-
-
-@pytest.fixture
-def client(app):
-    with TestClient(app) as c:
-        yield c
-
-
-def as_user(issuer: Issuer, sub: str) -> dict[str, str]:
-    return issuer.bearer("user", sub=sub)
-
-
-def bearer(key: str) -> dict[str, str]:
-    return {"Authorization": f"Bearer {key}"}
-
-
-def new_workspace(client, issuer, sub="alice", slug="acme") -> str:
-    res = client.post(
-        "/api/v1/workspaces",
-        json={"slug": slug, "name": slug.title()},
-        headers=as_user(issuer, sub),
-    )
-    assert res.status_code == 201, res.text
-    return res.json()["data"]["id"]
-
-
-def new_key(client, issuer, ws, sub="alice", scopes=("chat",), **extra):
-    res = client.post(
-        f"/api/v1/workspaces/{ws}/api-keys",
-        json={"name": "laptop", "scopes": list(scopes), **extra},
-        headers=as_user(issuer, sub),
-    )
-    assert res.status_code == 201, res.text
-    return res.json()["data"]
-
-
-def add_member(db_url, ws, user, role) -> None:
-    with psycopg.connect(db_url, autocommit=True) as conn:
-        conn.execute(
-            "INSERT INTO core.memberships (workspace_id, user_id, role) VALUES (%s, %s, %s)",
-            (ws, user, role),
-        )
-
+from core_api_helpers import add_member, as_user, bearer, new_key, new_workspace
 
 # --------------------------------------------------------------- mandatory
 

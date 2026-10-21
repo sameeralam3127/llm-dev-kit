@@ -1,0 +1,20 @@
+[project]
+name = "ingest-worker"
+version = "0.1.0"
+description = "v3 ingestion worker: claims jobs, parses, chunks, embeds and indexes documents."
+requires-python = ">=3.12"
+license = "MIT"
+dynamic = ["dependencies"]
+
+[tool.setuptools.dynamic]
+dependencies = { file = ["requirements.txt"] }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+ingest_worker = ["py.typed"]
+
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"

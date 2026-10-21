@@ -60,3 +60,32 @@ def db_url(empty_db: str) -> str:
 def conn(db_url: str) -> Iterator[psycopg.Connection]:
     with psycopg.connect(db_url, autocommit=True) as connection:
         yield connection
+
+
+@pytest.fixture
+def issuer():
+    """Signs session tokens the way the web app does."""
+    from identity import Issuer
+
+    return Issuer()
+
+
+@pytest.fixture
+def app(db_url, issuer):
+    """core-api against the migrated test database."""
+    from core_api_helpers import PEPPER
+
+    from core_api.config import Settings
+    from core_api.main import create_app
+
+    settings = Settings(DATABASE_URL=db_url, API_KEY_PEPPER=PEPPER, LOG_FORMAT="console")
+    return create_app(settings, sessions=issuer.provider())
+
+
+@pytest.fixture
+def client(app):
+    """An HTTP client for ``app``, with its lifespan running."""
+    from fastapi.testclient import TestClient
+
+    with TestClient(app) as c:
+        yield c

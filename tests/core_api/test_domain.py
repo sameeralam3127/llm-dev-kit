@@ -53,3 +53,20 @@ def test_demoting_the_owner_narrows_their_keys() -> None:
     )
     assert resolve(key, ws, "owner").scopes == {"chat", "ingest"}
     assert resolve(key, ws, "reader").scopes == {"chat"}
+
+
+def test_backoff_doubles_up_to_a_cap_with_jitter() -> None:
+    from core_api.domain.ingestion import backoff_seconds
+
+    assert [backoff_seconds(n, rand=lambda: 0.0) for n in (1, 2, 3)] == [5.0, 10.0, 20.0]
+    assert backoff_seconds(1, rand=lambda: 0.999) < 10.0
+    assert backoff_seconds(30, rand=lambda: 0.0) == 300.0  # capped at 600 s, halved by jitter
+
+
+def test_only_parser_rejections_are_permanent() -> None:
+    from core_api.domain.ingestion import is_permanent
+    from ldk_core.errors import ErrorCode, ServiceError
+
+    assert is_permanent(ServiceError(ErrorCode.INVALID_REQUEST, "no text"))
+    assert not is_permanent(ServiceError(ErrorCode.UPSTREAM_UNAVAILABLE, "down"))
+    assert not is_permanent(TimeoutError())

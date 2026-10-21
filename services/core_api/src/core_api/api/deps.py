@@ -28,6 +28,14 @@ async def workspace_access(
     return await resolver.access(caller, workspace_id)
 
 
+async def current_workspace(
+    caller: Annotated[Caller, Depends(authenticated)], request: Request
+) -> Access:
+    """Resolve the caller against the request's workspace (see ``access_for_request``)."""
+    resolver: AccessResolver = request.app.state.resolver
+    return await resolver.access_for_request(caller, request.headers.get("x-workspace-id"))
+
+
 def request_id() -> str | None:
     """The current request id, recorded on audit events."""
     return get_correlation_id()
@@ -35,4 +43,5 @@ def request_id() -> str | None:
 
 CallerDep = Annotated[Caller, Depends(authenticated)]
 AccessDep = Annotated[Access, Depends(workspace_access)]
+CurrentWorkspaceDep = Annotated[Access, Depends(current_workspace)]
 RequestIdDep = Annotated[str | None, Depends(request_id)]

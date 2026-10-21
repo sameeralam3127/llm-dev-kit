@@ -19,7 +19,7 @@ from core_api.domain import api_keys
 from core_api.domain.access import Access, Caller, resolve
 from core_api.ports.stores import ApiKeyStore, WorkspaceStore
 from ldk_core.auth import bearer_token, unauthorized
-from ldk_core.errors import ErrorCode, ServiceError
+from ldk_core.errors import ErrorCode, ServiceError, bad_request
 from ldk_core.ports import AuthProvider
 
 
@@ -62,6 +62,31 @@ class AccessResolver:
         if access is None:
             raise ServiceError(ErrorCode.FORBIDDEN, "You do not have access to this workspace")
         return access
+
+    async def access_for_request(self, caller: Caller, workspace_header: str | None) -> Access:
+        """Pick the workspace for a route that has none in its path, then resolve it.
+
+        In order: the workspace an API key is bound to; the ``X-Workspace-Id``
+        header; the caller's only workspace. A signed-in member of several
+        workspaces must say which one, rather than have one guessed.
+        """
+        if workspace_header:
+            try:
+                chosen = UUID(workspace_header)
+            except ValueError:
+                raise bad_request("X-Workspace-Id must be a workspace id") from None
+        elif caller.key_workspace_id is not None:
+            chosen = caller.key_workspace_id
+        else:
+            mine = await self._workspaces.workspaces_of(caller.user_id)
+            if len(mine) != 1:
+                raise bad_request(
+                    "Choose a workspace with the X-Workspace-Id header"
+                    if mine
+                    else "Create a workspace first: POST /api/v1/workspaces"
+                )
+            chosen = mine[0].id
+        return await self.access(caller, chosen)
 
     async def _from_api_key(self, key: str) -> Caller:
         prefix = api_keys.parse_prefix(key)

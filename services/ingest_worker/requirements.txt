@@ -1,0 +1,4 @@
+# The worker uses core-api's schema, ports and Postgres adapter (not its HTTP app).
+core-api
+# Calls model-gateway for embeddings.
+httpx

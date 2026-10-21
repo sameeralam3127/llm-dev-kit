@@ -9,10 +9,11 @@ from fastapi import FastAPI
 from psycopg_pool import AsyncConnectionPool
 
 from core_api.adapters.postgres import PostgresStore
-from core_api.api import api_keys, workspaces
+from core_api.api import api_keys, documents, workspaces
 from core_api.config import Settings
 from core_api.services.api_keys import ApiKeyService
 from core_api.services.auth import AccessResolver
+from core_api.services.documents import DocumentService
 from core_api.services.workspaces import WorkspaceService
 from devkit_common.http import install_service
 from ldk_core.plugins import AUTH, PluginKind, PluginRegistry
@@ -54,6 +55,7 @@ def create_app(settings: Settings, *, sessions: AuthProvider | None = None) -> F
         )
         app.state.workspaces = WorkspaceService(workspaces=store, audit=store)
         app.state.api_keys = ApiKeyService(keys=store, audit=store, pepper=pepper)
+        app.state.documents = DocumentService(documents=store, audit=store)
         try:
             yield
         finally:
@@ -70,4 +72,5 @@ def create_app(settings: Settings, *, sessions: AuthProvider | None = None) -> F
 
     app.include_router(workspaces.router)
     app.include_router(api_keys.router)
+    app.include_router(documents.router)
     return app

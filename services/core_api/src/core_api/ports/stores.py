@@ -108,3 +108,46 @@ class AuditSink(Protocol):
     async def record(self, event: AuditEvent) -> None:
         """Append ``event``. Never updates or deletes."""
         ...
+
+
+@dataclass(frozen=True, slots=True)
+class DocumentRecord:
+    """A document as listed to its workspace."""
+
+    id: UUID
+    workspace_id: UUID
+    source_type: str
+    source_uri: str
+    title: str | None
+    status: str
+    chunk_count: int
+    created_by: str
+    created_at: datetime
+    updated_at: datetime
+    last_error: str | None = None
+
+
+class DocumentStore(Protocol):
+    """Uploads and listings, used by core-api's document endpoints."""
+
+    async def create_upload(
+        self,
+        *,
+        workspace_id: UUID,
+        user_id: str,
+        filename: str,
+        media_type: str,
+        data: bytes,
+        content_hash: bytes,
+    ) -> tuple[DocumentRecord, bool]:
+        """Record an upload, its bytes and its ingestion job, atomically.
+
+        Returns the document and ``True``, or, when the workspace already has a
+        document with this exact content, that document and ``False``, with no
+        new job: re-uploading is a no-op.
+        """
+        ...
+
+    async def documents_of(self, workspace_id: UUID) -> list[DocumentRecord]:
+        """A workspace's documents, newest first, with chunk counts."""
+        ...

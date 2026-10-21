@@ -1,9 +1,9 @@
 # v3 Roadmap — a secure, sovereign AI chat kit
 
-> **Status: proposed.** Nothing here is built yet. Five decisions are open (see
-> [Open decisions](#open-decisions)); work on Milestone 1 starts once they are
-> settled. v2 is unreleased and its plan, [docs/v2/PLAN.md](../v2/PLAN.md),
-> stays the record of what was built through Phase 4.
+> **Status: accepted, Milestone 1 in progress.** The five decisions were settled
+> on 2026-10-21 (see [Decisions](#decisions)). v2 is unreleased and its plan,
+> [docs/v2/PLAN.md](../v2/PLAN.md), stays the record of what was built through
+> Phase 4.
 
 ## Vision
 
@@ -147,11 +147,11 @@ teaches.
 No pgvector Python package (vectors are passed as SQL literals) and no queue
 library (the queue is plain SQL).
 
-## Open decisions
+## Decisions
 
-These need an answer before Milestone 1 starts. Each has a recommendation.
+Settled on 2026-10-21; each took the recommendation.
 
-| # | Question | Recommendation |
+| # | Question | Decision |
 | --- | --- | --- |
 | 1 | **Who owns which tables?** Prisma already owns users, sessions, chats, messages and API keys. | One database, two schemas. Prisma owns identity and chat history in `app`, and Alembic owns everything new in `core`. core-api's `messages` records each answer's provenance rather than a second copy of the history. |
 | 2 | **Identity, and how API keys are hashed.** | Keep the web app as the token issuer (v2 Phase 4). Move workspace-scoped API keys to core-api, hashed with HMAC-SHA-256 and a server-side pepper. argon2 protects low-entropy passwords; for random 256-bit keys it adds a slow verification to every request and a dependency, and protects nothing extra. |

@@ -1,0 +1,20 @@
+[project]
+name = "core-api"
+version = "0.1.0"
+description = "v3 core API: auth, workspaces, documents, retrieval and the OpenAI-compatible /v1. Owns the `core` Postgres schema."
+requires-python = ">=3.12"
+license = "MIT"
+dynamic = ["dependencies"]
+
+[tool.setuptools.dynamic]
+dependencies = { file = ["requirements.txt"] }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+core_api = ["py.typed", "migrations/script.py.mako"]
+
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"

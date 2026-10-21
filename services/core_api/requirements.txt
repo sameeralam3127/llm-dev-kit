@@ -1,0 +1,5 @@
+# Postgres driver: the standard library has none. Queries are plain SQL.
+psycopg[binary,pool]>=3.2
+# Schema migrations for the `core` schema (brings SQLAlchemy core with it).
+alembic>=1.13
+pydantic-settings

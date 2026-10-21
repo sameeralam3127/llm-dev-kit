@@ -20,6 +20,8 @@ src = [
     "services/plugins/chunker_fixed/src",
     "services/plugins/tools/src",
     "services/plugins/auth/src",
+    "services/core_api/src",
+    "services/ingest_worker/src",
     "services/devkit_common/src",
     "services/llm_service/src",
     "services/rag_service/src",
@@ -50,6 +52,8 @@ ignore = [
 "services/{devkit_common,llm_service,rag_service,mcp_service}/**" = ["D"]
 # Prompt text is sent verbatim; wrapping it would change the prompt.
 "services/rag_service/src/rag_service/prompts.py" = ["E501"]
+# Migrations are SQL with a module docstring; upgrade()/downgrade() need no more.
+"services/core_api/src/core_api/migrations/**" = ["D103", "E501"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
@@ -69,6 +73,8 @@ mypy_path = [
     "services/plugins/chunker_fixed/src",
     "services/plugins/tools/src",
     "services/plugins/auth/src",
+    "services/core_api/src",
+    "services/ingest_worker/src",
     "services/devkit_common/src",
     "services/llm_service/src",
     "services/rag_service/src",
@@ -84,6 +90,8 @@ packages = [
     "ldk_plugin_chunker_fixed",
     "ldk_plugin_tools",
     "ldk_plugin_auth",
+    "core_api",
+    "ingest_worker",
     "devkit_common",
     "llm_service",
     "rag_service",
@@ -142,6 +150,8 @@ pythonpath = [
     "services/plugins/chunker_fixed/src",
     "services/plugins/tools/src",
     "services/plugins/auth/src",
+    "services/core_api/src",
+    "services/ingest_worker/src",
     "services/devkit_common/src",
     "services/llm_service/src",
     "services/rag_service/src",

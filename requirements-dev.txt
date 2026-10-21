@@ -8,6 +8,8 @@
 -e ./services/plugins/chunker_fixed
 -e ./services/plugins/tools
 -e ./services/plugins/auth
+-e ./services/core_api
+-e ./services/ingest_worker
 -r services/llm_service/requirements.txt
 -r services/rag_service/requirements.txt
 -r services/mcp_service/requirements.txt
@@ -15,5 +17,7 @@
 mypy
 types-jsonschema
 pytest
+# A real Postgres + pgvector for core-api's integration tests.
+testcontainers[postgres]
 pyyaml
 ruff

@@ -82,3 +82,18 @@ def test_console_format_is_human_readable(capsys) -> None:
     assert "user=u1" in err
     with pytest.raises(json.JSONDecodeError):
         json.loads(err.splitlines()[0])
+
+
+def test_reconfiguring_changes_the_service_even_for_cached_loggers(capsys) -> None:
+    from ldk_core.observability import configure_logging, get_logger
+
+    log = get_logger("ldk.test.cached")
+    configure_logging(service="first", fmt="json")
+    log.info("one")
+    configure_logging(service="second", fmt="json")
+    log.info("two")
+    lines = [json.loads(line) for line in capsys.readouterr().err.splitlines() if line]
+    assert [(line["event"], line["service"]) for line in lines] == [
+        ("one", "first"),
+        ("two", "second"),
+    ]

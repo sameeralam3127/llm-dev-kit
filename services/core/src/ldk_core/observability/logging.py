@@ -31,12 +31,14 @@ def configure_logging(*, service: str, level: LogLevel = "INFO", fmt: LogFormat 
         level: Minimum level emitted, for both structlog and stdlib loggers.
         fmt: ``"json"`` (one object per line) or ``"console"`` (human-readable).
     """
+    global _service
+    _service = service
     shared: list[Processor] = [
         structlog.contextvars.merge_contextvars,
         structlog.stdlib.add_log_level,
         structlog.stdlib.add_logger_name,
         structlog.processors.TimeStamper(fmt="iso", utc=True),
-        _ServiceStamp(service),
+        _stamp_service,
         _add_correlation_id,
     ]
     renderer: Processor = (
@@ -104,15 +106,16 @@ class _StderrHandler(logging.StreamHandler):  # type: ignore[type-arg]
         """Ignore assignments; the stream is always looked up live."""
 
 
-class _ServiceStamp:
-    """Processor that adds ``service`` to every event."""
+_service = "unknown"
+"""The service name ``configure_logging`` last set. Read on every event, because
+loggers cache their processor chain on first use: a stamp holding its own copy
+would keep the first name forever, and reconfiguring would silently not apply."""
 
-    def __init__(self, service: str) -> None:
-        self.service = service
 
-    def __call__(self, _: WrappedLogger, __: str, event_dict: EventDict) -> EventDict:
-        event_dict.setdefault("service", self.service)
-        return event_dict
+def _stamp_service(_: WrappedLogger, __: str, event_dict: EventDict) -> EventDict:
+    """Processor that adds the current ``service`` to every event."""
+    event_dict.setdefault("service", _service)
+    return event_dict
 
 
 def _add_correlation_id(_: WrappedLogger, __: str, event_dict: EventDict) -> EventDict:

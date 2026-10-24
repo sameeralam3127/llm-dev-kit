@@ -26,3 +26,59 @@ export interface AdminHealth {
   checks: HealthCheck[]
   counts: { users: number; chats: number; apiKeys: number; indexedChunks: number | null }
 }
+
+/** One day of activity, oldest first. `date` is `yyyy-MM-dd` in UTC. */
+export interface ActivityDay {
+  date: string
+  messages: number
+  chats: number
+}
+
+export interface AdminOverview {
+  counts: {
+    users: number
+    admins: number
+    chats: number
+    messages: number
+    sharedChats: number
+    apiKeys: number
+  }
+  /** The last 14 days, today included. */
+  activity: ActivityDay[]
+  recentUsers: Pick<AdminUser, 'id' | 'name' | 'email' | 'role' | 'createdAt'>[]
+}
+
+/** Any user's API key, as an admin sees it. The key itself is never listed. */
+export interface AdminApiKey {
+  id: string
+  name: string
+  prefix: string
+  owner: { id: string; name: string | null; email: string }
+  createdAt: string
+  lastUsedAt: string | null
+  revokedAt: string | null
+}
+
+export type StoreStatus = 'connected' | 'offline' | 'unreachable'
+
+export interface DocumentStats {
+  index: { status: StoreStatus; chunks: number | null }
+  cache: { status: StoreStatus; answers: number | null }
+}
+
+export interface UploadResult {
+  filename: string
+  chunks: number
+  /** Cached answers dropped, so no answer predates the new document. */
+  cacheCleared: number | null
+}
+
+/** Read-only instance settings. Values come from `.env`; secrets are never included. */
+export interface AdminConfig {
+  publicUrl: string | null
+  registrationOpen: boolean
+  signIn: { password: boolean; github: boolean; sso: boolean }
+  defaultModel: string
+  identity: { issuer: string; audience: string }
+  services: { rag: string; llm: string }
+}

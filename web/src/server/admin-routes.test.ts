@@ -27,6 +27,13 @@ const service = vi.hoisted(() => ({
   listUsers: vi.fn(async () => []),
   setUserRole: vi.fn(async () => ({ id: 'user-1', role: 'viewer' })),
   getHealth: vi.fn(async () => ({ checks: [] })),
+  getOverview: vi.fn(async () => ({ counts: {}, activity: [], recentUsers: [] })),
+  listAllApiKeys: vi.fn(async () => []),
+  revokeAnyApiKey: vi.fn(async () => undefined),
+  getDocumentStats: vi.fn(async () => ({})),
+  uploadDocument: vi.fn(async () => ({ filename: 'a.pdf', chunks: 1, cacheCleared: 0 })),
+  clearDocumentIndex: vi.fn(async () => ({ cacheCleared: 0 })),
+  clearAnswerCache: vi.fn(async () => 0),
 }))
 vi.mock('@/server/services/admin-service', () => service)
 
@@ -46,14 +53,18 @@ const handlers = Object.entries(routes).flatMap(([file, module]) =>
 )
 
 function invoke(handler: (typeof handlers)[number]) {
-  const body = handler.method === 'GET' ? undefined : JSON.stringify({ role: 'viewer' })
-  return handler.call(
-    new Request('http://app.test/api/admin', {
-      method: handler.method,
-      ...(body ? { body, headers: { 'Content-Type': 'application/json' } } : {}),
-    }),
-    { params: Promise.resolve({ userId: 'user-1' }) },
-  )
+  const init: RequestInit = { method: handler.method }
+  if (handler.name === 'POST /api/admin/documents') {
+    const form = new FormData()
+    form.append('file', new File(['%PDF-1.7'], 'a.pdf', { type: 'application/pdf' }))
+    init.body = form
+  } else if (handler.method !== 'GET') {
+    init.body = JSON.stringify({ role: 'viewer' })
+    init.headers = { 'Content-Type': 'application/json' }
+  }
+  return handler.call(new Request('http://app.test/api/admin', init), {
+    params: Promise.resolve({ userId: 'user-1', keyId: 'key-1' }),
+  })
 }
 
 function signIn(id: string | null) {
@@ -68,9 +79,16 @@ beforeEach(() => {
 describe('admin API routes', () => {
   it('are discovered', () => {
     expect(handlers.map((h) => h.name).sort()).toEqual([
+      'DELETE /api/admin/api-keys/[keyId]',
+      'GET /api/admin/api-keys',
+      'GET /api/admin/documents',
       'GET /api/admin/health',
+      'GET /api/admin/overview',
       'GET /api/admin/users',
       'PATCH /api/admin/users/[userId]',
+      'POST /api/admin/cache/clear',
+      'POST /api/admin/documents',
+      'POST /api/admin/documents/clear',
     ])
   })
 
@@ -87,15 +105,27 @@ describe('admin API routes', () => {
         expect(res.status).toBe(403)
         expect(((await res.json()) as { error: { code: string } }).error.code).toBe('forbidden')
       }
-      expect(service.listUsers).not.toHaveBeenCalled()
-      expect(service.setUserRole).not.toHaveBeenCalled()
-      expect(service.getHealth).not.toHaveBeenCalled()
+      for (const fn of Object.values(service)) expect(fn).not.toHaveBeenCalled()
     },
   )
 
   it.each(handlers.map((h) => [h.name, h] as const))('%s: allowed for an admin', async (_, h) => {
     signIn('admin-1')
-    expect((await invoke(h)).status).toBe(200)
+    const res = await invoke(h)
+    expect(res.ok, `status ${res.status}`).toBe(true)
+  })
+
+  it('refuses an upload that is not a PDF before calling the rag-service', async () => {
+    signIn('admin-1')
+    const upload = handlers.find((h) => h.name === 'POST /api/admin/documents')!
+    const form = new FormData()
+    form.append('file', new File(['hello'], 'notes.txt', { type: 'text/plain' }))
+    const res = await upload.call(
+      new Request('http://app.test/api/admin/documents', { method: 'POST', body: form }),
+      { params: Promise.resolve({}) },
+    )
+    expect(res.status).toBe(400)
+    expect(service.uploadDocument).not.toHaveBeenCalled()
   })
 
   it('reads the role from the database, not the session', async () => {

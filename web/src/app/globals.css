@@ -58,6 +58,10 @@
     --grid-alpha: 0.07;
 
     --radius: 0.625rem;
+
+    /* The one chart hue: the accent, stepped per theme to pass the chart
+       lightness band and 3:1 against the card surface. */
+    --chart-1: 221 83% 53%;
   }
 
   /* Dark: a light blue (#579dff) under near-black text, as in Atlassian's dark
@@ -95,6 +99,8 @@
     --sidebar-foreground: 210 16% 90%;
     --sidebar-accent: 220 12% 16%;
     --sidebar-border: 220 12% 15%;
+
+    --chart-1: 217 91% 60%;
 
     --glass: 220 14% 10%;
     --glass-alpha: 0.94;

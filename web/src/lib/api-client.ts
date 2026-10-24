@@ -5,7 +5,14 @@ import type {
   ModelInfo,
 } from '@/types/chat'
 import type { Role } from '@/lib/roles'
-import type { AdminHealth, AdminUser } from '@/types/admin'
+import type {
+  AdminApiKey,
+  AdminHealth,
+  AdminOverview,
+  AdminUser,
+  DocumentStats,
+  UploadResult,
+} from '@/types/admin'
 import type { ApiKeySummary, CreatedApiKey } from '@/types/api-key'
 import type {
   CreateChatInput,
@@ -39,7 +46,8 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(path, {
     ...init,
     headers: {
-      ...(init.body ? { 'Content-Type': 'application/json' } : {}),
+      // FormData sets its own multipart boundary; only JSON strings are labelled.
+      ...(typeof init.body === 'string' ? { 'Content-Type': 'application/json' } : {}),
       ...init.headers,
     },
   })
@@ -155,6 +163,36 @@ export const api = {
     health(signal?: AbortSignal): Promise<AdminHealth> {
       return request('/api/admin/health', { signal })
     },
+
+    overview(signal?: AbortSignal): Promise<AdminOverview> {
+      return request('/api/admin/overview', { signal })
+    },
+
+    apiKeys(signal?: AbortSignal): Promise<AdminApiKey[]> {
+      return request('/api/admin/api-keys', { signal })
+    },
+
+    revokeApiKey(keyId: string): Promise<void> {
+      return request(`/api/admin/api-keys/${keyId}`, { method: 'DELETE' })
+    },
+
+    documents(signal?: AbortSignal): Promise<DocumentStats> {
+      return request('/api/admin/documents', { signal })
+    },
+
+    uploadDocument(file: File): Promise<UploadResult> {
+      const body = new FormData()
+      body.append('file', file)
+      return request('/api/admin/documents', { method: 'POST', body })
+    },
+
+    clearDocuments(): Promise<{ cacheCleared: number | null }> {
+      return request('/api/admin/documents/clear', { method: 'POST' })
+    },
+
+    clearCache(): Promise<{ cleared: number }> {
+      return request('/api/admin/cache/clear', { method: 'POST' })
+    },
   },
 
   keys: {
@@ -194,4 +232,7 @@ export const queryKeys = {
   apiKeys: () => ['api-keys'] as const,
   adminUsers: () => ['admin', 'users'] as const,
   adminHealth: () => ['admin', 'health'] as const,
+  adminOverview: () => ['admin', 'overview'] as const,
+  adminApiKeys: () => ['admin', 'api-keys'] as const,
+  adminDocuments: () => ['admin', 'documents'] as const,
 }

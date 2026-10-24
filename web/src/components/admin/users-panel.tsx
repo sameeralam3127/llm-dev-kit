@@ -1,6 +1,7 @@
 'use client'
 
 import { format } from 'date-fns'
+import { Search } from 'lucide-react'
 import * as React from 'react'
 
 import {
@@ -14,16 +15,11 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useAdminUsers, useSetRole } from '@/hooks/use-admin'
 import { ROLES, type Role, SCOPES_BY_ROLE } from '@/lib/roles'
 import type { AdminUser } from '@/types/admin'
-
-const ROLE_HELP: Record<Role, string> = {
-  viewer: 'Chat',
-  user: 'Chat and add documents',
-  admin: 'Everything, including this page',
-}
 
 const SIGN_IN_LABEL: Record<string, string> = {
   password: 'Password',
@@ -45,17 +41,51 @@ export function UsersPanel({ currentUserId }: { currentUserId: string }) {
     setRole.mutate({ userId: user.id, role })
   }
 
+  const [query, setQuery] = React.useState('')
+  const [roleFilter, setRoleFilter] = React.useState<Role | 'all'>('all')
+  const needle = query.trim().toLowerCase()
+  const shown = (users.data ?? []).filter(
+    (user) =>
+      (roleFilter === 'all' || user.role === roleFilter) &&
+      (!needle ||
+        user.email.toLowerCase().includes(needle) ||
+        (user.name ?? '').toLowerCase().includes(needle)),
+  )
+
   return (
-    <section aria-labelledby="users-heading" className="space-y-4">
-      <div>
-        <h2 id="users-heading" className="text-base font-semibold">
-          Users
-        </h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          A role decides what someone can do in the chat and with their API keys.{' '}
-          {ROLES.map((role) => `${role}: ${ROLE_HELP[role].toLowerCase()}`).join(' · ')}. Changes
-          apply to API keys at once and to open sessions within five minutes.
-        </p>
+    <section aria-label="Users" className="space-y-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <div className="relative sm:w-72">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search by name or email"
+            aria-label="Search users"
+            className="pl-8"
+          />
+        </div>
+        <Select value={roleFilter} onValueChange={(value) => setRoleFilter(value as Role | 'all')}>
+          <SelectTrigger className="sm:w-36" aria-label="Filter by role">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All roles</SelectItem>
+            {ROLES.map((role) => (
+              <SelectItem key={role} value={role}>
+                {role}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {users.data && (
+          <p className="text-xs text-muted-foreground sm:ml-auto">
+            {shown.length === users.data.length
+              ? `${users.data.length} user${users.data.length === 1 ? '' : 's'}`
+              : `${shown.length} of ${users.data.length} users`}
+          </p>
+        )}
       </div>
 
       {users.isLoading ? (
@@ -65,7 +95,7 @@ export function UsersPanel({ currentUserId }: { currentUserId: string }) {
           Could not load users: {users.error.message}
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-lg border">
+        <div className="overflow-x-auto rounded-lg border bg-card">
           <table className="w-full text-sm">
             <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
@@ -78,7 +108,14 @@ export function UsersPanel({ currentUserId }: { currentUserId: string }) {
               </tr>
             </thead>
             <tbody className="divide-y">
-              {users.data?.map((user) => (
+              {shown.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-3 py-8 text-center text-sm text-muted-foreground">
+                    No users match.
+                  </td>
+                </tr>
+              )}
+              {shown.map((user) => (
                 <tr key={user.id}>
                   <td className="px-3 py-2.5">
                     <p className="font-medium">

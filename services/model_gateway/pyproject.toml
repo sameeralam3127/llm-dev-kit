@@ -1,0 +1,20 @@
+[project]
+name = "model-gateway"
+version = "0.1.0"
+description = "v3 model gateway: the only service that reaches a model. Enforces sovereign mode and audits every call."
+requires-python = ">=3.12"
+license = "MIT"
+dynamic = ["dependencies"]
+
+[tool.setuptools.dynamic]
+dependencies = { file = ["requirements.txt"] }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+model_gateway = ["py.typed"]
+
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"

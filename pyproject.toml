@@ -22,6 +22,7 @@ src = [
     "services/plugins/auth/src",
     "services/core_api/src",
     "services/ingest_worker/src",
+    "services/model_gateway/src",
     "services/devkit_common/src",
     "services/llm_service/src",
     "services/rag_service/src",
@@ -75,6 +76,7 @@ mypy_path = [
     "services/plugins/auth/src",
     "services/core_api/src",
     "services/ingest_worker/src",
+    "services/model_gateway/src",
     "services/devkit_common/src",
     "services/llm_service/src",
     "services/rag_service/src",
@@ -92,6 +94,7 @@ packages = [
     "ldk_plugin_auth",
     "core_api",
     "ingest_worker",
+    "model_gateway",
     "devkit_common",
     "llm_service",
     "rag_service",
@@ -123,6 +126,8 @@ module = [
     "ldk_plugin_tools.*",
     "ldk_plugin_auth",
     "ldk_plugin_auth.*",
+    "model_gateway",
+    "model_gateway.*",
 ]
 disallow_any_generics = true
 disallow_subclassing_any = true
@@ -152,6 +157,7 @@ pythonpath = [
     "services/plugins/auth/src",
     "services/core_api/src",
     "services/ingest_worker/src",
+    "services/model_gateway/src",
     "services/devkit_common/src",
     "services/llm_service/src",
     "services/rag_service/src",

@@ -10,6 +10,7 @@
 -e ./services/plugins/auth
 -e ./services/core_api
 -e ./services/ingest_worker
+-e ./services/model_gateway
 -r services/llm_service/requirements.txt
 -r services/rag_service/requirements.txt
 -r services/mcp_service/requirements.txt

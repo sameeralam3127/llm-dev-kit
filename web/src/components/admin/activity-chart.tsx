@@ -3,6 +3,7 @@
 import { format, parseISO } from 'date-fns'
 import * as React from 'react'
 
+import { plural } from '@/lib/utils'
 import type { ActivityDay } from '@/types/admin'
 
 const CHART_HEIGHT = 160
@@ -36,7 +37,7 @@ export function ActivityChart({ days }: { days: ActivityDay[] }) {
   const shown = active === null ? null : days[active]
 
   return (
-    <div>
+    <div className="relative">
       <div className="relative" style={{ height: CHART_HEIGHT }}>
         {/* Recessive guides: the top value and the baseline. */}
         <div aria-hidden="true" className="absolute inset-x-0 top-0 border-t border-dashed border-border" />
@@ -52,7 +53,7 @@ export function ActivityChart({ days }: { days: ActivityDay[] }) {
               <button
                 key={day.date}
                 type="button"
-                aria-label={`${dayLabel(day.date, 'EEEE d MMMM')}: ${day.messages} questions, ${day.chats} new chats`}
+                aria-label={`${dayLabel(day.date, 'EEEE d MMMM')}: ${plural(day.messages, 'question')}, ${plural(day.chats, 'new chat')}`}
                 onMouseEnter={() => setActive(i)}
                 onFocus={() => setActive(i)}
                 onBlur={() => setActive(null)}

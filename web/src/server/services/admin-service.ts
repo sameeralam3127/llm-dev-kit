@@ -4,6 +4,7 @@ import { oauthProvidersEnabled } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { getEnv } from '@/lib/env'
 import { asRole, type Role } from '@/lib/roles'
+import { plural } from '@/lib/utils'
 import { ApiError, type ApiErrorCode, notFound } from '@/server/http'
 import { mintAccessToken } from '@/server/identity/tokens'
 import type {
@@ -129,12 +130,12 @@ export async function getHealth(adminId: string): Promise<AdminHealth> {
     !docsBody
       ? { name: 'Document index', status: 'down', detail: unreadable(docs) }
       : docsBody['status'] === 'connected'
-        ? { name: 'Document index', status: 'ok', detail: `${String(docsBody['document_count'])} chunks indexed` }
+        ? { name: 'Document index', status: 'ok', detail: `${plural(Number(docsBody['document_count']), 'chunk')} indexed` }
         : { name: 'Document index', status: 'down', detail: 'Vector store unreachable' },
     !cacheBody
       ? { name: 'Answer cache', status: 'down', detail: unreadable(cache) }
       : cacheBody['status'] === 'connected'
-        ? { name: 'Answer cache', status: 'ok', detail: `${String(cacheBody['keys'] ?? 0)} cached answers` }
+        ? { name: 'Answer cache', status: 'ok', detail: `${plural(Number(cacheBody['keys'] ?? 0), 'cached answer')}` }
         : { name: 'Answer cache', status: 'degraded', detail: 'Redis unreachable; answers are not cached' },
     keycloak === undefined
       ? { name: 'Single sign-on', status: 'off', detail: 'Not configured' }

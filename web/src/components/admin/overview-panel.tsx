@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAdminHealth, useAdminOverview } from '@/hooks/use-admin'
 import { ROUTES } from '@/lib/constants'
+import type { CheckStatus } from '@/types/admin'
 
 function Stat({ label, value, hint }: { label: string; value: number | string | null; hint?: string }) {
   return (
@@ -35,6 +36,15 @@ function SectionLink({ href, children }: { href: string; children: React.ReactNo
       <ArrowRight className="size-3" />
     </Link>
   )
+}
+
+/** "6 OK · 1 off": a service that is switched off is not a problem. */
+function serviceSummary(statuses: CheckStatus[]): string {
+  const count = (status: CheckStatus) => statuses.filter((s) => s === status).length
+  return (['ok', 'degraded', 'down', 'off'] as const)
+    .filter((status) => count(status) > 0)
+    .map((status) => `${count(status)} ${status === 'ok' ? 'OK' : STATUS[status].label.toLowerCase()}`)
+    .join(' · ')
 }
 
 export function OverviewPanel() {
@@ -66,7 +76,7 @@ export function OverviewPanel() {
             <Stat
               label="Services"
               value={overall ? STATUS[overall].label : null}
-              hint={overall ? `${checks.filter((c) => c.status === 'ok').length} of ${checks.length} OK` : 'Checking…'}
+              hint={overall ? serviceSummary(checks.map((c) => c.status)) : 'Checking…'}
             />
           </>
         ) : (

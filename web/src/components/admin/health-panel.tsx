@@ -40,10 +40,10 @@ export function HealthPanel() {
           Could not run the checks: {health.error.message}
         </p>
       ) : (
-        <ul className="grid gap-px overflow-hidden rounded-b-lg bg-border sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3">
           {data
             ? data.checks.map((check) => (
-                <li key={check.name} className="bg-card p-4">
+                <li key={check.name} className="rounded-md border p-3">
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-sm font-medium">{check.name}</span>
                     <StatusLabel status={check.status} />
@@ -52,7 +52,7 @@ export function HealthPanel() {
                 </li>
               ))
             : Array.from({ length: 6 }, (_, i) => (
-                <li key={i} className="bg-card p-4">
+                <li key={i} className="rounded-md border p-3">
                   <Skeleton className="h-4 w-2/3" />
                   <Skeleton className="mt-2 h-3 w-full" />
                 </li>

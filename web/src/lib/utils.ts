@@ -63,6 +63,11 @@ export async function copyToClipboard(text: string): Promise<boolean> {
   }
 }
 
+/** `1 chunk`, `3 chunks`: a count with its noun, for English UI text. */
+export function plural(count: number, noun: string, many = `${noun}s`): string {
+  return `${count} ${count === 1 ? noun : many}`
+}
+
 /** Stable, dependency-free id for optimistic client-side records. */
 export function tempId(prefix = 'tmp'): string {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36)}`

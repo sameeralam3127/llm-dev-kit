@@ -34,6 +34,7 @@ WORKDIR /app
 # distributions (not just copied), because plugins are found through their
 # entry-point metadata.
 FROM base AS llm-service
+ENV LITELLM_LOCAL_MODEL_COST_MAP=True
 COPY services/llm_service/requirements.txt /tmp/requirements.txt
 COPY services/core /src/core
 COPY services/plugins/ollama /src/plugins/ollama

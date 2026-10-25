@@ -6,6 +6,7 @@ const state = vi.hoisted(() => ({
 }))
 
 vi.mock('@/lib/env', () => ({ getEnv: () => ({}) }))
+vi.mock('@/lib/auth', () => ({ oauthProvidersEnabled: () => ({ github: false, sso: false }) }))
 vi.mock('@/server/identity/tokens', () => ({ mintAccessToken: vi.fn() }))
 vi.mock('@/server/http', () => {
   class ApiError extends Error {

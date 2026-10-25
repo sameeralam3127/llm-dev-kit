@@ -26,6 +26,8 @@ export const LIMITS = {
   systemPromptMaxChars: 8_000,
   /** Trailing messages sent to the model per request. */
   contextWindowMessages: 40,
+  /** Largest PDF accepted; matches the gateway's client_max_body_size. */
+  uploadBytes: 64 * 1024 * 1024,
 } as const
 
 export const ROUTES = {
@@ -35,4 +37,8 @@ export const ROUTES = {
   chat: (id: string) => `/c/${id}`,
   share: (shareId: string) => `/share/${shareId}`,
   admin: '/admin',
+  adminUsers: '/admin/users',
+  adminApiKeys: '/admin/api-keys',
+  adminDocuments: '/admin/documents',
+  adminSystem: '/admin/system',
 } as const

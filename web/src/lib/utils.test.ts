@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { deriveTitle } from '@/lib/utils'
+import { deriveTitle, plural } from '@/lib/utils'
 
 describe('deriveTitle', () => {
   it('drops empty code fences left by a prompt template', () => {
@@ -29,5 +29,13 @@ describe('deriveTitle', () => {
 
   it('falls back when nothing readable is left', () => {
     expect(deriveTitle('```\n```')).toBe('New chat')
+  })
+})
+
+describe('plural', () => {
+  it('uses the singular for exactly one', () => {
+    expect(plural(1, 'chunk')).toBe('1 chunk')
+    expect(plural(0, 'chunk')).toBe('0 chunks')
+    expect(plural(3, 'entry', 'entries')).toBe('3 entries')
   })
 })

@@ -31,8 +31,10 @@ KEY=sk-ldk-...
 
 ### Add documents
 
-Upload PDFs from the command line. There is no upload button in the app yet;
-it comes with per-user documents ([#15](https://github.com/sameeralam3127/llm-dev-kit/issues/15)).
+**Admins** can upload in the app: account menu → **Admin** → **Documents**,
+then drop PDFs onto the page. Cached answers are cleared after each upload.
+
+Anyone with the `user` role can also upload from the command line:
 
 ```bash
 curl -H "Authorization: Bearer $KEY" -F "file=@handbook.pdf" \
@@ -55,7 +57,8 @@ curl -H "Authorization: Bearer $KEY" -F "file=@handbook.pdf" \
 
 ### Check and clear the index
 
-These need the admin role.
+These need the admin role. The same actions are on **Admin** → **Documents**
+in the app; clearing the index there asks you to type `clear` first.
 
 ```bash
 # how many chunks are indexed
@@ -77,8 +80,17 @@ There is no way to remove a single document.
 
 Everyone after the first account is a `user`. To change someone's role, open
 the account menu → **Admin** → **Users**. The instance always keeps at least
-one admin. The **Health** tab on the same page shows whether each service is
-up, how many chunks are indexed, and the signing key's age.
+one admin.
+
+The admin console has its own navigation, separate from the chat:
+
+| Page | What it is for |
+| --- | --- |
+| **Overview** | Totals, questions per day for the last two weeks, service status, newest accounts |
+| **Users** | Search people, filter by role, change roles |
+| **API keys** | Every user's keys, with when each was last used; revoke a lost one |
+| **Documents** | Upload PDFs, see indexed chunks and cached answers, clear the cache or the index |
+| **Health & settings** | Each service's status, the configuration read from `.env`, and the models on offer, grouped by where they run |
 
 ### Let other people in
 

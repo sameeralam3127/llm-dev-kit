@@ -5,7 +5,7 @@ import hashlib
 import psycopg
 import pytest
 from alembic import command
-from conftest import alembic_config
+from postgres import alembic_config
 
 ZERO_VECTOR = "[" + ",".join(["0"] * 768) + "]"
 

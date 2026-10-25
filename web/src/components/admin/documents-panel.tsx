@@ -26,7 +26,7 @@ import {
   useUploadDocument,
 } from '@/hooks/use-admin'
 import { LIMITS } from '@/lib/constants'
-import { cn } from '@/lib/utils'
+import { cn, plural } from '@/lib/utils'
 import type { CheckStatus, StoreStatus } from '@/types/admin'
 
 const STORE_STATUS: Record<StoreStatus, CheckStatus> = {
@@ -69,7 +69,7 @@ function UploadCard() {
       update(item.id, { state: 'indexing' })
       try {
         const result = await upload.mutateAsync(item.file)
-        update(item.id, { state: 'done', detail: `${result.chunks} chunks` })
+        update(item.id, { state: 'done', detail: plural(result.chunks, 'chunk') })
       } catch (error) {
         update(item.id, { state: 'failed', detail: (error as Error).message })
       }

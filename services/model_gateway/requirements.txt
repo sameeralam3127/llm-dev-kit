@@ -1,0 +1,8 @@
+# Writes audit events with core-api's audit port and Postgres adapter.
+core-api
+# The model backends, discovered through the plugin registry. The LiteLLM
+# plugin is installed but only loaded when SOVEREIGN_MODE=false.
+ldk-plugin-ollama
+ldk-plugin-litellm
+fastapi
+uvicorn[standard]

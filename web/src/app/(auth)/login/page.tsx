@@ -7,6 +7,7 @@ import { OAuthButtons } from '@/components/auth/oauth-buttons'
 import { oauthProvidersEnabled } from '@/lib/auth'
 import { ROUTES } from '@/lib/constants'
 import { getEnv } from '@/lib/env'
+import { safeCallback } from '@/lib/safe-callback'
 
 export const metadata: Metadata = { title: 'Sign in' }
 
@@ -25,15 +26,6 @@ const SIGN_IN_ERRORS: Record<string, string> = {
 function signInError(code: string | undefined): string | undefined {
   if (!code || code === 'CredentialsSignin') return undefined
   return SIGN_IN_ERRORS[code] ?? 'Sign-in did not complete. Try again.'
-}
-
-/**
- * Only same-origin relative paths are accepted, so a crafted
- * `?callbackUrl=https://evil.example` cannot turn sign-in into an open redirect.
- */
-function safeCallback(raw: string | undefined): string {
-  if (!raw || !raw.startsWith('/') || raw.startsWith('//')) return ROUTES.home
-  return raw
 }
 
 export default async function LoginPage({ searchParams }: PageProps) {

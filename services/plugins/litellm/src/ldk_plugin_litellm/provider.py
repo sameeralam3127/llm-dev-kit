@@ -7,9 +7,15 @@ every backend. Local Ollama has its own plugin (it also serves embeddings).
 
 from __future__ import annotations
 
+import os
 from collections.abc import AsyncIterator
 from types import MappingProxyType
 from typing import Any
+
+# LiteLLM fetches its model cost map during import unless this is set first.
+# Keep the bundled map as the default for the local-first deployment; operators
+# can still explicitly opt in to the remote map through their environment.
+os.environ.setdefault("LITELLM_LOCAL_MODEL_COST_MAP", "True")
 
 import litellm
 

@@ -150,3 +150,34 @@ jobs:
       - name: Import check
         if: matrix.port == ''
         run: docker run --rm ldk-ci/${{ matrix.service }}:test python -c "import mcp_service.main"
+
+  # Start the whole stack the way users run it (`docker compose up`) and
+  # smoke-test it through the gateway with scripts/smoke.sh: health of every
+  # service, sign-in redirects, 401s on every API, security headers, and a
+  # real registration. No model is installed, so this proves the wiring, not
+  # the answers. Run the same check locally with `make e2e`.
+  stack:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Compose needs only AUTH_SECRET; everything else has a default.
+      - name: Write .env
+        run: echo "AUTH_SECRET=$(openssl rand -base64 32)" > .env
+
+      - name: Start the stack
+        run: docker compose up -d --build --wait --wait-timeout 600
+
+      - name: Smoke test
+        run: SMOKE_REGISTER=1 scripts/smoke.sh
+
+      - name: Service logs
+        if: failure()
+        run: |
+          docker compose ps
+          docker compose logs --no-color --tail 200
+
+      - name: Stop
+        if: always()
+        run: docker compose down -v

@@ -1,9 +1,24 @@
 # v3 Roadmap — a secure, sovereign AI chat kit
 
-> **Status: accepted, Milestone 1 in progress.** The five decisions were settled
-> on 2026-10-21 (see [Decisions](#decisions)). v2 is unreleased and its plan,
-> [docs/v2/PLAN.md](../v2/PLAN.md), stays the record of what was built through
-> Phase 4.
+> **Status: Milestone 1 in progress, steps (a) to (e) done; release planned for
+> February 2027.** The five decisions were settled on 2026-10-21 (see
+> [Decisions](#decisions)). The v2 line is finished: everything it built shipped
+> in v1.0.0, and its plan, [docs/v2/PLAN.md](../v2/PLAN.md), stays the record of
+> how. Work happens on the `v3` branch, which is kept in sync with `main`.
+
+## Releases
+
+| Release | When | What |
+| --- | --- | --- |
+| [v1.0.0](https://github.com/sameeralam3127/llm-dev-kit/releases/tag/v1.0.0) | 2026-10-25 | First release: the v2 stack, the admin console, and the v3 services in the repository (not yet in Compose) |
+| v1.1.0 | Next | Security fixes for the v1 stack: #56, #60, #58, #59, #52, #54, the first part of #49, and two findings in #53 |
+| v3 | February 2027 | Milestone 1 in Compose: Postgres and pgvector, workspaces, model-gateway with sovereign mode |
+
+Versions follow [Semantic Versioning](https://semver.org) and are cut by
+release-please from Conventional Commits (see
+[CHANGELOG.md](../../CHANGELOG.md)). v3 replaces the storage layer, so it is a
+major release; tag it `v3.0.0` with a `Release-As: 3.0.0` commit footer so the
+version matches the name.
 
 ## Vision
 
@@ -109,15 +124,15 @@ The smallest stack that is secure, tenant-isolated and sovereign end to end.
 Each step ends with a pause for review and a short explanation of what it
 teaches.
 
-| Step | Builds | Concept it teaches |
-| --- | --- | --- |
-| a | Schema and migrations | pgvector indexes (HNSW), generated `tsvector` columns, least-privilege database roles |
-| b | Authentication and API keys | Resolving every request to *(user, workspace, scopes)*; hashing secrets |
-| c | Ingestion | `FOR UPDATE SKIP LOCKED`, idempotency, atomic replace in one transaction |
-| d | Retrieval and chat | Hybrid search and Reciprocal Rank Fusion; citations |
-| e | model-gateway sovereignty | Egress by construction, not by policy; audit trails |
-| f | Web integration | Moving Prisma from SQLite to Postgres; acting on a user's behalf |
-| g | Compose, CI and docs | Docker secrets, read-only filesystems, image scanning, SBOMs |
+| Step | Builds | Concept it teaches | Status |
+| --- | --- | --- | :---: |
+| a | Schema and migrations | pgvector indexes (HNSW), generated `tsvector` columns, least-privilege database roles | ✅ |
+| b | Authentication and API keys | Resolving every request to *(user, workspace, scopes)*; hashing secrets | ✅ |
+| c | Ingestion | `FOR UPDATE SKIP LOCKED`, idempotency, atomic replace in one transaction | ✅ |
+| d | Retrieval and chat | Hybrid search and Reciprocal Rank Fusion; citations | ✅ |
+| e | model-gateway sovereignty | Egress by construction, not by policy; audit trails | ✅ |
+| f | Web integration | Moving Prisma from SQLite to Postgres; acting on a user's behalf. Also fixes #51 | Next |
+| g | Compose, CI and docs | Docker secrets, read-only filesystems, image scanning, SBOMs. Also fixes #55 | |
 
 ### Definition of done
 
@@ -210,11 +225,14 @@ when its turn comes.
 | --- | --- |
 | #35 batch embeddings, #37 one RAG pipeline | Solved by Milestone 1 (ingest-worker and core-api) |
 | #36 race conditions | Chroma part removed with Chroma; JWKS part still applies (Milestone 1, step b) |
+| #13 sovereign mode, #15 per-user documents, #16 rate limits and audit | Milestone 1 builds the core; Milestones 2 and 3 finish them |
+| #51 v2 keys accepted as sessions, #55 audit-log role | Milestone 1, steps f and g |
+| #56, #58, #59, #60, #52, #54, #49 (item 1) | v1.1.0, on `main` |
+| #53 scaling plan | Milestone 3; its two bug findings (5xx masked as 200, shared token-exchange bucket) go into v1.1.0 |
+| #19, #38, #41, #42, #43 | Milestone 3 (#43 is started: CI now smoke-tests the whole Compose stack) |
+| #17, #18, #30, #39, #40, #44 | Milestone 4 |
 | #31 web health endpoint, #32 MCP client reuse, #33 CONTRIBUTING, #34 cloud model badge | Independent, good first issues, any time |
-| #28 rate-limit header | Fixed in #46 |
-| #13, #15, #16 | Folded into Milestones 1–3 once decision 5 is settled |
-| #19, #38, #41, #42, #43 | Milestone 3 |
-| #17, #30, #39, #40, #44 | Milestone 4 |
+| #28 rate-limit header, #50 LiteLLM price list, #57 open redirect | Fixed (#46, #61, #62) |
 
 ## How we work
 

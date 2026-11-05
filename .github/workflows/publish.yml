@@ -4,6 +4,8 @@ name: Publish images
 # (ghcr.io/<owner>/llm-dev-kit-<service>). Pushes to main are tagged `latest`
 # and with the short commit SHA. A pushed version tag such as v2.0.0 is tagged
 # 2.0.0, 2.0 and 2 (and the commit SHA). Manual runs are also supported.
+# release.yml also calls this workflow with the new version when a release
+# is created, because a tag pushed by GITHUB_TOKEN starts no workflow itself.
 # Nothing is pushed unless the CI workflow (lint, typecheck, test, build)
 # passes first. Every action is pinned to a full commit SHA; the comment names
 # the release it corresponds to.
@@ -11,6 +13,13 @@ on:
   push:
     branches: [main]
     tags: ["v*.*.*"]
+  workflow_call:
+    inputs:
+      version:
+        description: Release tag to publish, e.g. v1.1.0; empty uses the pushed tag
+        type: string
+        required: false
+        default: ""
   workflow_dispatch: {}
 
 env:
@@ -48,9 +57,9 @@ jobs:
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=sha,format=short
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
+            type=semver,pattern={{version}},value=${{ inputs.version }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ inputs.version }}
+            type=semver,pattern={{major}},value=${{ inputs.version }}
 
       - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
@@ -81,9 +90,9 @@ jobs:
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=sha,format=short
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
+            type=semver,pattern={{version}},value=${{ inputs.version }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ inputs.version }}
+            type=semver,pattern={{major}},value=${{ inputs.version }}
 
       - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:

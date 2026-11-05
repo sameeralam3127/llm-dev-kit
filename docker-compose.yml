@@ -1,7 +1,14 @@
+# While a service starts, it is checked every second (start_interval), so it
+# counts as healthy within a second of being ready. After start_period, it is
+# checked every 15 s as before. Without start_interval, Docker waits a full
+# interval before the first check, which added ~15 s to every step of the
+# startup chain.
 x-python-healthcheck: &python-healthcheck
   interval: 15s
   timeout: 5s
   retries: 10
+  start_period: 60s
+  start_interval: 1s
 
 # Raises the open-file-descriptor ceiling for services that hold many
 # concurrent connections (nginx, and anything proxying/streaming requests).
@@ -34,18 +41,9 @@ services:
         limits:
           cpus: "0.5"
           memory: 128M
-    # service_started, not service_healthy: nginx's static upstream blocks
-    # only need the container to exist (so its hostname resolves) — not to be
-    # fully healthy. This is what lets :8080 come up within seconds instead of
-    # waiting for the whole backend chain, showing the "starting up" fallback
-    # page (see nginx.conf) until each upstream actually starts responding.
-    depends_on:
-      llm-service:
-        condition: service_started
-      rag-service:
-        condition: service_started
-      web:
-        condition: service_started
+    # No depends_on: every upstream uses `resolve`, so nginx starts before the
+    # services exist and finds them as they come up. :8080 answers at once,
+    # with the "starting up" page (see nginx.conf) until the web app responds.
     restart: unless-stopped
 
   # ---------------------------------------------------------------- frontend
@@ -85,12 +83,16 @@ services:
         limits:
           cpus: "1.0"
           memory: 768M
-    # Ordering only, not a hard gate: the Next.js server itself never calls
-    # rag-service at boot (only when a user actually chats), so it doesn't
-    # need rag-service healthy to start and become reachable behind nginx.
-    depends_on:
-      rag-service:
-        condition: service_started
+    # No depends_on: the web app never calls rag-service at boot, only when
+    # someone chats, so it starts at once and the sign-in page shows while the
+    # backend is still starting.
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/login').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+      start_interval: 1s
     restart: unless-stopped
 
   # ----------------------------------------------------------- microservices
@@ -219,6 +221,8 @@ services:
       interval: 10s
       timeout: 3s
       retries: 10
+      start_period: 30s
+      start_interval: 1s
     restart: unless-stopped
 
   chroma:

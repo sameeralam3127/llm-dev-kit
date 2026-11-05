@@ -1,0 +1,50 @@
+name: Release
+
+# Semantic versioning from Conventional Commits, with release-please.
+# Every push to main updates one open release PR that bumps the version
+# (fix: patch, feat: minor, a breaking change: major) and CHANGELOG.md.
+# Merging that PR tags vX.Y.Z, publishes the GitHub release, and publishes the
+# images with their version tags. Force a version with a commit footer such as
+# `Release-As: 1.1.0`.
+#
+# Needs the repository setting "Allow GitHub Actions to create and approve
+# pull requests" (Settings -> Actions -> General) to open the release PR.
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write # labels on the release PR
+    outputs:
+      created: ${{ steps.release.outputs.release_created }}
+      tag: ${{ steps.release.outputs.tag_name }}
+    steps:
+      - id: release
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  # A tag pushed with GITHUB_TOKEN does not start other workflows, so the
+  # versioned images are published from here.
+  publish:
+    needs: release-please
+    if: needs.release-please.outputs.created == 'true'
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/publish.yml
+    with:
+      version: ${{ needs.release-please.outputs.tag }}

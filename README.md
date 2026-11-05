@@ -412,8 +412,10 @@ from [Conventional Commits](https://www.conventionalcommits.org/) by
 - **Merging the release PR** tags `vX.Y.Z`, publishes the GitHub release, and
   pushes the images to `ghcr.io/sameeralam3127/llm-dev-kit-<service>` as
   `X.Y.Z`, `X.Y` and `X`. Pushes to `main` are also published as `latest`.
-- **To choose a version yourself,** add a `Release-As: 1.1.0` footer to a
-  commit.
+- **The commits decide the number;** it is never chosen by hand. A
+  `Release-As: X.Y.Z` footer exists only to correct a mistake.
+- **"v3" is the name of the current plan, not a version.** It changes storage
+  incompatibly, so it ships as 2.0.0.
 
 <details>
 <summary><b>Project layout</b></summary>
@@ -451,8 +453,8 @@ sign-on and the admin console. Every release is listed in
 | Release | When | What |
 | --- | --- | --- |
 | [v1.0.0](https://github.com/sameeralam3127/llm-dev-kit/releases/tag/v1.0.0) | October 2026 | First release |
-| v1.1.0 | Next | Security fixes for the v1 stack ([#56](https://github.com/sameeralam3127/llm-dev-kit/issues/56), [#60](https://github.com/sameeralam3127/llm-dev-kit/issues/60), [#58](https://github.com/sameeralam3127/llm-dev-kit/issues/58), [#59](https://github.com/sameeralam3127/llm-dev-kit/issues/59), [#52](https://github.com/sameeralam3127/llm-dev-kit/issues/52), [#54](https://github.com/sameeralam3127/llm-dev-kit/issues/54) and more) |
-| v3 | February 2027 | The secure core in Compose: Postgres, workspaces, sovereign mode |
+| 1.1.0 | Next | Security fixes for the v1 stack ([#56](https://github.com/sameeralam3127/llm-dev-kit/issues/56), [#60](https://github.com/sameeralam3127/llm-dev-kit/issues/60), [#58](https://github.com/sameeralam3127/llm-dev-kit/issues/58), [#59](https://github.com/sameeralam3127/llm-dev-kit/issues/59), [#52](https://github.com/sameeralam3127/llm-dev-kit/issues/52), [#54](https://github.com/sameeralam3127/llm-dev-kit/issues/54) and more) |
+| 2.0.0 ("v3") | February 2027 | The secure core in Compose: Postgres, workspaces, sovereign mode. A major version because storage changes incompatibly |
 
 | | Area | |
 | :---: | --- | --- |
@@ -476,7 +478,7 @@ sign-on and the admin console. Every release is listed in
   Until [#56](https://github.com/sameeralam3127/llm-dev-kit/issues/56) is
   fixed, do not rely on `ALLOW_REGISTRATION=false` while GitHub sign-in is on.
 
-**Next:** v1.1.0 closes the open security issues for today's stack. Then v3
+**Next:** 1.1.0 closes the open security issues for today's stack. Then v3
 Milestone 1 ("secure core") moves the web app onto Postgres and core-api and
 brings model-gateway into Compose. Steps (a) to (e) are done on the `v3` branch.
 Milestones and decisions are in [docs/v3/ROADMAP.md](docs/v3/ROADMAP.md),

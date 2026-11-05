@@ -4,8 +4,8 @@ name: Release
 # Every push to main updates one open release PR that bumps the version
 # (fix: patch, feat: minor, a breaking change: major) and CHANGELOG.md.
 # Merging that PR tags vX.Y.Z, publishes the GitHub release, and publishes the
-# images with their version tags. Force a version with a commit footer such as
-# `Release-As: 1.1.0`.
+# images with their version tags. The commits decide the version; a
+# `Release-As: X.Y.Z` commit footer is only for correcting a mistake.
 #
 # Needs the repository setting "Allow GitHub Actions to create and approve
 # pull requests" (Settings -> Actions -> General) to open the release PR.

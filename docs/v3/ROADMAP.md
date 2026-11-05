@@ -11,14 +11,20 @@
 | Release | When | What |
 | --- | --- | --- |
 | [v1.0.0](https://github.com/sameeralam3127/llm-dev-kit/releases/tag/v1.0.0) | 2026-10-25 | First release: the v2 stack, the admin console, and the v3 services in the repository (not yet in Compose) |
-| v1.1.0 | Next | Security fixes for the v1 stack: #56, #60, #58, #59, #52, #54, the first part of #49, and two findings in #53 |
-| v3 | February 2027 | Milestone 1 in Compose: Postgres and pgvector, workspaces, model-gateway with sovereign mode |
+| 1.1.0 | Next | Security fixes for the v1 stack: #56, #60, #58, #59, #52, #54, the first part of #49, and two findings in #53 |
+| 2.0.0 ("v3") | February 2027 | Milestone 1 in Compose: Postgres and pgvector, workspaces, model-gateway with sovereign mode |
 
-Versions follow [Semantic Versioning](https://semver.org) and are cut by
-release-please from Conventional Commits (see
-[CHANGELOG.md](../../CHANGELOG.md)). v3 replaces the storage layer, so it is a
-major release; tag it `v3.0.0` with a `Release-As: 3.0.0` commit footer so the
-version matches the name.
+Versions follow [Semantic Versioning](https://semver.org) strictly, and the
+commits decide them: release-please reads the Conventional Commits since the
+last release (see [CHANGELOG.md](../../CHANGELOG.md)).
+
+- **The security release** is 1.1.0 because it adds behaviour as well as fixes
+  (for example, the first-admin setup code for #60 is a new setting, a `feat:`).
+  Had it been fixes only, it would be 1.0.1.
+- **"v3" is the name of this plan, not a version number.** It replaces the
+  storage layer incompatibly, so it ships as the next major version, 2.0.0.
+- **No version is forced** with `Release-As`; that footer is only for
+  correcting a mistake.
 
 ## Vision
 

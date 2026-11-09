@@ -90,7 +90,6 @@ export async function getSharedChat(shareId: string): Promise<{
       messages: {
         orderBy: { position: 'asc' },
         where: { role: { not: 'system' } },
-        include: messageInclude,
       },
     },
   })

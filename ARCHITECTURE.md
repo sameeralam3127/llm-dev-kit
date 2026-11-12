@@ -1,198 +1,108 @@
 # Architecture
 
-The LLM Dev Kit is a set of small, independently built and deployed services
-behind an Nginx gateway. The only published port is the gateway (`:8080`),
-bound to `127.0.0.1` unless `GATEWAY_BIND` opts into wider access. Every service has its own Docker image stage, its own dependency
-set, and communicates over HTTP — no shared in-process imports across
-service boundaries (only the thin `devkit_common` library is shared at build
-time).
+LLM Dev Kit is evolving from the runnable v1 Compose stack to the v3 secure,
+workspace-aware architecture. Both code paths are in this repository, but only
+the v1 stack is currently wired into `docker-compose.yml`. The distinction is
+intentional: do not deploy the v3 services until roadmap step g supplies the
+v3 Compose profile, secrets, network isolation, and end-to-end tests.
 
-## System Overview
-
-```mermaid
-flowchart TB
-    subgraph Client
-        B[Browser]
-        SDK[Any OpenAI SDK / curl]
-        MCPC[MCP Client]
-    end
-
-    subgraph Gateway
-        N[Nginx :8080<br/>reverse proxy + load balancer<br/>+ static chat UI]
-    end
-
-    subgraph Services
-        R1[rag-service replica 1 :8020]
-        R2[rag-service replica 2 :8020]
-        L[llm-service :8010]
-        MCP[mcp-service stdio]
-    end
-
-    subgraph Infrastructure
-        RD[(Redis<br/>response cache)]
-        CH[(ChromaDB<br/>PDF vectors)]
-    end
-
-    subgraph Models
-        OL[Ollama<br/>fully offline]
-        LL[LiteLLM<br/>OpenAI / Gemini / Anthropic]
-    end
-
-    B -->|/ static chat UI| N
-    SDK --> N
-    N -->|/v1 and /api/rag round-robin| R1
-    N --> R2
-    N -->|/api/llm| L
-    R1 --> RD
-    R1 --> CH
-    R1 --> L
-    R2 --> L
-    MCPC --> MCP
-    MCP --> R1
-    MCP --> L
-    L -->|default| OL
-    L -->|provider/model + API key| LL
-```
-
-## Services
-
-### nginx (gateway / load balancer)
-Single entrypoint. Reverse-proxies the Next.js chat app (`web`), routes APIs
-by path, and round-robins across all `rag-service` replicas (Docker DNS
-returns one address per replica; nginx resolves them via static `upstream {}`
-blocks at startup — see below). SSE/NDJSON buffering is disabled so token
-streaming reaches the browser.
-
-| Route | Target |
-| --- | --- |
-| `/` | web — Next.js chat app (reverse-proxied, not static) |
-| `/v1/*` | rag-service — OpenAI-compatible API |
-| `/api/rag/*` | rag-service REST (prefix stripped) |
-| `/api/llm/*` | llm-service REST (prefix stripped) |
-
-**Startup and the "starting up" fallback page.** Because nginx uses static
-`upstream {}` blocks (needed for the DNS-at-startup replica round-robin
-above), it can only start once its upstream *containers exist* — a hostname
-that doesn't resolve yet is a hard `nginx -t` failure, not a retryable error.
-`docker-compose.yml` reflects exactly that requirement: nginx's `depends_on`
-uses `condition: service_started` (container exists) rather than
-`service_healthy` (app inside is actually ready) for `web`, `llm-service` and
-`rag-service`. That's deliberately weaker than it looks — it's what lets
-`:8080` become reachable within seconds of `docker compose up` instead of
-only after the full backend chain reports healthy.
-
-In the gap between "nginx is up" and "the app behind it is actually ready,"
-`location /` in `nginx.conf` intercepts 502/503/504 from the `web` upstream
-(`proxy_intercept_errors on; error_page 502 503 504 =200 /_starting.html;`)
-and serves a small static page (`nginx/starting.html`, baked into the gateway
-image) with a meta-refresh instead of a raw gateway error. This is scoped to
-the frontend route only — `/v1/` and `/api/*` are left alone so API clients
-keep seeing real error codes during startup rather than a surprise 200 with
-an HTML body.
-
-### web (Next.js chat app)
-The frontend (`web/`), served as its own container behind nginx: accounts
-(Auth.js, JWT sessions), persistent per-user history in Prisma/SQLite, chat
-folders, message editing with conversation rewind, response regeneration with
-archived versions, Markdown with syntax highlighting, and revocable read-only
-share links.
-
-It reaches the model through `rag-service`'s OpenAI-compatible `/v1` endpoint
-behind a `ChatProvider` interface, so swapping the backend (raw Ollama, a
-hosted API) means writing one adapter rather than touching routes or UI.
-Streaming uses SSE; nginx's `proxy_buffering off` is what lets tokens through
-in real time. `npm run dev` in `web/` gives hot reload.
-
-See [web/README.md](web/README.md) for the full breakdown.
-
-### llm-service (model router)
-The only service that talks to model backends. Providers:
-
-- **ollama** (default, offline) — chat, streaming, embeddings, direct API.
-- **openai / gemini / anthropic** — routed through **LiteLLM**
-  (`litellm.acompletion`), with true token streaming for cloud models.
-  `OPENAI_BASE_URL` still lets the `openai/` prefix target any
-  OpenAI-compatible API.
-
-Model ids route by prefix: `llama3.1` → Ollama, `openai/gpt-4o` → OpenAI,
-`gemini/gemini-2.5-flash` → Gemini, `anthropic/claude-sonnet-5` → Anthropic.
-Cloud calls need a key from the environment **or** an `api_key` field on the
-request (bring-your-own-key — nothing is stored). Embeddings are always local
-so both vector stores share one embedding space. Errors are proper HTTP
-errors — they are never returned as fake chat text and never cached.
-
-Endpoints: `/health`, `/providers`, `/models`, `/generate`,
-`/generate/stream` (NDJSON), `/embed`.
-
-### rag-service (×2 replicas)
-Chat orchestration: Redis cache check → embed query (via llm-service) →
-retrieve context from **ChromaDB** (uploaded PDFs) → build prompt → generate
-via llm-service → cache successful responses (keys namespaced `chat:*`, so
-clearing chat cache never touches other state).
-
-Also serves `/chat/stream` (NDJSON token streaming for the chat UI), the
-OpenAI-compatible `/v1/models` and `/v1/chat/completions` (streaming SSE and
-non-streaming), `/ingest/pdf`, `/cache/*`, `/documents/*`.
-
-### mcp-service
-MCP tools (`list_models`, `ask_llm_dev_kit`) that call llm-service and
-rag-service over HTTP — no direct database access.
-
-## Chat Request Flow (RAG, streaming)
-
-```mermaid
-sequenceDiagram
-    participant U as Chat UI (browser)
-    participant N as Nginx
-    participant R as rag-service (replica)
-    participant L as llm-service
-    participant V as Chroma
-    participant M as Ollama / LiteLLM cloud
-
-    U->>N: POST /api/rag/chat/stream
-    N->>R: round-robin to a replica
-    R->>R: Redis cache check (hit → stream cached answer)
-    R->>L: POST /embed (query)
-    L->>M: local embedding model
-    R->>V: vector search (uploaded PDFs)
-    R->>L: POST /generate/stream (prompt + context)
-    L->>M: Ollama or LiteLLM token stream
-    L-->>R: NDJSON deltas
-    R-->>U: NDJSON (meta + deltas + done), full answer cached
-```
-
-## Docker Build Strategy
-
-One `Dockerfile`, one stage per service off a shared patched `python:3.12-slim`
-base:
-
-- each stage installs **only that service's** `requirements.txt` (rag-service
-  uses the thin `chromadb-client` instead of the full chromadb package);
-- `pip install` and the base stage's `apt-get` both use BuildKit cache mounts
-  (`--mount=type=cache`), so a `requirements.txt` change re-downloads nothing
-  that's already been fetched — only the packages that actually changed. The
-  `web/` Next.js image does the same for `npm ci`, and its three stages
-  (`base`/`deps`/`build`/`runtime`) share one `apt-get install` instead of
-  repeating it per stage;
-- containers run as a non-root `appuser`;
-- healthchecks use the Python stdlib (no curl in the images);
-- `docker-compose.yml` runs the code baked into each image; the opt-in
-  `compose.dev.yml` overlay bind-mounts the service source and runs uvicorn
-  `--reload` for hot reload;
-- `deploy.replicas: 2` on rag-service demonstrates horizontal scaling behind
-  the load balancer (`docker compose up -d --scale rag-service=N`);
-- every service in `docker-compose.yml` carries `deploy.resources`
-  (reservations + limits on cpus/memory), sized to the service's actual load
-  (chroma and rag-service get the most headroom; nginx/mcp the least) —
-  Compose v2 enforces these even outside Swarm mode. nginx, llm-service and
-  rag-service also raise their open-file ulimit (`nofile: 65536`), the
-  default (1024) being the first thing to bite under concurrent connections.
-
-## Offline / Cloud Model Matrix
-
-| Scenario | Configuration | What happens |
+| | Current runnable stack (v1) | v3 target |
 | --- | --- | --- |
-| Fully offline (default) | no keys set | All chat + embeddings via local Ollama |
-| Server-wide cloud | `OPENAI_API_KEY` / `GEMINI_API_KEY` / `ANTHROPIC_API_KEY` in `.env` | `openai/*`, `gemini/*`, `anthropic/*` models usable by everyone |
-| Bring-your-own-key | `api_key` in the body of `/api/rag/chat` (a Bearer key on `/v1` only under `ALLOW_LEGACY_ANONYMOUS`) | Key used for that request only, never stored |
-| Alternative OpenAI-compatible host | `OPENAI_BASE_URL` | Groq/Together/vLLM/LM Studio behind the same `openai/` prefix |
+| Entry point | Nginx on `:8080` | Edge proxy, the only published port |
+| Chat and retrieval | `rag-service` + Redis + Chroma | `core-api` + Postgres/pgvector |
+| Model access | `llm-service` | `model-gateway`, the only model caller |
+| Ingestion | HTTP path in `rag-service` | `ingest-worker` over a Postgres job queue |
+| Identity and tenancy | Auth.js, per-user chat history in SQLite | Signed identity plus workspace-scoped access in Postgres |
+| Network policy | Compose default network | Internal network; model gateway is the controlled egress point |
+
+## Current runnable stack (v1)
+
+`docker compose up` starts the following architecture. Nginx is the only
+published service and binds to `127.0.0.1:8080` unless `GATEWAY_BIND` is set.
+
+```mermaid
+flowchart LR
+  B[Browser / OpenAI SDK] --> N[Nginx :8080]
+  N --> W[web\nNext.js 16, Auth.js, SQLite]
+  N --> R[rag-service\nRAG and OpenAI API]
+  N --> L[llm-service\nmodel routing]
+  R --> C[(ChromaDB)]
+  R --> RD[(Redis cache)]
+  R --> L
+  L --> O[Ollama]
+  L -. optional cloud providers .-> CP[OpenAI / Gemini / Anthropic]
+  M[MCP client] --> MS[mcp-service]
+  MS --> R
+  MS --> L
+```
+
+### Routing
+
+| Public path | Upstream |
+| --- | --- |
+| `/` and web-owned `/api/*` routes | `web` |
+| `/v1/*` and `/api/rag/*` | `rag-service` |
+| `/api/llm/*` | `llm-service` |
+| `/sso/*` with the SSO profile | Keycloak |
+
+Nginx disables proxy buffering for streaming responses. Its frontend-only
+startup page handles a temporarily unavailable `web` container; API routes
+retain their real upstream status codes.
+
+## v3 target architecture
+
+The v3 services and their migrations are implemented in the repository, but
+they are not yet in the default Compose file. Their contract is defined in
+[the v3 roadmap](docs/v3/ROADMAP.md).
+
+```mermaid
+flowchart LR
+  B[Browser] --> E[edge\nonly published port]
+  SDK[SDK / API key] --> E
+  E --> W[web\nNext.js + identity]
+  E --> C[core-api\nauth, workspaces, chat, retrieval]
+  W -->|signed user identity| C
+  C --> PG[(Postgres 16 + pgvector)]
+  C -->|model request| G[model-gateway]
+  I[ingest-worker] -->|claim jobs| PG
+  I -->|embeddings| G
+  G -->|audit event| PG
+  G --> O[Ollama]
+  G -. refused in sovereign mode .-> CL[Cloud model providers]
+
+  subgraph internal [internal network]
+    W
+    C
+    I
+    PG
+    O
+  end
+```
+
+### v3 responsibilities
+
+- **core-api** authenticates sessions and workspace API keys, resolves every
+  request to user, workspace, and scopes, performs hybrid retrieval, and
+  serves `/v1/models` and `/v1/chat/completions` over SSE.
+- **ingest-worker** claims Postgres jobs with `FOR UPDATE SKIP LOCKED`, parses
+  PDFs, chunks them, requests embeddings, and atomically replaces a document's
+  chunks.
+- **model-gateway** authenticates internal callers, applies sovereign-mode
+  egress rules before a model request, and records each permitted request in
+  the audit log.
+- **Postgres with pgvector** is the system of record for workspaces, API keys,
+  documents, jobs, chunks, provenance, and audit events. Retrieval filters by
+  `workspace_id` in SQL.
+
+## Operational boundaries
+
+- Every currently public endpoint goes through Nginx; backend data services
+  are not published as host ports.
+- v3 makes authentication and workspace authorization mandatory for `/api/*`
+  and `/v1/*`. A personal workspace API key is stored as a prefix plus a
+  server-peppered HMAC, never plaintext.
+- `SOVEREIGN_MODE=true` is the v3 default. It prevents cloud providers and
+  Ollama cloud-model identifiers before any prompt can leave the network.
+- The v3 Compose profile will run internal containers on an `internal: true`
+  network and use Docker secrets, read-only filesystems, healthchecks, image
+  scanning, and an SBOM before it is considered deployable.

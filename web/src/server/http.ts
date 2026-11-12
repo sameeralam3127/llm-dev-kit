@@ -1,7 +1,7 @@
 import 'server-only'
 
 import { NextResponse } from 'next/server'
-import { ZodError, type ZodType, type ZodTypeDef } from 'zod'
+import { ZodError } from 'zod'
 
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
@@ -157,7 +157,9 @@ export async function requireAdmin(): Promise<SessionUser> {
  * booleans, emails to lower case), so the parsed output type is not the same as
  * what goes in.
  */
-type AnySchema<T> = ZodType<T, ZodTypeDef, unknown>
+type AnySchema<T> = {
+  parse(value: unknown): T
+}
 
 export async function parseBody<T>(
   request: Request,

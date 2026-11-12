@@ -11,7 +11,7 @@ OpenAI-compatible API and MCP.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-2563eb.svg)](LICENSE)
 ![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
-![Next.js 15](https://img.shields.io/badge/Next.js-15-black?logo=next.js&logoColor=white)
+![Next.js 16](https://img.shields.io/badge/Next.js-16-black?logo=next.js&logoColor=white)
 ![Ollama](https://img.shields.io/badge/Ollama-local%20models-black)
 ![Docker Compose](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
 ![OpenAI compatible](https://img.shields.io/badge/API-OpenAI%20compatible-412991)
@@ -451,7 +451,7 @@ sign-on and the admin console. Every release is listed in
 | Release | When | What |
 | --- | --- | --- |
 | [v1.0.0](https://github.com/sameeralam3127/llm-dev-kit/releases/tag/v1.0.0) | October 2026 | First release |
-| 1.1.0 | Next | Security fixes for the v1 stack ([#56](https://github.com/sameeralam3127/llm-dev-kit/issues/56), [#60](https://github.com/sameeralam3127/llm-dev-kit/issues/60), [#58](https://github.com/sameeralam3127/llm-dev-kit/issues/58), [#59](https://github.com/sameeralam3127/llm-dev-kit/issues/59), [#52](https://github.com/sameeralam3127/llm-dev-kit/issues/52), [#54](https://github.com/sameeralam3127/llm-dev-kit/issues/54) and more) |
+| 1.1.0 | Next | Security fixes for the v1 stack ([#56](https://github.com/sameeralam3127/llm-dev-kit/issues/56), [#60](https://github.com/sameeralam3127/llm-dev-kit/issues/60), [#58](https://github.com/sameeralam3127/llm-dev-kit/issues/58), [#59](https://github.com/sameeralam3127/llm-dev-kit/issues/59), [#52](https://github.com/sameeralam3127/llm-dev-kit/issues/52), [#54](https://github.com/sameeralam3127/llm-dev-kit/issues/54), plus the dependency fix in [#75](https://github.com/sameeralam3127/llm-dev-kit/issues/75)) |
 | 2.0.0 ("v3") | February 2027 | The secure core in Compose: Postgres, workspaces, sovereign mode. A major version because storage changes incompatibly |
 
 | | Area | |
@@ -481,6 +481,30 @@ Milestone 1 ("secure core") moves the web app onto Postgres and core-api and
 brings model-gateway into Compose. Steps (a) to (e) are done on the `v3` branch.
 Milestones and decisions are in [docs/v3/ROADMAP.md](docs/v3/ROADMAP.md),
 tracked in [#47](https://github.com/sameeralam3127/llm-dev-kit/issues/47).
+
+## Contributing
+
+Contributions are welcome. Start with an issue, keep the change focused, and
+run the checks for the area you touched before opening a pull request. Use a
+[Conventional Commit](https://www.conventionalcommits.org/) title; it controls
+the release notes and versioning.
+
+Before beginning, leave a short comment on the issue describing your approach
+so work does not overlap. Do not include real credentials, keys, or `.env`
+files in a pull request.
+
+### Open issue map
+
+| Area | Issues | Tags | Contributor guidance |
+| --- | --- | --- | --- |
+| First contributions | [#29–#34](https://github.com/sameeralam3127/llm-dev-kit/issues?q=is%3Aissue%20is%3Aopen%20label%3A%22good%20first%20issue%22), [#70](https://github.com/sameeralam3127/llm-dev-kit/issues/70) | `good first issue` · `enhancement` / `bug` · `v1` | Small, self-contained changes with clear acceptance criteria. |
+| Current-stack reliability | [#35](https://github.com/sameeralam3127/llm-dev-kit/issues/35), [#36](https://github.com/sameeralam3127/llm-dev-kit/issues/36), [#37](https://github.com/sameeralam3127/llm-dev-kit/issues/37), [#38](https://github.com/sameeralam3127/llm-dev-kit/issues/38), [#43](https://github.com/sameeralam3127/llm-dev-kit/issues/43) | `bug` / `enhancement` · `help wanted` · `ci` | Take one issue and include a regression or smoke test. |
+| Platform and operations | [#41](https://github.com/sameeralam3127/llm-dev-kit/issues/41), [#42](https://github.com/sameeralam3127/llm-dev-kit/issues/42), [#44](https://github.com/sameeralam3127/llm-dev-kit/issues/44), [#45](https://github.com/sameeralam3127/llm-dev-kit/issues/45) | `enhancement` / `documentation` · `help wanted` · `epic` | Coordinate first; these affect deployment and long-term support. |
+| Product integrations | [#39](https://github.com/sameeralam3127/llm-dev-kit/issues/39), [#40](https://github.com/sameeralam3127/llm-dev-kit/issues/40) | `enhancement` | Discuss UX and configuration before implementation. |
+| v3 secure core | [#13](https://github.com/sameeralam3127/llm-dev-kit/issues/13), [#15](https://github.com/sameeralam3127/llm-dev-kit/issues/15), [#16](https://github.com/sameeralam3127/llm-dev-kit/issues/16), [#17](https://github.com/sameeralam3127/llm-dev-kit/issues/17), [#18](https://github.com/sameeralam3127/llm-dev-kit/issues/18), [#19](https://github.com/sameeralam3127/llm-dev-kit/issues/19), [#20](https://github.com/sameeralam3127/llm-dev-kit/issues/20), [#47](https://github.com/sameeralam3127/llm-dev-kit/issues/47), [#53](https://github.com/sameeralam3127/llm-dev-kit/issues/53), [#67](https://github.com/sameeralam3127/llm-dev-kit/issues/67), [#69](https://github.com/sameeralam3127/llm-dev-kit/issues/69), [#72](https://github.com/sameeralam3127/llm-dev-kit/issues/72), [#73](https://github.com/sameeralam3127/llm-dev-kit/issues/73), [#74](https://github.com/sameeralam3127/llm-dev-kit/issues/74) | `v3` · `epic` / `enhancement` / `bug` | Follow the v3 roadmap; do not wire v3 services into Compose independently of its step-g work. |
+| Security | [#49](https://github.com/sameeralam3127/llm-dev-kit/issues/49), [#51](https://github.com/sameeralam3127/llm-dev-kit/issues/51), [#52](https://github.com/sameeralam3127/llm-dev-kit/issues/52), [#54](https://github.com/sameeralam3127/llm-dev-kit/issues/54), [#55](https://github.com/sameeralam3127/llm-dev-kit/issues/55), [#56](https://github.com/sameeralam3127/llm-dev-kit/issues/56), [#58](https://github.com/sameeralam3127/llm-dev-kit/issues/58), [#60](https://github.com/sameeralam3127/llm-dev-kit/issues/60) | `bug` · `v1` / `v3` · `help wanted` | Discuss design before coding; include security-focused tests and avoid publishing exploit details beyond the issue scope. |
+
+Use the GitHub [good first issue](https://github.com/sameeralam3127/llm-dev-kit/labels/good%20first%20issue) and [help wanted](https://github.com/sameeralam3127/llm-dev-kit/labels/help%20wanted) labels to find the current queue. [#75](https://github.com/sameeralam3127/llm-dev-kit/issues/75) is closed: its Next.js and Zod upgrade is already on `v3` and should be cherry-picked to `main` for 1.1.0.
 
 ## Troubleshooting
 

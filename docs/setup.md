@@ -29,11 +29,10 @@ embeddings always run locally.
 cp .env.example .env
 ```
 
-The sections in `.env` map to the table below. One thing to change for the
-Docker stack: `.env.example` sets `OLLAMA_HOST=http://localhost:11434`, which
-suits services run directly on your machine; inside Docker, `localhost` is the
-container itself. With Ollama on the host, remove that line so Compose uses its
-default, `http://host.docker.internal:11434`.
+The sections in `.env` map to the table below. `.env.example` sets
+`OLLAMA_HOST=http://host.docker.internal:11434`, which is right for the Docker
+stack, where Ollama runs on your machine. Only services run directly on your
+machine need `http://localhost:11434` instead.
 
 | Section | Purpose |
 | --- | --- |
@@ -243,9 +242,9 @@ traffic without a restart.
   `docker compose ps` for `healthy` status.
 - **"no local models found" in the model picker** — check Ollama is running
   (`ollama list`) and reachable from Docker. Compose defaults to
-  `http://host.docker.internal:11434`, but an `OLLAMA_HOST=http://localhost:11434`
-  line copied from `.env.example` overrides that and points the container at
-  itself: remove it.
+  `http://host.docker.internal:11434`. A `.env` with `OLLAMA_HOST=http://localhost:11434`
+  (the value for services run outside Docker) points the container at itself:
+  change that line back to `http://host.docker.internal:11434`.
 - **The app can't be reached from another machine** — expected: the gateway
   binds to `127.0.0.1`. Set `GATEWAY_BIND=0.0.0.0` in `.env` (with
   `ALLOW_REGISTRATION=false`) and run `docker compose up -d`.

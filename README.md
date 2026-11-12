@@ -62,9 +62,7 @@ ollama pull nomic-embed-text
 git clone https://github.com/sameeralam3127/llm-dev-kit.git
 cd llm-dev-kit
 
-# Inside Docker, Ollama is reached through host.docker.internal, so drop the
-# localhost setting meant for running the services outside Docker.
-grep -v '^OLLAMA_HOST=' .env.example > .env
+cp .env.example .env
 echo "AUTH_SECRET=$(openssl rand -base64 32)" >> .env
 
 docker compose up --build

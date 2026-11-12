@@ -38,8 +38,8 @@ check: lint typecheck test ## Everything CI checks before a merge, except the im
 up: ## Build and start the stack, waiting until every service is healthy
 	docker compose up -d --build --wait
 
-down: ## Stop the stack (volumes are kept)
-	docker compose down
+down: ## Stop the stack and remove containers left behind by removed services (volumes are kept)
+	docker compose down --remove-orphans
 
 smoke: ## Read-only smoke test of the running stack, through the gateway
 	scripts/smoke.sh

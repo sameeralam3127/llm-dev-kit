@@ -26,16 +26,6 @@ last release (see [CHANGELOG.md](../../CHANGELOG.md)).
 - **No version is forced** with `Release-As`; that footer is only for
   correcting a mistake.
 
-### Recent maintenance
-
-- **#75 is fixed on `v3`** (`8fd3d2d`): the web app now uses Next.js 16.4.6,
-  Zod 4.6.7, and ESLint 9's flat configuration. The production dependency
-  audit reports no high or critical vulnerabilities. Cherry-pick this commit
-  to `main` for the 1.1.0 release.
-- The Next.js 16 migration leaves the existing `middleware.ts` convention in
-  place; it works but is deprecated in favour of `proxy.ts`. That rename is
-  maintenance work, not a prerequisite for Milestone 1.
-
 ## Vision
 
 LLM Dev Kit v3 is a **security- and sovereignty-focused, local-first AI chat

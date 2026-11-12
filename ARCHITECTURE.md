@@ -49,24 +49,6 @@ Nginx disables proxy buffering for streaming responses. Its frontend-only
 startup page handles a temporarily unavailable `web` container; API routes
 retain their real upstream status codes.
 
-### Current services
-
-- **web** is the Next.js 16 application. It provides Auth.js sessions,
-  accounts, chat history, folders, sharing, and the admin UI. It signs the
-  short-lived RS256 tokens consumed by the Python services.
-- **rag-service** retrieves PDF context from Chroma, streams answers, and
-  provides the OpenAI-compatible API.
-- **llm-service** routes local Ollama and optional LiteLLM cloud models. It is
-  the v1 model and embedding client.
-- **mcp-service** exposes `list_models` and `ask_llm_dev_kit` over stdio and
-  calls the two Python services over HTTP.
-- **Redis** stores cached answers; **Chroma** stores PDF vectors; **Ollama** is
-  local by default.
-
-The web frontend's production dependencies are maintained with
-`npm audit --omit=dev`; issue #75 upgraded Next.js and Zod so the high/critical
-production audit is clean on the `v3` branch.
-
 ## v3 target architecture
 
 The v3 services and their migrations are implemented in the repository, but
@@ -124,21 +106,3 @@ flowchart LR
 - The v3 Compose profile will run internal containers on an `internal: true`
   network and use Docker secrets, read-only filesystems, healthchecks, image
   scanning, and an SBOM before it is considered deployable.
-
-## Development and verification
-
-The current web checks are:
-
-```sh
-cd web
-npm run typecheck
-npm test -- --run
-npm run lint
-npm run build
-npm audit --omit=dev --audit-level=high
-```
-
-Run Python tests from an environment that installs the repository's development
-requirements, including the PostgreSQL driver. The completed v3 stack will add
-a fresh-clone Compose smoke test covering account creation, document upload,
-grounded chat with citations, and sovereign-mode egress blocking.

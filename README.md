@@ -491,39 +491,20 @@ run the checks for the area you touched before opening a pull request. Use a
 [Conventional Commit](https://www.conventionalcommits.org/) title; it controls
 the release notes and versioning.
 
-### Good first contributions
-
-These are intentionally scoped for a first change:
-
-- [#29](https://github.com/sameeralam3127/llm-dev-kit/issues/29) — text and
-  Markdown loader plugin
-- [#30](https://github.com/sameeralam3127/llm-dev-kit/issues/30) — Google
-  sign-in preset
-- [#31](https://github.com/sameeralam3127/llm-dev-kit/issues/31) — web health
-  endpoint
-- [#32](https://github.com/sameeralam3127/llm-dev-kit/issues/32) — reuse MCP
-  HTTP clients
-- [#33](https://github.com/sameeralam3127/llm-dev-kit/issues/33) — contributor
-  guide and GitHub templates
-- [#34](https://github.com/sameeralam3127/llm-dev-kit/issues/34) — cloud-model
-  badge
-- [#70](https://github.com/sameeralam3127/llm-dev-kit/issues/70) — correct an
-  auto-generated chat title after its first prompt is edited
-
 Before beginning, leave a short comment on the issue describing your approach
 so work does not overlap. Do not include real credentials, keys, or `.env`
 files in a pull request.
 
 ### Open issue map
 
-| Area | Issues | Contributor guidance |
-| --- | --- | --- |
-| First contributions | [#29–#34](https://github.com/sameeralam3127/llm-dev-kit/issues?q=is%3Aissue%20is%3Aopen%20label%3A%22good%20first%20issue%22), [#70](https://github.com/sameeralam3127/llm-dev-kit/issues/70) | Small, self-contained changes with clear acceptance criteria. |
-| Current-stack reliability | [#35](https://github.com/sameeralam3127/llm-dev-kit/issues/35), [#36](https://github.com/sameeralam3127/llm-dev-kit/issues/36), [#37](https://github.com/sameeralam3127/llm-dev-kit/issues/37), [#38](https://github.com/sameeralam3127/llm-dev-kit/issues/38), [#43](https://github.com/sameeralam3127/llm-dev-kit/issues/43) | Take one issue and include a regression or smoke test. |
-| Platform and operations | [#41](https://github.com/sameeralam3127/llm-dev-kit/issues/41), [#42](https://github.com/sameeralam3127/llm-dev-kit/issues/42), [#44](https://github.com/sameeralam3127/llm-dev-kit/issues/44), [#45](https://github.com/sameeralam3127/llm-dev-kit/issues/45) | Coordinate first; these affect deployment and long-term support. |
-| Product integrations | [#39](https://github.com/sameeralam3127/llm-dev-kit/issues/39), [#40](https://github.com/sameeralam3127/llm-dev-kit/issues/40) | Discuss UX and configuration before implementation. |
-| v3 secure core | [#13](https://github.com/sameeralam3127/llm-dev-kit/issues/13), [#15](https://github.com/sameeralam3127/llm-dev-kit/issues/15), [#16](https://github.com/sameeralam3127/llm-dev-kit/issues/16), [#17](https://github.com/sameeralam3127/llm-dev-kit/issues/17), [#18](https://github.com/sameeralam3127/llm-dev-kit/issues/18), [#19](https://github.com/sameeralam3127/llm-dev-kit/issues/19), [#20](https://github.com/sameeralam3127/llm-dev-kit/issues/20), [#47](https://github.com/sameeralam3127/llm-dev-kit/issues/47), [#53](https://github.com/sameeralam3127/llm-dev-kit/issues/53), [#67](https://github.com/sameeralam3127/llm-dev-kit/issues/67), [#69](https://github.com/sameeralam3127/llm-dev-kit/issues/69), [#72](https://github.com/sameeralam3127/llm-dev-kit/issues/72), [#73](https://github.com/sameeralam3127/llm-dev-kit/issues/73), [#74](https://github.com/sameeralam3127/llm-dev-kit/issues/74) | Follow the v3 roadmap; do not wire v3 services into Compose independently of its step-g work. |
-| Security | [#49](https://github.com/sameeralam3127/llm-dev-kit/issues/49), [#51](https://github.com/sameeralam3127/llm-dev-kit/issues/51), [#52](https://github.com/sameeralam3127/llm-dev-kit/issues/52), [#54](https://github.com/sameeralam3127/llm-dev-kit/issues/54), [#55](https://github.com/sameeralam3127/llm-dev-kit/issues/55), [#56](https://github.com/sameeralam3127/llm-dev-kit/issues/56), [#58](https://github.com/sameeralam3127/llm-dev-kit/issues/58), [#60](https://github.com/sameeralam3127/llm-dev-kit/issues/60) | Discuss design before coding; include security-focused tests and avoid publishing exploit details beyond the issue scope. |
+| Area | Issues | Tags | Contributor guidance |
+| --- | --- | --- | --- |
+| First contributions | [#29–#34](https://github.com/sameeralam3127/llm-dev-kit/issues?q=is%3Aissue%20is%3Aopen%20label%3A%22good%20first%20issue%22), [#70](https://github.com/sameeralam3127/llm-dev-kit/issues/70) | `good first issue` · `enhancement` / `bug` · `v1` | Small, self-contained changes with clear acceptance criteria. |
+| Current-stack reliability | [#35](https://github.com/sameeralam3127/llm-dev-kit/issues/35), [#36](https://github.com/sameeralam3127/llm-dev-kit/issues/36), [#37](https://github.com/sameeralam3127/llm-dev-kit/issues/37), [#38](https://github.com/sameeralam3127/llm-dev-kit/issues/38), [#43](https://github.com/sameeralam3127/llm-dev-kit/issues/43) | `bug` / `enhancement` · `help wanted` · `ci` | Take one issue and include a regression or smoke test. |
+| Platform and operations | [#41](https://github.com/sameeralam3127/llm-dev-kit/issues/41), [#42](https://github.com/sameeralam3127/llm-dev-kit/issues/42), [#44](https://github.com/sameeralam3127/llm-dev-kit/issues/44), [#45](https://github.com/sameeralam3127/llm-dev-kit/issues/45) | `enhancement` / `documentation` · `help wanted` · `epic` | Coordinate first; these affect deployment and long-term support. |
+| Product integrations | [#39](https://github.com/sameeralam3127/llm-dev-kit/issues/39), [#40](https://github.com/sameeralam3127/llm-dev-kit/issues/40) | `enhancement` | Discuss UX and configuration before implementation. |
+| v3 secure core | [#13](https://github.com/sameeralam3127/llm-dev-kit/issues/13), [#15](https://github.com/sameeralam3127/llm-dev-kit/issues/15), [#16](https://github.com/sameeralam3127/llm-dev-kit/issues/16), [#17](https://github.com/sameeralam3127/llm-dev-kit/issues/17), [#18](https://github.com/sameeralam3127/llm-dev-kit/issues/18), [#19](https://github.com/sameeralam3127/llm-dev-kit/issues/19), [#20](https://github.com/sameeralam3127/llm-dev-kit/issues/20), [#47](https://github.com/sameeralam3127/llm-dev-kit/issues/47), [#53](https://github.com/sameeralam3127/llm-dev-kit/issues/53), [#67](https://github.com/sameeralam3127/llm-dev-kit/issues/67), [#69](https://github.com/sameeralam3127/llm-dev-kit/issues/69), [#72](https://github.com/sameeralam3127/llm-dev-kit/issues/72), [#73](https://github.com/sameeralam3127/llm-dev-kit/issues/73), [#74](https://github.com/sameeralam3127/llm-dev-kit/issues/74) | `v3` · `epic` / `enhancement` / `bug` | Follow the v3 roadmap; do not wire v3 services into Compose independently of its step-g work. |
+| Security | [#49](https://github.com/sameeralam3127/llm-dev-kit/issues/49), [#51](https://github.com/sameeralam3127/llm-dev-kit/issues/51), [#52](https://github.com/sameeralam3127/llm-dev-kit/issues/52), [#54](https://github.com/sameeralam3127/llm-dev-kit/issues/54), [#55](https://github.com/sameeralam3127/llm-dev-kit/issues/55), [#56](https://github.com/sameeralam3127/llm-dev-kit/issues/56), [#58](https://github.com/sameeralam3127/llm-dev-kit/issues/58), [#60](https://github.com/sameeralam3127/llm-dev-kit/issues/60) | `bug` · `v1` / `v3` · `help wanted` | Discuss design before coding; include security-focused tests and avoid publishing exploit details beyond the issue scope. |
 
 Use the GitHub [good first issue](https://github.com/sameeralam3127/llm-dev-kit/labels/good%20first%20issue) and [help wanted](https://github.com/sameeralam3127/llm-dev-kit/labels/help%20wanted) labels to find the current queue. [#75](https://github.com/sameeralam3127/llm-dev-kit/issues/75) is closed: its Next.js and Zod upgrade is already on `v3` and should be cherry-picked to `main` for 1.1.0.
 

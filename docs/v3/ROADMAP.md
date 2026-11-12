@@ -11,7 +11,7 @@
 | Release | When | What |
 | --- | --- | --- |
 | [v1.0.0](https://github.com/sameeralam3127/llm-dev-kit/releases/tag/v1.0.0) | 2026-10-25 | First release: the v2 stack, the admin console, and the v3 services in the repository (not yet in Compose) |
-| 1.1.0 | Next | Security fixes for the v1 stack: #56, #60, #58, #59, #52, #54, the first part of #49, and two findings in #53 |
+| 1.1.0 | Next | Security fixes for the v1 stack: #56, #60, #58, #59, #52, #54, the first part of #49, two findings in #53, and the frontend dependency upgrade in #75 |
 | 2.0.0 ("v3") | February 2027 | Milestone 1 in Compose: Postgres and pgvector, workspaces, model-gateway with sovereign mode |
 
 Versions follow [Semantic Versioning](https://semver.org) strictly, and the
@@ -25,6 +25,16 @@ last release (see [CHANGELOG.md](../../CHANGELOG.md)).
   storage layer incompatibly, so it ships as the next major version, 2.0.0.
 - **No version is forced** with `Release-As`; that footer is only for
   correcting a mistake.
+
+### Recent maintenance
+
+- **#75 is fixed on `v3`** (`8fd3d2d`): the web app now uses Next.js 16.4.6,
+  Zod 4.6.7, and ESLint 9's flat configuration. The production dependency
+  audit reports no high or critical vulnerabilities. Cherry-pick this commit
+  to `main` for the 1.1.0 release.
+- The Next.js 16 migration leaves the existing `middleware.ts` convention in
+  place; it works but is deprecated in favour of `proxy.ts`. That rename is
+  maintenance work, not a prerequisite for Milestone 1.
 
 ## Vision
 
@@ -234,6 +244,10 @@ when its turn comes.
 | #13 sovereign mode, #15 per-user documents, #16 rate limits and audit | Milestone 1 builds the core; Milestones 2 and 3 finish them |
 | #51 v2 keys accepted as sessions, #55 audit-log role | Milestone 1, steps f and g |
 | #56, #58, #59, #60, #52, #54, #49 (item 1) | v1.1.0, on `main` |
+| #72 workspace membership management | Milestone 4; the schema has roles, but member administration is not implemented yet |
+| #73 atomic workspace API-key limit | Milestone 1; fix before multi-replica core-api deployment |
+| #74 conversation provenance ownership | Milestone 1; scope external conversation IDs by user as part of web integration |
+| #75 vulnerable frontend dependencies | Fixed on `v3` in `8fd3d2d`; cherry-pick to `main` for 1.1.0 |
 | #53 scaling plan | Milestone 3; its two bug findings (5xx masked as 200, shared token-exchange bucket) go into v1.1.0 |
 | #19, #38, #41, #42, #43 | Milestone 3 (#43 is started: CI now smoke-tests the whole Compose stack) |
 | #17, #18, #30, #39, #40, #44 | Milestone 4 |

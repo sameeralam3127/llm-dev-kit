@@ -12,6 +12,7 @@ export default async function AdminSystemPage() {
   // This page renders configuration on the server, so it checks the role
   // itself rather than relying on the layout, which renders in parallel.
   if (!(await adminPageUser())) return null
+  const config = getConfig()
 
   return (
     <>
@@ -20,10 +21,10 @@ export default async function AdminSystemPage() {
         description="Whether each service is up, and how this instance is configured."
       />
       <div className="space-y-6">
-        <HealthPanel />
+        <HealthPanel dashboardUrl={config.dashboardUrl} />
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2">
-            <ConfigPanel config={getConfig()} />
+            <ConfigPanel config={config} />
           </div>
           <ModelsPanel />
         </div>

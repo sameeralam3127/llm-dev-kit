@@ -28,6 +28,12 @@ function OnOff({ on }: { on: boolean }) {
   return <StatusLabel status={on ? 'ok' : 'off'} label={on ? 'On' : 'Off'} className="text-sm text-foreground" />
 }
 
+function formatWindow(seconds: number): string {
+  if (seconds % 3600 === 0) return seconds === 3600 ? 'hour' : `${seconds / 3600} hours`
+  if (seconds % 60 === 0) return seconds === 60 ? 'minute' : `${seconds / 60} minutes`
+  return `${seconds} seconds`
+}
+
 /** What this instance is set up to do. Settings live in `.env`; this page only reads them. */
 export function ConfigPanel({ config }: { config: AdminConfig }) {
   return (
@@ -64,6 +70,25 @@ export function ConfigPanel({ config }: { config: AdminConfig }) {
         <Row label="Services">
           <span className="block font-mono text-xs">RAG {config.services.rag}</span>
           <span className="block font-mono text-xs">Models {config.services.llm}</span>
+        </Row>
+        <Row
+          label="Rate limits"
+          hint="Set in web/src/server/rate-limit.ts. Each web replica counts on its own."
+        >
+          <ul className="space-y-0.5">
+            {config.rateLimits.map((rule) => (
+              <li key={rule.name}>
+                {rule.name}: {rule.limit} per {formatWindow(rule.windowSeconds)} per {rule.per}
+              </li>
+            ))}
+          </ul>
+        </Row>
+        <Row label="Dashboards" hint="GRAFANA_URL: a link shown on the health panel.">
+          {config.dashboardUrl ? (
+            <span className="font-mono text-xs">{config.dashboardUrl}</span>
+          ) : (
+            <span className="text-muted-foreground">Not set</span>
+          )}
         </Row>
       </dl>
     </Panel>

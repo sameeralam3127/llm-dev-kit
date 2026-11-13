@@ -68,8 +68,16 @@ link, labelled landmarks and live regions, `prefers-reduced-motion` respected,
 zoom not disabled. Screen readers get one "loading conversation" announcement
 rather than one per skeleton block.
 
-**Admin usage** — administrators can see active sessions and chat/message usage
-grouped by user and model on the overview page.
+**Admin usage** — the overview page shows chats and messages per user and model.
+The grouping runs in the database (`usageByUserAndModel` in `admin-service.ts`)
+and returns the 50 heaviest rows, so its cost does not grow with the number of
+chats. There is no "active sessions" figure: sessions are JWTs, so the server
+holds no session list to count.
+
+**Rate limits** — every limit lives in `RATE_LIMITS` (`server/rate-limit.ts`);
+the routes read it and the admin Health & settings page lists it, read-only.
+
+**Dashboards** — set `GRAFANA_URL` to add a link on the admin health panel.
 
 ## Architecture
 

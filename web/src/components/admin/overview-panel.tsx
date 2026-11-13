@@ -65,7 +65,7 @@ export function OverviewPanel() {
 
   return (
     <div className="space-y-6">
-      <dl className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-7">
+      <dl className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
         {counts ? (
           <>
             <Stat label="Users" value={counts.users} hint={`${counts.admins} admin${counts.admins === 1 ? '' : 's'}`} />
@@ -73,7 +73,6 @@ export function OverviewPanel() {
             <Stat label="Messages" value={counts.messages} />
             <Stat label="Active API keys" value={counts.apiKeys} />
             <Stat label="Indexed chunks" value={health.data?.counts.indexedChunks ?? null} />
-            <Stat label="Active sessions" value={overview.data?.activeSessions ?? null} />
             <Stat
               label="Services"
               value={overall ? STATUS[overall].label : null}
@@ -81,7 +80,7 @@ export function OverviewPanel() {
             />
           </>
         ) : (
-          Array.from({ length: 7 }, (_, i) => <Skeleton key={i} className="h-[6.25rem] rounded-lg" />)
+          Array.from({ length: 6 }, (_, i) => <Skeleton key={i} className="h-[6.25rem] rounded-lg" />)
         )}
       </dl>
 
@@ -102,10 +101,37 @@ export function OverviewPanel() {
           </div>
         </Panel>
 
+        <Panel
+          title="Services"
+          description="Checked from the web app every 30 seconds"
+          actions={<SectionLink href={ROUTES.adminSystem}>Details</SectionLink>}
+        >
+          {health.isError ? (
+            <p role="alert" className="px-4 py-3 text-sm text-destructive">
+              Could not run the checks: {health.error.message}
+            </p>
+          ) : (
+            <ul className="divide-y">
+              {(checks.length ? checks : Array.from({ length: 5 }, () => null)).map((check, i) =>
+                check ? (
+                  <li key={check.name} className="flex items-center justify-between gap-3 px-4 py-2.5">
+                    <span className="truncate text-sm">{check.name}</span>
+                    <StatusLabel status={check.status} />
+                  </li>
+                ) : (
+                  <li key={i} className="px-4 py-2.5">
+                    <Skeleton className="h-4 w-full" />
+                  </li>
+                ),
+              )}
+            </ul>
+          )}
+        </Panel>
+      </div>
+
       <Panel
         title="Usage by user and model"
-        description="Chats and messages grouped by the account and model used"
-        className="lg:col-span-3"
+        description="Chats and messages per account and model, the 50 heaviest first"
       >
         {overview.data ? (
           overview.data.usage.length ? (
@@ -144,34 +170,6 @@ export function OverviewPanel() {
           </div>
         )}
       </Panel>
-
-        <Panel
-          title="Services"
-          description="Checked from the web app every 30 seconds"
-          actions={<SectionLink href={ROUTES.adminSystem}>Details</SectionLink>}
-        >
-          {health.isError ? (
-            <p role="alert" className="px-4 py-3 text-sm text-destructive">
-              Could not run the checks: {health.error.message}
-            </p>
-          ) : (
-            <ul className="divide-y">
-              {(checks.length ? checks : Array.from({ length: 5 }, () => null)).map((check, i) =>
-                check ? (
-                  <li key={check.name} className="flex items-center justify-between gap-3 px-4 py-2.5">
-                    <span className="truncate text-sm">{check.name}</span>
-                    <StatusLabel status={check.status} />
-                  </li>
-                ) : (
-                  <li key={i} className="px-4 py-2.5">
-                    <Skeleton className="h-4 w-full" />
-                  </li>
-                ),
-              )}
-            </ul>
-          )}
-        </Panel>
-      </div>
 
       <Panel
         title="Newest accounts"

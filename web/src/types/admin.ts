@@ -46,8 +46,8 @@ export interface AdminOverview {
   /** The last 14 days, today included. */
   activity: ActivityDay[]
   recentUsers: Pick<AdminUser, 'id' | 'name' | 'email' | 'role' | 'createdAt'>[]
+  /** The heaviest user-and-model pairs by message count, at most USAGE_ROWS. */
   usage: AdminUsageRow[]
-  activeSessions: number
 }
 
 export interface AdminUsageRow {
@@ -92,4 +92,8 @@ export interface AdminConfig {
   defaultModel: string
   identity: { issuer: string; audience: string }
   services: { rag: string; llm: string }
+  /** What the app enforces today, read-only (see server/rate-limit.ts). */
+  rateLimits: { name: string; limit: number; windowSeconds: number; per: string }[]
+  /** Link to an external dashboard such as Grafana, when GRAFANA_URL is set. */
+  dashboardUrl: string | null
 }

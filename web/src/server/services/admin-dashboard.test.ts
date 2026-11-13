@@ -61,7 +61,7 @@ vi.mock('@/lib/db', () => {
           return { count: key ? 1 : 0 }
         },
       },
-      session: { count: async () => 0 },
+      $queryRaw: async () => [],
     },
   }
 })

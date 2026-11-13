@@ -4,6 +4,7 @@ import { oauthProvidersEnabled } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { getEnv } from '@/lib/env'
 import { asRole, type Role } from '@/lib/roles'
+import { RATE_LIMITS } from '@/server/rate-limit'
 import { plural } from '@/lib/utils'
 import { ApiError, type ApiErrorCode, notFound } from '@/server/http'
 import { mintAccessToken } from '@/server/identity/tokens'
@@ -191,7 +192,7 @@ export async function getOverview(): Promise<AdminOverview> {
   today.setUTCHours(0, 0, 0, 0)
   const since = new Date(today.getTime() - (ACTIVITY_DAYS - 1) * DAY_MS)
 
-  const [users, admins, chats, messages, sharedChats, apiKeys, recent, questions, newChats, usageChats, activeSessions] =
+  const [users, admins, chats, messages, sharedChats, apiKeys, recent, questions, newChats, usage] =
     await Promise.all([
       db.user.count(),
       db.user.count({ where: { role: 'admin' } }),
@@ -211,15 +212,7 @@ export async function getOverview(): Promise<AdminOverview> {
         select: { createdAt: true },
       }),
       db.chat.findMany({ where: { createdAt: { gte: since } }, select: { createdAt: true } }),
-      db.chat.findMany({
-        select: {
-          userId: true,
-          model: true,
-          user: { select: { name: true, email: true } },
-          _count: { select: { messages: true } },
-        },
-      }),
-      db.session.count({ where: { expires: { gt: new Date() } } }),
+      usageByUserAndModel(),
     ])
 
   const activity: ActivityDay[] = Array.from({ length: ACTIVITY_DAYS }, (_, i) => ({
@@ -237,25 +230,6 @@ export async function getOverview(): Promise<AdminOverview> {
     if (day) day.chats += 1
   }
 
-  const usage = new Map<string, AdminUsageRow>()
-  for (const chat of usageChats) {
-    const key = `${chat.userId}:${chat.model}`
-    const current = usage.get(key)
-    if (current) {
-      current.chats += 1
-      current.messages += chat._count.messages
-    } else {
-      usage.set(key, {
-        userId: chat.userId,
-        user: chat.user.name ?? chat.user.email,
-        email: chat.user.email,
-        model: chat.model,
-        chats: 1,
-        messages: chat._count.messages,
-      })
-    }
-  }
-
   return {
     counts: { users, admins, chats, messages, sharedChats, apiKeys },
     activity,
@@ -264,11 +238,51 @@ export async function getOverview(): Promise<AdminOverview> {
       role: asRole(user.role),
       createdAt: user.createdAt.toISOString(),
     })),
-    usage: [...usage.values()].sort(
-      (a, b) => b.messages - a.messages || a.user.localeCompare(b.user) || a.model.localeCompare(b.model),
-    ),
-    activeSessions,
+    usage,
   }
+}
+
+/** Rows shown in the usage table: enough to spot heavy use, bounded for any instance size. */
+export const USAGE_ROWS = 50
+
+export interface UsageQueryRow {
+  userId: string
+  name: string | null
+  email: string
+  model: string
+  /** SQLite returns numbers; Postgres returns bigints for COUNT. */
+  chats: number | bigint
+  messages: number | bigint
+}
+
+/** Shape the grouped rows for the API. */
+export function toUsageRows(rows: UsageQueryRow[]): AdminUsageRow[] {
+  return rows.map((row) => ({
+    userId: row.userId,
+    user: row.name ?? row.email,
+    email: row.email,
+    model: row.model,
+    chats: Number(row.chats),
+    messages: Number(row.messages),
+  }))
+}
+
+/**
+ * Chats and messages per user and model, grouped and sorted in the database,
+ * so the cost does not grow with the number of chats held in memory.
+ */
+async function usageByUserAndModel(): Promise<AdminUsageRow[]> {
+  const rows = await db.$queryRaw<UsageQueryRow[]>`
+    SELECT c."userId" AS "userId", u."name" AS "name", u."email" AS "email",
+           c."model" AS "model",
+           COUNT(DISTINCT c."id") AS "chats", COUNT(m."id") AS "messages"
+    FROM "Chat" c
+    JOIN "User" u ON u."id" = c."userId"
+    LEFT JOIN "Message" m ON m."chatId" = c."id"
+    GROUP BY c."userId", u."name", u."email", c."model"
+    ORDER BY "messages" DESC, u."email" ASC, c."model" ASC
+    LIMIT ${USAGE_ROWS}`
+  return toUsageRows(rows)
 }
 
 // ---------------------------------------------------------------- API keys
@@ -430,5 +444,15 @@ export function getConfig(): AdminConfig {
     defaultModel: env.DEFAULT_MODEL,
     identity: { issuer: env.IDENTITY_ISSUER, audience: env.IDENTITY_AUDIENCE },
     services: { rag: env.RAG_SERVICE_URL, llm: env.LLM_SERVICE_URL },
+    rateLimits: [
+      { name: 'Sign-up', ...rateLimitView(RATE_LIMITS.register) },
+      { name: 'Chat messages', ...rateLimitView(RATE_LIMITS.chat) },
+      { name: 'API key exchange', ...rateLimitView(RATE_LIMITS.tokenExchange) },
+    ],
+    dashboardUrl: env.GRAFANA_URL || null,
   }
+}
+
+function rateLimitView(rule: { limit: number; windowMs: number; per: string }) {
+  return { limit: rule.limit, windowSeconds: rule.windowMs / 1000, per: rule.per }
 }

@@ -74,6 +74,23 @@ and returns the 50 heaviest rows, so its cost does not grow with the number of
 chats. There is no "active sessions" figure: sessions are JWTs, so the server
 holds no session list to count.
 
+**Audit log** — admin actions (role changes, key revocations, uploads, clears)
+are written to the `AuditEvent` table, with the role change committed in the
+same transaction as the change. SQLite triggers (installed at startup) make
+the table append-only. That protects against bugs and stray queries, not
+against someone with write access to the database, who can drop the triggers.
+Entries hold names, counts and key prefixes, never keys, tokens or file content.
+The Audit log page reads it, newest first and filterable.
+
+**Uploads** — each console upload is an `IngestionJob` row (running, succeeded
+or failed, with chunks, duration and any error), shown on the Documents page.
+Files sent straight to the API bypass the console and are not recorded.
+
+**Plugins** — Health & settings lists what each Python service has installed,
+from `GET /plugins` on llm-service and rag-service (admin scope). It shows
+identity, version, enabled state and declared permissions, never configuration.
+It is read-only: a toggle would reach one replica and vanish on restart.
+
 **Rate limits** — every limit lives in `RATE_LIMITS` (`server/rate-limit.ts`);
 the routes read it and the admin Health & settings page lists it, read-only.
 

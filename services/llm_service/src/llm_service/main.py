@@ -11,7 +11,8 @@ from pydantic import BaseModel, Field
 from devkit_common.auth import build_authenticator, require
 from devkit_common.config import Settings, get_settings
 from devkit_common.http import install_service
-from ldk_core.auth import CHAT
+from devkit_common.plugins import plugin_inventory
+from ldk_core.auth import ADMIN, CHAT
 from ldk_core.errors import ErrorCode, ServiceError
 from ldk_core.plugins import EMBEDDER, LLM, PluginKind, PluginNotFoundError, PluginRegistry
 from ldk_core.ports import ChatMessage, CompletionRequest, Embedder, LLMProvider
@@ -132,6 +133,12 @@ async def health(request: Request) -> dict[str, Any]:
             name: configured.get(name, False) for name in _cloud_providers(request)
         },
     }
+
+
+@app.get("/plugins", dependencies=[Depends(require(ADMIN))])
+async def plugins(request: Request) -> list[dict[str, Any]]:
+    """The plugins this service has installed (no configuration, so no secrets)."""
+    return plugin_inventory(_registry(request))
 
 
 @app.get("/providers", dependencies=[Depends(require(CHAT))])

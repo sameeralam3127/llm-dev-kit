@@ -39,7 +39,12 @@ def cloud(monkeypatch: pytest.MonkeyPatch) -> FakeLiteLLM:
 
 
 @pytest.fixture
-def client(monkeypatch: pytest.MonkeyPatch, ollama: FakeOllama, cloud: FakeLiteLLM):
+def issuer() -> Issuer:
+    return Issuer()
+
+
+@pytest.fixture
+def client(monkeypatch: pytest.MonkeyPatch, ollama: FakeOllama, cloud: FakeLiteLLM, issuer: Issuer):
     def build_registry(settings: Settings):
         registry = PluginRegistry()
         transport = ollama.transport()
@@ -63,7 +68,6 @@ def client(monkeypatch: pytest.MonkeyPatch, ollama: FakeOllama, cloud: FakeLiteL
         registry.configure(PluginKind.LLM, "openai", {"api_key": "sk-server"})
         return registry, {"openai": True, "gemini": False, "anthropic": False}
 
-    issuer = Issuer()
     monkeypatch.setattr(main, "build_registry", build_registry)
     monkeypatch.setattr(
         main, "build_authenticator", lambda registry, settings: issuer.authenticator()
@@ -188,6 +192,7 @@ def test_only_health_is_public(client) -> None:
     anonymous = {"Authorization": ""}
     assert client.get("/health", headers=anonymous).status_code == 200
     for method, path in [
+        ("GET", "/plugins"),
         ("GET", "/providers"),
         ("GET", "/models"),
         ("POST", "/generate"),
@@ -197,3 +202,19 @@ def test_only_health_is_public(client) -> None:
         res = client.request(method, path, headers=anonymous)
         assert res.status_code == 401, path
         assert res.json()["error"]["code"] == "unauthorized", path
+
+
+def test_plugin_inventory_is_admin_only_and_lists_no_configuration(client, issuer) -> None:
+    assert client.get("/plugins").status_code == 403  # the fixture's token is a viewer's
+
+    res = client.get("/plugins", headers=issuer.bearer("admin"))
+    assert res.status_code == 200
+    rows = {(p["kind"], p["name"]): p for p in res.json()}
+    assert {("llm", "ollama"), ("embedder", "ollama"), ("llm", "openai")} <= set(rows)
+    ollama = rows[("llm", "ollama")]
+    assert ollama["enabled"] is True
+    assert set(ollama) == {"kind", "name", "version", "enabled", "description", "permissions"}
+
+    # The server-side OpenAI key and the Ollama host are configuration, never inventory.
+    assert "sk-server" not in res.text
+    assert "ollama.test" not in res.text

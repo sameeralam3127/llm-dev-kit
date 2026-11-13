@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import { ConfigPanel, ModelsPanel } from '@/components/admin/config-panel'
 import { HealthPanel } from '@/components/admin/health-panel'
 import { PageHeader } from '@/components/admin/page-header'
+import { PluginsPanel } from '@/components/admin/plugins-panel'
 import { adminPageUser } from '@/server/admin-page'
 import { getConfig } from '@/server/services/admin-service'
 
@@ -28,6 +29,7 @@ export default async function AdminSystemPage() {
           </div>
           <ModelsPanel />
         </div>
+        <PluginsPanel />
       </div>
     </>
   )

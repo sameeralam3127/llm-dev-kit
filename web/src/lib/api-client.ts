@@ -10,7 +10,10 @@ import type {
   AdminHealth,
   AdminOverview,
   AdminUser,
+  AuditEventDTO,
   DocumentStats,
+  IngestionJobDTO,
+  PluginInventory,
   UploadResult,
 } from '@/types/admin'
 import type { ApiKeySummary, CreatedApiKey } from '@/types/api-key'
@@ -193,6 +196,25 @@ export const api = {
     clearCache(): Promise<{ cleared: number }> {
       return request('/api/admin/cache/clear', { method: 'POST' })
     },
+
+    ingestionJobs(signal?: AbortSignal): Promise<IngestionJobDTO[]> {
+      return request('/api/admin/documents/jobs', { signal })
+    },
+
+    plugins(signal?: AbortSignal): Promise<PluginInventory> {
+      return request('/api/admin/plugins', { signal })
+    },
+
+    audit(
+      params: { prefix?: string; before?: string },
+      signal?: AbortSignal,
+    ): Promise<{ events: AuditEventDTO[]; nextBefore: string | null }> {
+      const query = new URLSearchParams()
+      if (params.prefix) query.set('prefix', params.prefix)
+      if (params.before) query.set('before', params.before)
+      const suffix = query.size ? `?${query}` : ''
+      return request(`/api/admin/audit${suffix}`, { signal })
+    },
   },
 
   keys: {
@@ -235,4 +257,7 @@ export const queryKeys = {
   adminOverview: () => ['admin', 'overview'] as const,
   adminApiKeys: () => ['admin', 'api-keys'] as const,
   adminDocuments: () => ['admin', 'documents'] as const,
+  adminJobs: () => ['admin', 'documents', 'jobs'] as const,
+  adminPlugins: () => ['admin', 'plugins'] as const,
+  adminAudit: (prefix: string) => ['admin', 'audit', prefix] as const,
 }

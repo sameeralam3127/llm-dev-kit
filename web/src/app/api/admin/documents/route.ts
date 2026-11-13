@@ -30,5 +30,5 @@ export const POST = withErrorHandling(async (request: Request) => {
   if (file.size > LIMITS.uploadBytes) {
     throw badRequest(`The PDF is larger than ${LIMITS.uploadBytes / 1024 / 1024} MB`)
   }
-  return NextResponse.json({ data: await uploadDocument(admin.id, file) })
+  return NextResponse.json({ data: await uploadDocument(admin, file) })
 })

@@ -119,7 +119,7 @@ jobs:
             context: web
             target: runtime
             port: "3000"
-            health: /login
+            health: /api/health
             run_args: >-
               -e DATABASE_URL=file:/data/ci.db
               -e AUTH_SECRET=ci-placeholder-not-a-real-credential-0123

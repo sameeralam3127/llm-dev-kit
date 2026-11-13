@@ -76,7 +76,7 @@ src/
 │   ├── (auth)/                 sign-in and registration
 │   ├── (chat)/                 authenticated shell + chat pages
 │   ├── share/[shareId]/        public read-only view
-│   ├── api/                    route handlers
+│   ├── api/                    route handlers, including public `/api/health`
 │   ├── error.tsx               route-level error boundary
 │   └── global-error.tsx        root-layout crash fallback
 ├── components/

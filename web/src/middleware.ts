@@ -18,6 +18,7 @@ const PUBLIC_PREFIXES = [
   '/api/auth',
   '/.well-known',
   '/api/identity',
+  '/api/health',
 ]
 
 export default auth((request) => {

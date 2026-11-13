@@ -68,9 +68,14 @@ Verify everything is healthy:
 
 ```bash
 docker compose ps
+curl http://localhost:8080/api/health
 curl http://localhost:8080/api/rag/health
 curl http://localhost:8080/api/llm/health
 ```
+
+The first endpoint checks the web container and its database connection. The
+service endpoints check the Python services; a non-`200` response from any of
+them means that component is not ready yet.
 
 `nginx` is the **only** published port, and it listens on `127.0.0.1` by default.
 To reach the stack from other machines on your network, set `GATEWAY_BIND=0.0.0.0`

@@ -247,7 +247,8 @@ the health checks needs `Authorization: Bearer <api key>`.
 
 | Method and path | Role | What it does |
 | --- | --- | --- |
-| `GET /api/rag/health`, `GET /api/llm/health` | none | Liveness; llm-service also reports whether Ollama is ready |
+| `GET /api/health` | none | Web liveness and database readiness (`200` when ready, `503` otherwise) |
+| `GET /api/rag/health`, `GET /api/llm/health` | none | Service liveness; llm-service also reports whether Ollama is ready |
 | `GET /v1/models` | viewer | Models, in OpenAI format |
 | `POST /v1/chat/completions` | viewer | Grounded chat, streaming or not, in OpenAI format |
 | `POST /api/rag/chat` | viewer | Grounded chat with its sources; `"api_key"` in the body uses your own cloud key for that call |

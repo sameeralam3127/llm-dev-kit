@@ -86,7 +86,7 @@ The admin console has its own navigation, separate from the chat:
 
 | Page | What it is for |
 | --- | --- |
-| **Overview** | Totals, questions per day for the last two weeks, service status, newest accounts |
+| **Overview** | Totals, questions per day for the last two weeks, usage by user and model, active sessions, service status, newest accounts |
 | **Users** | Search people, filter by role, change roles |
 | **API keys** | Every user's keys, with when each was last used; revoke a lost one |
 | **Documents** | Upload PDFs, see indexed chunks and cached answers, clear the cache or the index |

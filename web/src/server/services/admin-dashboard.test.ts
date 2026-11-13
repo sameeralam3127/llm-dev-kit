@@ -45,7 +45,8 @@ vi.mock('@/lib/db', () => {
       user: { count: async () => 3, findMany: async () => [] },
       chat: {
         count: async () => state.chats.length,
-        findMany: async ({ where }: { where: { createdAt: { gte: Date } } }) => since(state.chats, where),
+        findMany: async ({ where }: { where?: { createdAt: { gte: Date } } }) =>
+          where?.createdAt ? since(state.chats, where) : [],
       },
       message: {
         count: async () => 99,
@@ -60,6 +61,7 @@ vi.mock('@/lib/db', () => {
           return { count: key ? 1 : 0 }
         },
       },
+      session: { count: async () => 0 },
     },
   }
 })

@@ -46,6 +46,17 @@ export interface AdminOverview {
   /** The last 14 days, today included. */
   activity: ActivityDay[]
   recentUsers: Pick<AdminUser, 'id' | 'name' | 'email' | 'role' | 'createdAt'>[]
+  usage: AdminUsageRow[]
+  activeSessions: number
+}
+
+export interface AdminUsageRow {
+  userId: string
+  user: string
+  email: string
+  model: string
+  chats: number
+  messages: number
 }
 
 /** Any user's API key, as an admin sees it. The key itself is never listed. */

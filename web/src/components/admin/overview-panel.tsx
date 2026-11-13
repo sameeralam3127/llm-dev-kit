@@ -65,7 +65,7 @@ export function OverviewPanel() {
 
   return (
     <div className="space-y-6">
-      <dl className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+      <dl className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-7">
         {counts ? (
           <>
             <Stat label="Users" value={counts.users} hint={`${counts.admins} admin${counts.admins === 1 ? '' : 's'}`} />
@@ -73,6 +73,7 @@ export function OverviewPanel() {
             <Stat label="Messages" value={counts.messages} />
             <Stat label="Active API keys" value={counts.apiKeys} />
             <Stat label="Indexed chunks" value={health.data?.counts.indexedChunks ?? null} />
+            <Stat label="Active sessions" value={overview.data?.activeSessions ?? null} />
             <Stat
               label="Services"
               value={overall ? STATUS[overall].label : null}
@@ -80,7 +81,7 @@ export function OverviewPanel() {
             />
           </>
         ) : (
-          Array.from({ length: 6 }, (_, i) => <Skeleton key={i} className="h-[6.25rem] rounded-lg" />)
+          Array.from({ length: 7 }, (_, i) => <Skeleton key={i} className="h-[6.25rem] rounded-lg" />)
         )}
       </dl>
 
@@ -100,6 +101,49 @@ export function OverviewPanel() {
             )}
           </div>
         </Panel>
+
+      <Panel
+        title="Usage by user and model"
+        description="Chats and messages grouped by the account and model used"
+        className="lg:col-span-3"
+      >
+        {overview.data ? (
+          overview.data.usage.length ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <caption className="sr-only">Usage by user and model</caption>
+                <thead className="border-b text-xs text-muted-foreground">
+                  <tr>
+                    <th scope="col" className="px-4 py-2.5 font-medium">User</th>
+                    <th scope="col" className="px-4 py-2.5 font-medium">Model</th>
+                    <th scope="col" className="px-4 py-2.5 text-right font-medium">Chats</th>
+                    <th scope="col" className="px-4 py-2.5 text-right font-medium">Messages</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {overview.data.usage.map((row) => (
+                    <tr key={`${row.userId}:${row.model}`}>
+                      <th scope="row" className="max-w-[16rem] truncate px-4 py-2.5 font-medium">
+                        <span className="block truncate">{row.user}</span>
+                        <span className="block truncate text-xs font-normal text-muted-foreground">{row.email}</span>
+                      </th>
+                      <td className="whitespace-nowrap px-4 py-2.5 font-mono text-xs">{row.model}</td>
+                      <td className="px-4 py-2.5 text-right tabular-nums">{row.chats}</td>
+                      <td className="px-4 py-2.5 text-right tabular-nums">{row.messages}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="px-4 py-6 text-sm text-muted-foreground">No chat usage yet.</p>
+          )
+        ) : (
+          <div className="space-y-3 px-4 py-4">
+            {Array.from({ length: 3 }, (_, i) => <Skeleton key={i} className="h-10 w-full" />)}
+          </div>
+        )}
+      </Panel>
 
         <Panel
           title="Services"

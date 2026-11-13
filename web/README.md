@@ -68,6 +68,9 @@ link, labelled landmarks and live regions, `prefers-reduced-motion` respected,
 zoom not disabled. Screen readers get one "loading conversation" announcement
 rather than one per skeleton block.
 
+**Admin usage** — administrators can see active sessions and chat/message usage
+grouped by user and model on the overview page.
+
 ## Architecture
 
 ```

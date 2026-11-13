@@ -13,6 +13,7 @@ import type {
   AdminConfig,
   AdminHealth,
   AdminOverview,
+  AdminUsageRow,
   AdminUser,
   DocumentStats,
   HealthCheck,
@@ -190,7 +191,7 @@ export async function getOverview(): Promise<AdminOverview> {
   today.setUTCHours(0, 0, 0, 0)
   const since = new Date(today.getTime() - (ACTIVITY_DAYS - 1) * DAY_MS)
 
-  const [users, admins, chats, messages, sharedChats, apiKeys, recent, questions, newChats] =
+  const [users, admins, chats, messages, sharedChats, apiKeys, recent, questions, newChats, usageChats, activeSessions] =
     await Promise.all([
       db.user.count(),
       db.user.count({ where: { role: 'admin' } }),
@@ -210,6 +211,15 @@ export async function getOverview(): Promise<AdminOverview> {
         select: { createdAt: true },
       }),
       db.chat.findMany({ where: { createdAt: { gte: since } }, select: { createdAt: true } }),
+      db.chat.findMany({
+        select: {
+          userId: true,
+          model: true,
+          user: { select: { name: true, email: true } },
+          _count: { select: { messages: true } },
+        },
+      }),
+      db.session.count({ where: { expires: { gt: new Date() } } }),
     ])
 
   const activity: ActivityDay[] = Array.from({ length: ACTIVITY_DAYS }, (_, i) => ({
@@ -227,6 +237,25 @@ export async function getOverview(): Promise<AdminOverview> {
     if (day) day.chats += 1
   }
 
+  const usage = new Map<string, AdminUsageRow>()
+  for (const chat of usageChats) {
+    const key = `${chat.userId}:${chat.model}`
+    const current = usage.get(key)
+    if (current) {
+      current.chats += 1
+      current.messages += chat._count.messages
+    } else {
+      usage.set(key, {
+        userId: chat.userId,
+        user: chat.user.name ?? chat.user.email,
+        email: chat.user.email,
+        model: chat.model,
+        chats: 1,
+        messages: chat._count.messages,
+      })
+    }
+  }
+
   return {
     counts: { users, admins, chats, messages, sharedChats, apiKeys },
     activity,
@@ -235,6 +264,10 @@ export async function getOverview(): Promise<AdminOverview> {
       role: asRole(user.role),
       createdAt: user.createdAt.toISOString(),
     })),
+    usage: [...usage.values()].sort(
+      (a, b) => b.messages - a.messages || a.user.localeCompare(b.user) || a.model.localeCompare(b.model),
+    ),
+    activeSessions,
   }
 }
 

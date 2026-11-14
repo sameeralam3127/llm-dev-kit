@@ -452,7 +452,8 @@ sign-on and the admin console. Every release is listed in
 | Release | When | What |
 | --- | --- | --- |
 | [v1.0.0](https://github.com/sameeralam3127/llm-dev-kit/releases/tag/v1.0.0) | October 2026 | First release |
-| 1.1.0 | Next | Security fixes for the v1 stack ([#56](https://github.com/sameeralam3127/llm-dev-kit/issues/56), [#60](https://github.com/sameeralam3127/llm-dev-kit/issues/60), [#58](https://github.com/sameeralam3127/llm-dev-kit/issues/58), [#59](https://github.com/sameeralam3127/llm-dev-kit/issues/59), [#52](https://github.com/sameeralam3127/llm-dev-kit/issues/52), [#54](https://github.com/sameeralam3127/llm-dev-kit/issues/54), plus the dependency fix in [#75](https://github.com/sameeralam3127/llm-dev-kit/issues/75)) |
+| 1.1.0 | Next | Security and reliability fixes for the v1 stack: sign-up and sign-in ([#56](https://github.com/sameeralam3127/llm-dev-kit/issues/56), [#60](https://github.com/sameeralam3127/llm-dev-kit/issues/60), [#58](https://github.com/sameeralam3127/llm-dev-kit/issues/58)), uploads and models ([#54](https://github.com/sameeralam3127/llm-dev-kit/issues/54), [#52](https://github.com/sameeralam3127/llm-dev-kit/issues/52)), dependencies ([#85](https://github.com/sameeralam3127/llm-dev-kit/issues/85); the frontend upgrade in #75 is already merged), and chat reliability ([#82](https://github.com/sameeralam3127/llm-dev-kit/issues/82)). The full list is in the [roadmap](docs/v3/ROADMAP.md) |
+| 1.2.0 | After 1.1.0 | A guided quick start ([#91](https://github.com/sameeralam3127/llm-dev-kit/issues/91)), backup and restore ([#89](https://github.com/sameeralam3127/llm-dev-kit/issues/89)) |
 | 2.0.0 ("v3") | February 2027 | The secure core in Compose: Postgres, workspaces, sovereign mode. A major version because storage changes incompatibly |
 
 | | Area | |
@@ -468,6 +469,9 @@ sign-on and the admin console. Every release is listed in
 **Good to know today:**
 
 - Documents are shared by every user until workspaces arrive with v3.
+- Sending several messages to the same chat at once can fail with an error
+  and lose a message ([#82](https://github.com/sameeralam3127/llm-dev-kit/issues/82)).
+  One message at a time works.
 - Models whose names end in `-cloud` run on ollama.com, not on your machine;
   the admin console lists them separately.
 - The v3 services (`core_api`, `ingest_worker`, `model_gateway`) are in the

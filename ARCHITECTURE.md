@@ -45,9 +45,36 @@ flowchart LR
 | `/api/llm/*` | `llm-service` |
 | `/sso/*` with the SSO profile | Keycloak |
 
-Nginx disables proxy buffering for streaming responses. Its frontend-only
-startup page handles a temporarily unavailable `web` container; API routes
-retain their real upstream status codes.
+Nginx disables proxy buffering for streaming responses. It shows a startup page
+when the `web` container is unavailable. Only `/v1/*`, `/api/rag/*` and
+`/api/llm/*` keep real upstream status codes. The web app's own `/api/*` routes
+share the catch-all `location /`, so a failed web response there is currently
+rewritten to a `200` page ([#92](https://github.com/sameeralam3127/llm-dev-kit/issues/92)).
+
+## Known limits of the v1 stack
+
+Found in the 2026-11-14 review and each tracked by an issue. None is fixed yet.
+"Reproduced" means observed on a running stack; "in code" means established by
+reading the source.
+
+| Limit | Status | Issue |
+| --- | --- | --- |
+| State lives in three places: SQLite (users, chats, keys, audit, upload jobs), Chroma (the document index) and Redis (a disposable answer cache). Nothing backs them up or restores them together | In code | [#89](https://github.com/sameeralam3127/llm-dev-kit/issues/89) |
+| One shared document index: separation between users ends before retrieval. This is stated in the README, and is by design until workspaces arrive in v3 | In code | [#15](https://github.com/sameeralam3127/llm-dev-kit/issues/15) |
+| Concurrent sends to one chat fail with `500` and the message is lost (a transaction times out under SQLite). Message positions are also not a database invariant | **Reproduced** (2, 3, 5 and 10 simultaneous sends) | [#82](https://github.com/sameeralam3127/llm-dev-kit/issues/82) |
+| The answer cache is keyed by question and model only, with no document revision. Only the admin "clear cache" action invalidates it, and an upload through the API does not | In code | [#6](https://github.com/sameeralam3127/llm-dev-kit/issues/6) |
+| The web app's failed API calls look like `200` pages at the gateway | In code | [#92](https://github.com/sameeralam3127/llm-dev-kit/issues/92) |
+| Invalid API keys share, and can exhaust, the token-exchange limit | In code | [#93](https://github.com/sameeralam3127/llm-dev-kit/issues/93) |
+| A failed `/v1` stream reports its error as ordinary text followed by a normal stop marker | In code | [#81](https://github.com/sameeralam3127/llm-dev-kit/issues/81) |
+| `ALLOW_LEGACY_ANONYMOUS` makes unauthenticated callers administrators when set | In code | [#88](https://github.com/sameeralam3127/llm-dev-kit/issues/88) |
+| Plugins run inside their host service, with its permissions. Their manifests are disclosure, not a sandbox | Documented; no issue tracks isolation. The marketplace in [#18](https://github.com/sameeralam3127/llm-dev-kit/issues/18) is deferred until it exists | None |
+| Model access is not forced through one gateway in v1, so sovereign mode cannot be enforced there | In code | [#13](https://github.com/sameeralam3127/llm-dev-kit/issues/13) |
+
+The v3 target below removes the first, second, fourth and last rows by design:
+one system of record, workspace-scoped retrieval, no shared answer cache, and a
+mandatory model gateway. It does not remove the need for the database to
+enforce message ordering, so [#82](https://github.com/sameeralam3127/llm-dev-kit/issues/82)
+applies there too.
 
 ## v3 target architecture
 

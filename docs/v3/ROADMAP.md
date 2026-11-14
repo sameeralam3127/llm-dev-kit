@@ -11,7 +11,8 @@
 | Release | When | What |
 | --- | --- | --- |
 | [v1.0.0](https://github.com/sameeralam3127/llm-dev-kit/releases/tag/v1.0.0) | 2026-10-25 | First release: the v2 stack, the admin console, and the v3 services in the repository (not yet in Compose) |
-| 1.1.0 | Next | Security fixes for the v1 stack: #56, #60, #58, #59, #52, #54, the first part of #49, two findings in #53, and the frontend dependency upgrade in #75 |
+| 1.1.0 | Next | Security and correctness fixes for the v1 stack: sign-up and sign-in (#56, #60, #58), uploads and models (#54, #52), browser and gateway (#77, #92, #93), dependencies (#85; the frontend upgrade in #75 is already merged), the legacy anonymous guard (#88), chat reliability (#82, #81, #6), and the project's own security basics (#86, #87) |
+| 1.2.0 | After 1.1.0 | Foundations: a guided quick start (#91), backup and restore (#89), and property-based and browser tests (#90) |
 | 2.0.0 ("v3") | February 2027 | Milestone 1 in Compose: Postgres and pgvector, workspaces, model-gateway with sovereign mode |
 
 Versions follow [Semantic Versioning](https://semver.org) strictly, and the
@@ -25,6 +26,39 @@ last release (see [CHANGELOG.md](../../CHANGELOG.md)).
   storage layer incompatibly, so it ships as the next major version, 2.0.0.
 - **No version is forced** with `Release-As`; that footer is only for
   correcting a mistake.
+
+## Direction after the 2026-11-14 review
+
+A deep review of the repository checked each finding against the code (and ran
+the most serious one on a live stack). It supports the plan above and changes
+its emphasis in four ways.
+
+1. **Fix the shipped stack first.** Users run v1 today. The 1.1.0 list is the
+   verified set of problems in it, and it comes before more v3 scope.
+2. **One system of record is the right target.** Postgres with pgvector,
+   workspace-scoped retrieval and a mandatory model gateway remove the largest
+   structural limits (see "Known limits" in [ARCHITECTURE.md](../../ARCHITECTURE.md)).
+   Nothing in the review argues for a different architecture.
+3. **Consider a staged cutover when step (f) starts.** The current plan is one
+   migration of the web app from SQLite to Postgres. The review's alternative is
+   to put v3 behind a flag, import documents into workspace-scoped collections,
+   compare retrieval offline, and switch reads per workspace with a rollback.
+   It costs more steps and makes every one reversible. Decide at the start of
+   step (f); not decided here.
+4. **Defer scale and ecosystem work until v3 ships.** The 10,000-user target and
+   any-cloud hosting ([#53](https://github.com/sameeralam3127/llm-dev-kit/issues/53)),
+   the Helm chart ([#41](https://github.com/sameeralam3127/llm-dev-kit/issues/41)),
+   cloud deployment guides ([#42](https://github.com/sameeralam3127/llm-dev-kit/issues/42))
+   and the plugin marketplace ([#18](https://github.com/sameeralam3127/llm-dev-kit/issues/18))
+   are promises that are expensive to keep and untested. The findings from #53
+   that are real bugs (#92, #93) are pulled forward into 1.1.0; the rest waits.
+
+**Product direction is not decided here.** The review proposed a sharper
+audience: small teams with sensitive documents who want answers they can trace
+to a page and proof of where data did and did not go. That is a hypothesis,
+not a finding. It has not been tested with any user. Before changing the name,
+the README's pitch or the scope, talk to a handful of people in that group.
+Until then the project keeps its name and its current description.
 
 ## Vision
 
@@ -233,6 +267,12 @@ when its turn comes.
 | #36 race conditions | Chroma part removed with Chroma; JWKS part still applies (Milestone 1, step b) |
 | #13 sovereign mode, #15 per-user documents, #16 rate limits and audit | Milestone 1 builds the core; Milestones 2 and 3 finish them |
 | #51 v2 keys accepted as sessions, #55 audit-log role | Milestone 1, steps f and g |
+| #82 message ordering, #81 stream errors, #6 cache and grounding | 1.1.0; #82 also applies to v3's Postgres schema |
+| #92 gateway masks failures, #93 token-exchange lockout | 1.1.0 |
+| #85 vulnerable dependencies, #87 repository automation, #88 legacy anonymous, #86 SECURITY.md | 1.1.0 (the removal of the anonymous flag in #88 is 2.0.0) |
+| #84 locked dependencies and SBOM, #83 release automation | After 1.1.0 |
+| #91 guided quick start, #89 backup and restore, #90 property and browser tests | 1.2.0 |
+| #80 RAG evaluation suite | With Milestone 2 (better ingestion) |
 | #56, #58, #59, #60, #52, #54, #49 (item 1) | v1.1.0, on `main` |
 | #72 workspace membership management | Milestone 4; the schema has roles, but member administration is not implemented yet |
 | #73 atomic workspace API-key limit | Milestone 1; fix before multi-replica core-api deployment |

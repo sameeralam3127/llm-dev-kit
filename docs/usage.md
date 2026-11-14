@@ -86,11 +86,12 @@ The admin console has its own navigation, separate from the chat:
 
 | Page | What it is for |
 | --- | --- |
-| **Overview** | Totals, questions per day for the last two weeks, service status, newest accounts |
+| **Overview** | Totals, questions per day for the last two weeks, the 50 heaviest user-and-model pairs by messages, service status, newest accounts |
 | **Users** | Search people, filter by role, change roles |
 | **API keys** | Every user's keys, with when each was last used; revoke a lost one |
-| **Documents** | Upload PDFs, see indexed chunks and cached answers, clear the cache or the index |
-| **Health & settings** | Each service's status, the configuration read from `.env`, and the models on offer, grouped by where they run |
+| **Documents** | Upload PDFs, see indexed chunks and cached answers, clear the cache or the index, and review recent uploads (status, chunks, time taken, any error) |
+| **Audit log** | Who changed what: role changes, API key revocations, document uploads and clears. Newest first, filterable, and append-only |
+| **Health & settings** | Each service's status, the configuration read from `.env` (including the rate limits in force), the models on offer grouped by where they run, the plugins each service has installed, and a link to Grafana when `GRAFANA_URL` is set |
 
 ### Let other people in
 

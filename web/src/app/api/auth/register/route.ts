@@ -6,7 +6,7 @@ import { getEnv } from '@/lib/env'
 import { registerSchema } from '@/lib/validations/auth'
 import { ensureAdmin } from '@/server/identity/admin'
 import { ApiError, parseBody, withErrorHandling } from '@/server/http'
-import { clientKey, rateLimit } from '@/server/rate-limit'
+import { clientKey, RATE_LIMITS, rateLimit } from '@/server/rate-limit'
 
 export const runtime = 'nodejs'
 
@@ -15,7 +15,11 @@ export const POST = withErrorHandling(async (request: Request) => {
     throw new ApiError('forbidden', 'Registration is disabled on this instance')
   }
 
-  const limit = rateLimit(clientKey(request, 'register'), 5, 60 * 60 * 1000)
+  const limit = rateLimit(
+    clientKey(request, 'register'),
+    RATE_LIMITS.register.limit,
+    RATE_LIMITS.register.windowMs,
+  )
   if (!limit.ok) {
     throw new ApiError(
       'rate_limited',

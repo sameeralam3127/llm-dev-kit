@@ -1,6 +1,6 @@
 'use client'
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 
 import { api, queryKeys } from '@/lib/api-client'
@@ -21,6 +21,7 @@ export function useSetRole() {
       api.admin.setRole(userId, role),
     onSuccess: (user) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.adminUsers() })
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'audit'] })
       toast.success(`${user.name ?? user.email} is now ${user.role === 'admin' ? 'an' : 'a'} ${user.role}`)
     },
     onError: (error: Error) => {
@@ -59,6 +60,7 @@ export function useRevokeAnyApiKey() {
     mutationFn: (key: { id: string; name: string }) => api.admin.revokeApiKey(key.id),
     onSuccess: (_, key) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.adminApiKeys() })
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'audit'] })
       void queryClient.invalidateQueries({ queryKey: queryKeys.adminOverview() })
       void queryClient.invalidateQueries({ queryKey: queryKeys.adminUsers() })
       toast.success(`Revoked “${key.name}”`, { description: 'It stops working within a minute.' })
@@ -82,6 +84,8 @@ function useRefreshDocuments() {
   return () => {
     void queryClient.invalidateQueries({ queryKey: queryKeys.adminDocuments() })
     void queryClient.invalidateQueries({ queryKey: queryKeys.adminHealth() })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.adminJobs() })
+    void queryClient.invalidateQueries({ queryKey: ['admin', 'audit'] })
   }
 }
 
@@ -129,5 +133,33 @@ export function useClearCache() {
     onError: (error: Error) => {
       toast.error('Could not clear the cache', { description: error.message })
     },
+  })
+}
+
+/** Recent console uploads. Polls while one is still running so it flips to done by itself. */
+export function useIngestionJobs() {
+  return useQuery({
+    queryKey: queryKeys.adminJobs(),
+    queryFn: ({ signal }) => api.admin.ingestionJobs(signal),
+    refetchInterval: (query) =>
+      query.state.data?.some((job) => job.status === 'running') ? 3_000 : false,
+  })
+}
+
+export function usePluginInventory() {
+  return useQuery({
+    queryKey: queryKeys.adminPlugins(),
+    queryFn: ({ signal }) => api.admin.plugins(signal),
+  })
+}
+
+/** The audit log, newest first, one page at a time. `prefix` is an action family such as `user.`. */
+export function useAuditLog(prefix: string) {
+  return useInfiniteQuery({
+    queryKey: queryKeys.adminAudit(prefix),
+    initialPageParam: undefined as string | undefined,
+    queryFn: ({ pageParam, signal }) =>
+      api.admin.audit({ ...(prefix ? { prefix } : {}), ...(pageParam ? { before: pageParam } : {}) }, signal),
+    getNextPageParam: (last) => last.nextBefore ?? undefined,
   })
 }

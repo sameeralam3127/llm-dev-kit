@@ -11,6 +11,7 @@ from devkit_common.auth import build_authenticator, require
 from devkit_common.config import Settings, get_settings
 from devkit_common.http import install_service
 from devkit_common.models import ChatRequest, ChatResponse, IngestResponse
+from devkit_common.plugins import plugin_inventory
 from ldk_core.auth import ADMIN, CHAT, INGEST
 from ldk_core.errors import ServiceError, bad_request
 from ldk_core.plugins import CHUNKER, LOADER, VECTOR_STORE, PluginKind, PluginRegistry
@@ -135,6 +136,13 @@ async def ingest_pdf(request: Request, file: UploadFile = File(...)) -> IngestRe
     ]
     await _store(request).upsert(LEGACY_COLLECTION, records)
     return IngestResponse(chunks=len(chunks))
+
+
+@app.get("/plugins", dependencies=[Depends(require(ADMIN))])
+async def plugins(request: Request) -> list[dict[str, Any]]:
+    """The plugins this service has installed (no configuration, so no secrets)."""
+    registry: PluginRegistry = request.app.state.registry
+    return plugin_inventory(registry)
 
 
 @app.get("/cache/stats", dependencies=[Depends(require(ADMIN))])

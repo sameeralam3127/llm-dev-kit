@@ -3,6 +3,7 @@
 import { CheckCircle2, FileUp, Loader2, XCircle } from 'lucide-react'
 import * as React from 'react'
 
+import { IngestionJobsPanel } from '@/components/admin/ingestion-jobs-panel'
 import { Panel } from '@/components/admin/page-header'
 import { StatusLabel } from '@/components/admin/status'
 import {
@@ -273,6 +274,8 @@ export function DocumentsPanel() {
       </dl>
 
       <UploadCard />
+
+      <IngestionJobsPanel />
 
       <Panel title="Danger zone" className="border-destructive/40">
         <ul className="divide-y">

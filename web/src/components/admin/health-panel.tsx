@@ -1,7 +1,7 @@
 'use client'
 
 import { formatDistanceToNow } from 'date-fns'
-import { RefreshCw } from 'lucide-react'
+import { ExternalLink, RefreshCw } from 'lucide-react'
 
 import { Panel } from '@/components/admin/page-header'
 import { StatusLabel } from '@/components/admin/status'
@@ -10,7 +10,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useAdminHealth } from '@/hooks/use-admin'
 import { cn } from '@/lib/utils'
 
-export function HealthPanel() {
+/** `dashboardUrl` adds a link to an external dashboard such as Grafana. */
+export function HealthPanel({ dashboardUrl = null }: { dashboardUrl?: string | null }) {
   const health = useAdminHealth()
   const data = health.data
 
@@ -23,6 +24,15 @@ export function HealthPanel() {
           : 'Each service, checked from the web app.'
       }
       actions={
+        <>
+        {dashboardUrl && (
+          <Button asChild variant="outline" size="sm" className="gap-1.5">
+            <a href={dashboardUrl} target="_blank" rel="noopener noreferrer">
+              <ExternalLink className="size-3.5" />
+              Dashboards
+            </a>
+          </Button>
+        )}
         <Button
           variant="outline"
           size="sm"
@@ -33,6 +43,7 @@ export function HealthPanel() {
           <RefreshCw className={cn('size-3.5', health.isFetching && 'animate-spin')} />
           Check now
         </Button>
+        </>
       }
     >
       {health.isError ? (

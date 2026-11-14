@@ -41,4 +41,5 @@ export const ROUTES = {
   adminApiKeys: '/admin/api-keys',
   adminDocuments: '/admin/documents',
   adminSystem: '/admin/system',
+  adminAudit: '/admin/audit',
 } as const

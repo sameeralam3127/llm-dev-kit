@@ -259,6 +259,19 @@ def test_a_viewer_can_chat_but_not_ingest(client, issuer: Issuer) -> None:
     assert res.json()["error"]["code"] == "forbidden"
 
 
+def test_plugin_inventory_is_admin_only_and_lists_no_configuration(client, issuer: Issuer) -> None:
+    assert client.get("/plugins", headers=issuer.bearer("user")).status_code == 403
+
+    res = client.get("/plugins")  # the fixture's default token is an admin's
+    assert res.status_code == 200
+    rows = {(p["kind"], p["name"]): p for p in res.json()}
+    assert {("loader", "pdf"), ("chunker", "fixed"), ("vector_store", "chroma")} & set(rows)
+    assert all(
+        set(row) == {"kind", "name", "version", "enabled", "description", "permissions"}
+        for row in rows.values()
+    )
+
+
 def test_a_user_can_ingest_but_only_an_admin_can_clear(client, issuer: Issuer) -> None:
     user = issuer.bearer("user")
     res = client.post(

@@ -451,8 +451,8 @@ sign-on and the admin console. Every release is listed in
 | Release | When | What |
 | --- | --- | --- |
 | [v1.0.0](https://github.com/sameeralam3127/llm-dev-kit/releases/tag/v1.0.0) | October 2026 | First release |
-| 1.1.0 | Next | Security and reliability fixes for the v1 stack: sign-up and sign-in ([#56](https://github.com/sameeralam3127/llm-dev-kit/issues/56), [#60](https://github.com/sameeralam3127/llm-dev-kit/issues/60), [#58](https://github.com/sameeralam3127/llm-dev-kit/issues/58)), uploads and models ([#54](https://github.com/sameeralam3127/llm-dev-kit/issues/54), [#52](https://github.com/sameeralam3127/llm-dev-kit/issues/52)), dependencies ([#85](https://github.com/sameeralam3127/llm-dev-kit/issues/85); the frontend upgrade in #75 is already merged), and chat reliability ([#82](https://github.com/sameeralam3127/llm-dev-kit/issues/82)). The full list is in the [roadmap](docs/v3/ROADMAP.md) |
-| 1.2.0 | After 1.1.0 | A guided quick start ([#91](https://github.com/sameeralam3127/llm-dev-kit/issues/91)), backup and restore ([#89](https://github.com/sameeralam3127/llm-dev-kit/issues/89)) |
+| 1.1.0 | Next | Security and reliability fixes for the v1 stack: sign-up and sign-in, uploads and models, dependencies, and chat reliability. The full list is in the [roadmap](docs/v3/ROADMAP.md) |
+| 1.2.0 | After 1.1.0 | A guided quick start, backup and restore, and fixes for large-PDF ingestion and the other reliability problems in the current stack |
 | 2.0.0 ("v3") | February 2027 | The secure core in Compose: Postgres, workspaces, sovereign mode. A major version because storage changes incompatibly |
 
 | | Area | |
@@ -463,28 +463,25 @@ sign-on and the admin console. Every release is listed in
 | 🚧 | v3 secure core | Postgres schema, workspace API keys, ingestion queue, hybrid search and model-gateway are built and tested; the web app moves onto them next |
 | ⏳ | Sovereign mode end to end | Already enforced in model-gateway; reaches Compose with v3 |
 | ⏳ | Per-user documents | Workspaces on pgvector with citations, in v3 |
-| ⏳ | Distribution | Multi-arch images, Helm chart, any-cloud hosting ([#53](https://github.com/sameeralam3127/llm-dev-kit/issues/53)) |
+| ⏳ | Distribution | Multi-arch images, Helm chart, any-cloud hosting, after v3 ships |
 
 **Good to know today:**
 
 - Documents are shared by every user until workspaces arrive with v3.
 - Sending several messages to the same chat at once can fail with an error
-  and lose a message ([#82](https://github.com/sameeralam3127/llm-dev-kit/issues/82)).
-  One message at a time works.
+  and lose a message. One message at a time works.
 - Models whose names end in `-cloud` run on ollama.com, not on your machine;
   the admin console lists them separately.
 - The v3 services (`core_api`, `ingest_worker`, `model_gateway`) are in the
   repository and fully tested, but Compose does not start them yet.
-- Known security issues are tracked in the open; see the
-  [issues labelled `bug`](https://github.com/sameeralam3127/llm-dev-kit/issues?q=is%3Aissue+is%3Aopen+Security+in%3Atitle).
-  Until [#56](https://github.com/sameeralam3127/llm-dev-kit/issues/56) is
-  fixed, do not rely on `ALLOW_REGISTRATION=false` while GitHub sign-in is on.
+- Known security problems are tracked in the open on the project's issue
+  tracker. Until the registration fix ships, do not rely on
+  `ALLOW_REGISTRATION=false` while GitHub sign-in is on.
 
 **Next:** 1.1.0 closes the open security issues for today's stack. Then v3
 Milestone 1 ("secure core") moves the web app onto Postgres and core-api and
 brings model-gateway into Compose. Steps (a) to (e) are done on the `v3` branch.
-Milestones and decisions are in [docs/v3/ROADMAP.md](docs/v3/ROADMAP.md),
-tracked in [#47](https://github.com/sameeralam3127/llm-dev-kit/issues/47).
+Milestones and decisions are in [docs/v3/ROADMAP.md](docs/v3/ROADMAP.md).
 
 ## Contributing
 
@@ -497,18 +494,11 @@ Before beginning, leave a short comment on the issue describing your approach
 so work does not overlap. Do not include real credentials, keys, or `.env`
 files in a pull request.
 
-### Open issue map
-
-| Area | Issues | Tags | Contributor guidance |
-| --- | --- | --- | --- |
-| First contributions | [#29–#34](https://github.com/sameeralam3127/llm-dev-kit/issues?q=is%3Aissue%20is%3Aopen%20label%3A%22good%20first%20issue%22), [#70](https://github.com/sameeralam3127/llm-dev-kit/issues/70) | `good first issue` · `enhancement` / `bug` · `v1` | Small, self-contained changes with clear acceptance criteria. |
-| Current-stack reliability | [#35](https://github.com/sameeralam3127/llm-dev-kit/issues/35), [#36](https://github.com/sameeralam3127/llm-dev-kit/issues/36), [#37](https://github.com/sameeralam3127/llm-dev-kit/issues/37), [#38](https://github.com/sameeralam3127/llm-dev-kit/issues/38), [#43](https://github.com/sameeralam3127/llm-dev-kit/issues/43) | `bug` / `enhancement` · `help wanted` · `ci` | Take one issue and include a regression or smoke test. |
-| Platform and operations | [#41](https://github.com/sameeralam3127/llm-dev-kit/issues/41), [#42](https://github.com/sameeralam3127/llm-dev-kit/issues/42), [#44](https://github.com/sameeralam3127/llm-dev-kit/issues/44), [#45](https://github.com/sameeralam3127/llm-dev-kit/issues/45) | `enhancement` / `documentation` · `help wanted` · `epic` | Coordinate first; these affect deployment and long-term support. |
-| Product integrations | [#39](https://github.com/sameeralam3127/llm-dev-kit/issues/39), [#40](https://github.com/sameeralam3127/llm-dev-kit/issues/40) | `enhancement` | Discuss UX and configuration before implementation. |
-| v3 secure core | [#13](https://github.com/sameeralam3127/llm-dev-kit/issues/13), [#15](https://github.com/sameeralam3127/llm-dev-kit/issues/15), [#16](https://github.com/sameeralam3127/llm-dev-kit/issues/16), [#17](https://github.com/sameeralam3127/llm-dev-kit/issues/17), [#18](https://github.com/sameeralam3127/llm-dev-kit/issues/18), [#19](https://github.com/sameeralam3127/llm-dev-kit/issues/19), [#20](https://github.com/sameeralam3127/llm-dev-kit/issues/20), [#47](https://github.com/sameeralam3127/llm-dev-kit/issues/47), [#53](https://github.com/sameeralam3127/llm-dev-kit/issues/53), [#67](https://github.com/sameeralam3127/llm-dev-kit/issues/67), [#69](https://github.com/sameeralam3127/llm-dev-kit/issues/69), [#72](https://github.com/sameeralam3127/llm-dev-kit/issues/72), [#73](https://github.com/sameeralam3127/llm-dev-kit/issues/73), [#74](https://github.com/sameeralam3127/llm-dev-kit/issues/74) | `v3` · `epic` / `enhancement` / `bug` | Follow the v3 roadmap; do not wire v3 services into Compose independently of its step-g work. |
-| Security | [#49](https://github.com/sameeralam3127/llm-dev-kit/issues/49), [#51](https://github.com/sameeralam3127/llm-dev-kit/issues/51), [#52](https://github.com/sameeralam3127/llm-dev-kit/issues/52), [#54](https://github.com/sameeralam3127/llm-dev-kit/issues/54), [#55](https://github.com/sameeralam3127/llm-dev-kit/issues/55), [#56](https://github.com/sameeralam3127/llm-dev-kit/issues/56), [#58](https://github.com/sameeralam3127/llm-dev-kit/issues/58), [#60](https://github.com/sameeralam3127/llm-dev-kit/issues/60) | `bug` · `v1` / `v3` · `help wanted` | Discuss design before coding; include security-focused tests and avoid publishing exploit details beyond the issue scope. |
-
-Use the GitHub [good first issue](https://github.com/sameeralam3127/llm-dev-kit/labels/good%20first%20issue) and [help wanted](https://github.com/sameeralam3127/llm-dev-kit/labels/help%20wanted) labels to find the current queue. [#75](https://github.com/sameeralam3127/llm-dev-kit/issues/75) is closed: its Next.js and Zod upgrade is already on `v3` and should be cherry-picked to `main` for 1.1.0.
+Find something to work on in the
+[issue tracker](https://github.com/sameeralam3127/llm-dev-kit/issues). Issues
+marked `good first issue` are small and self-contained, and those marked
+`help wanted` are open for anyone. The [roadmap](docs/v3/ROADMAP.md) says which
+release each piece of work belongs to.
 
 ## Troubleshooting
 

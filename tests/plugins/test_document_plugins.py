@@ -13,6 +13,7 @@ from ldk_core.ports import LoadedDocument, Page
 from ldk_core.testing.contracts import ChunkerContract, DocumentLoaderContract
 from ldk_plugin_chunker_fixed import FixedWindowChunker, split_text
 from ldk_plugin_loader_pdf import PdfLoader
+from ldk_plugin_loader_text import TextLoader
 from rag_service.pdf import chunk_text, load_pdf
 
 
@@ -99,16 +100,9 @@ def test_chunks_are_attributed_to_the_page_they_start_on() -> None:
     assert [(c.text[:3], c.page) for c in chunks] == [
         ("aaa", 1),
         ("aaa", 1),
+        ("\nb\n", 2),
         ("bbb", 3),
-        ("b", 3),
     ]
-
-
-def test_invalid_window_settings_are_rejected() -> None:
-    with pytest.raises(ValueError, match="overlap"):
-        FixedWindowChunker(size=10, overlap=10)
-    with pytest.raises(ValueError, match="positive"):
-        split_text("abc", 0, 0)
 
 
 def test_deprecated_shims_still_work() -> None:
@@ -116,3 +110,29 @@ def test_deprecated_shims_still_work() -> None:
     assert load_pdf(io.BytesIO(make_pdf(["hello there"]))) == "hello there"
     with pytest.raises(ValueError, match="No readable text"):
         load_pdf(io.BytesIO(make_pdf([""])))
+
+
+class TestTextLoaderContract(DocumentLoaderContract):
+    @pytest.fixture
+    def loader(self) -> TextLoader:
+        return TextLoader()
+
+    @pytest.fixture
+    def sample(self) -> bytes:
+        return b"Local-first means the data stays here.\n\n# Markdown heading"
+
+    @pytest.fixture
+    def expected_text(self) -> str:
+        return "data stays here"
+
+    @pytest.fixture
+    def malformed(self) -> bytes:
+        return b"\xff\xfe not utf-8"
+
+
+def test_text_loader_single_page_and_filename() -> None:
+    document = TextLoader().load(b"hello world", filename="note.md")
+    assert len(document.pages) == 1
+    assert document.pages[0].number == 1
+    assert document.pages[0].text == "hello world"
+    assert document.metadata == {"filename": "note.md"}

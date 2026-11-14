@@ -17,6 +17,7 @@ src = [
     "services/plugins/litellm/src",
     "services/plugins/chroma/src",
     "services/plugins/loader_pdf/src",
+    "services/plugins/loader_text/src",
     "services/plugins/chunker_fixed/src",
     "services/plugins/tools/src",
     "services/plugins/auth/src",
@@ -71,6 +72,7 @@ mypy_path = [
     "services/plugins/litellm/src",
     "services/plugins/chroma/src",
     "services/plugins/loader_pdf/src",
+    "services/plugins/loader_text/src",
     "services/plugins/chunker_fixed/src",
     "services/plugins/tools/src",
     "services/plugins/auth/src",
@@ -89,6 +91,7 @@ packages = [
     "ldk_plugin_litellm",
     "ldk_plugin_chroma",
     "ldk_plugin_loader_pdf",
+    "ldk_plugin_loader_text",
     "ldk_plugin_chunker_fixed",
     "ldk_plugin_tools",
     "ldk_plugin_auth",
@@ -120,6 +123,8 @@ module = [
     "ldk_plugin_chroma.*",
     "ldk_plugin_loader_pdf",
     "ldk_plugin_loader_pdf.*",
+    "ldk_plugin_loader_text",
+    "ldk_plugin_loader_text.*",
     "ldk_plugin_chunker_fixed",
     "ldk_plugin_chunker_fixed.*",
     "ldk_plugin_tools",
@@ -134,6 +139,7 @@ disallow_subclassing_any = true
 disallow_untyped_calls = true
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
+check_untyped_defs = true
 disallow_untyped_decorators = true
 warn_return_any = true
 no_implicit_reexport = true
@@ -152,6 +158,7 @@ pythonpath = [
     "services/plugins/litellm/src",
     "services/plugins/chroma/src",
     "services/plugins/loader_pdf/src",
+    "services/plugins/loader_text/src",
     "services/plugins/chunker_fixed/src",
     "services/plugins/tools/src",
     "services/plugins/auth/src",

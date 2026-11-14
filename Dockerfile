@@ -55,11 +55,12 @@ COPY services/rag_service/requirements.txt /tmp/requirements.txt
 COPY services/core /src/core
 COPY services/plugins/chroma /src/plugins/chroma
 COPY services/plugins/loader_pdf /src/plugins/loader_pdf
+COPY services/plugins/loader_text /src/plugins/loader_text
 COPY services/plugins/chunker_fixed /src/plugins/chunker_fixed
 COPY services/plugins/auth /src/plugins/auth
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install -r /tmp/requirements.txt /src/core \
-        /src/plugins/chroma /src/plugins/loader_pdf /src/plugins/chunker_fixed /src/plugins/auth
+        /src/plugins/chroma /src/plugins/loader_pdf /src/plugins/loader_text /src/plugins/chunker_fixed /src/plugins/auth
 COPY services/devkit_common/src/devkit_common ./devkit_common
 COPY services/rag_service/src/rag_service ./rag_service
 USER appuser

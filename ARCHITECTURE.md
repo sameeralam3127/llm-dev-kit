@@ -53,7 +53,8 @@ rewritten to a `200` page ([#92](https://github.com/sameeralam3127/llm-dev-kit/i
 
 ## Known limits of the v1 stack
 
-Found in the 2026-11-14 review and each tracked by an issue. None is fixed yet.
+Found in the 2026-11-14 review and each tracked by an issue. A row marked
+**Fixed** is already on `main`; every other row is still open.
 "Reproduced" means observed on a running stack; "in code" means established by
 reading the source.
 
@@ -62,7 +63,7 @@ reading the source.
 | State lives in three places: SQLite (users, chats, keys, audit, upload jobs), Chroma (the document index) and Redis (a disposable answer cache). Nothing backs them up or restores them together | In code | [#89](https://github.com/sameeralam3127/llm-dev-kit/issues/89) |
 | One shared document index: separation between users ends before retrieval. This is stated in the README, and is by design until workspaces arrive in v3 | In code | [#15](https://github.com/sameeralam3127/llm-dev-kit/issues/15) |
 | Concurrent sends to one chat fail with `500` and the message is lost (a transaction times out under SQLite). Message positions are also not a database invariant | **Reproduced** (2, 3, 5 and 10 simultaneous sends) | [#82](https://github.com/sameeralam3127/llm-dev-kit/issues/82) |
-| The answer cache is keyed by question and model only, with no document revision. Only the admin "clear cache" action invalidates it, and an upload through the API does not. Also, a vector-store outage during retrieval answered from general knowledge as if no documents matched | **Fixed in this change**: cache keys carry a document revision that every ingest and index clear bumps, and a retrieval failure is now a `503` | [#6](https://github.com/sameeralam3127/llm-dev-kit/issues/6) |
+| The answer cache was keyed by question and model only, so an upload that did not go through the admin console left stale answers for up to an hour. A vector-store outage also answered from general knowledge as if no documents matched | **Fixed**: cache keys carry a document revision that every ingest and index clear bumps, and a retrieval failure is now a `503`. A relevance floor for retrieval is tracked in [#80](https://github.com/sameeralam3127/llm-dev-kit/issues/80) | [#6](https://github.com/sameeralam3127/llm-dev-kit/issues/6) |
 | The web app's failed API calls look like `200` pages at the gateway | In code | [#92](https://github.com/sameeralam3127/llm-dev-kit/issues/92) |
 | Invalid API keys share, and can exhaust, the token-exchange limit | In code | [#93](https://github.com/sameeralam3127/llm-dev-kit/issues/93) |
 | A failed `/v1` stream reports its error as ordinary text followed by a normal stop marker | In code | [#81](https://github.com/sameeralam3127/llm-dev-kit/issues/81) |

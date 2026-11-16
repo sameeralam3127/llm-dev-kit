@@ -12,7 +12,7 @@
 | --- | --- | --- |
 | [v1.0.0](https://github.com/sameeralam3127/llm-dev-kit/releases/tag/v1.0.0) | 2026-10-25 | First release: the v2 stack, the admin console, and the v3 services in the repository (not yet in Compose) |
 | 1.1.0 | Next | Security and correctness fixes for the v1 stack: sign-up and sign-in (#56, #60, #58), uploads and models (#54, #52), browser and gateway (#77, #92, #93), dependencies (#85; the frontend upgrade in #75 is already merged), the legacy anonymous guard (#88), chat reliability (#82, #81, #6), and the project's own security basics (#86, #87) |
-| 1.2.0 | After 1.1.0 | Foundations: a guided quick start (#91), backup and restore (#89), and property-based and browser tests (#90) |
+| 1.2.0 | After 1.1.0 | Foundations and reliability: a guided quick start (#91), backup and restore (#89), property-based and browser tests (#90), and the v1 reliability fixes #35, #36 and #37 |
 | 2.0.0 ("v3") | February 2027 | Milestone 1 in Compose: Postgres and pgvector, workspaces, model-gateway with sovereign mode |
 
 Versions follow [Semantic Versioning](https://semver.org) strictly, and the
@@ -263,8 +263,7 @@ when its turn comes.
 
 | Issue | Lands in |
 | --- | --- |
-| #35 batch embeddings, #37 one RAG pipeline | Solved by Milestone 1 (ingest-worker and core-api) |
-| #36 race conditions | Chroma part removed with Chroma; JWKS part still applies (Milestone 1, step b) |
+| #35 large-PDF ingestion, #36 race conditions, #37 the `/v1` pipeline and answer cache | **v1 fixes**, targeted at 1.2.0. v3 replaces this code (the ingest-worker batches embeddings, core-api has one pipeline, Chroma goes away), but v1 users run the current code until 2.0.0 and need these first. Fix them in v1 only where the change is small; do not build v1 features that v3 deletes |
 | #13 sovereign mode, #15 per-user documents, #16 rate limits and audit | Milestone 1 builds the core; Milestones 2 and 3 finish them |
 | #51 v2 keys accepted as sessions, #55 audit-log role | Milestone 1, steps f and g |
 | #82 message ordering, #81 stream errors, #6 cache and grounding | 1.1.0; #82 also applies to v3's Postgres schema |

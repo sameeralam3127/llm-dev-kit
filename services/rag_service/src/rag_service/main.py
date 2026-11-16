@@ -13,6 +13,7 @@ from devkit_common.http import install_service
 from devkit_common.models import ChatRequest, ChatResponse, IngestResponse
 from ldk_core.auth import ADMIN, CHAT, INGEST
 from ldk_core.errors import ServiceError, bad_request
+from ldk_core.observability import get_logger
 from ldk_core.plugins import CHUNKER, LOADER, VECTOR_STORE, PluginKind, PluginRegistry
 from ldk_core.ports import ChunkRecord, VectorStore
 from rag_service.cache import ChatCache
@@ -22,6 +23,7 @@ from rag_service.openai_api import router as openai_router
 from rag_service.retrieval import LEGACY_COLLECTION, Retriever
 
 settings = get_settings()
+logger = get_logger(__name__)
 
 # Which plugin fills each port. Fixed for now; Phase 5 makes them selectable.
 VECTOR_STORE_PLUGIN = "chroma"
@@ -66,6 +68,15 @@ app.include_router(openai_router)
 def _store(request: Request) -> VectorStore:
     registry: PluginRegistry = request.app.state.registry
     return registry.get(VECTOR_STORE, VECTOR_STORE_PLUGIN)
+
+
+async def _bump_cache_revision(request: Request) -> None:
+    """Orphan every cached answer after the document set changed. Best effort:
+    the documents are already stored, so a cache failure must not fail the call."""
+    try:
+        await request.app.state.cache.bump_revision()
+    except Exception as exc:  # noqa: BLE001 - never fail an upload over the cache
+        logger.warning("cache revision bump failed", error=f"{type(exc).__name__}: {exc}")
 
 
 @app.get("/health")
@@ -134,6 +145,7 @@ async def ingest_pdf(request: Request, file: UploadFile = File(...)) -> IngestRe
         for chunk, embedding in zip(chunks, embeddings, strict=True)
     ]
     await _store(request).upsert(LEGACY_COLLECTION, records)
+    await _bump_cache_revision(request)
     return IngestResponse(chunks=len(chunks))
 
 
@@ -163,4 +175,5 @@ async def documents_clear(request: Request) -> dict[str, bool]:
         await _store(request).clear(LEGACY_COLLECTION)
     except ServiceError:
         return {"cleared": False}
+    await _bump_cache_revision(request)
     return {"cleared": True}

@@ -1,8 +1,4 @@
-from ldk_core.errors import ServiceError
-from ldk_core.observability import get_logger
 from ldk_core.ports import SearchScope, VectorStore
-
-logger = get_logger(__name__)
 
 LEGACY_COLLECTION = "documents"
 """The single shared collection every upload lands in until Phase 5 adds
@@ -20,11 +16,7 @@ class Retriever:
         self.top_k = top_k
 
     async def retrieve(self, embedding: list[float]) -> list[str]:
-        try:
-            results = await self.store.search(embedding, scope=self.scope, top_k=self.top_k)
-        except ServiceError as exc:
-            # Retrieval degrades to answering without context rather than failing.
-            logger.warning("retrieval failed", store=self.store.name, error=exc.message)
-            return []
-
+        # A store failure propagates. An empty list means "nothing relevant",
+        # and callers answer ungrounded for that; an outage must not look the same.
+        results = await self.store.search(embedding, scope=self.scope, top_k=self.top_k)
         return [r.text for r in results if r.text.strip()]

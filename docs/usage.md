@@ -47,13 +47,16 @@ curl -H "Authorization: Bearer $KEY" -F "file=@handbook.pdf" \
   all is refused with a 400.
 - **Uploading the same file twice indexes it twice.** To replace a document,
   clear the index and upload everything again.
-- **Clear cached answers after changing documents.** Answers are cached for an
-  hour by question and model, so without this a repeated question can return
-  the answer from before the change:
+- **Cached answers follow the documents.** Answers are cached for an hour by
+  question, model and document revision. Every upload and every index clear
+  starts a new revision, so a repeated question is answered from the current
+  documents. You can still empty the cache by hand:
 
   ```bash
   curl -X POST -H "Authorization: Bearer $KEY" http://localhost:8080/api/rag/cache/clear
   ```
+- **A vector-store outage is an error.** If the index cannot be searched, chat
+  returns `503` instead of answering without your documents.
 
 ### Check and clear the index
 
@@ -190,7 +193,6 @@ stops working within a minute.
 | --- | --- |
 | PDFs only, uploaded from the command line | [#15](https://github.com/sameeralam3127/llm-dev-kit/issues/15) |
 | One shared index; no deleting a single document; re-uploads duplicate | [#15](https://github.com/sameeralam3127/llm-dev-kit/issues/15) |
-| Cached answers do not update when documents change | Clear the cache by hand (see above) |
 | When documents are indexed, every chat answers from them only | Not planned yet |
 | No invites; the admin page has users, roles and health only | [#17](https://github.com/sameeralam3127/llm-dev-kit/issues/17) |
 | `-cloud` models leave the machine | [#13](https://github.com/sameeralam3127/llm-dev-kit/issues/13) |

@@ -15,10 +15,17 @@ async def answer_query(
     retriever,
     api_key: str | None = None,
 ) -> ChatResponse:
-    """Cache -> embed -> retrieve -> generate. Only successful responses are cached."""
+    """Cache -> embed -> retrieve -> generate. Only successful responses are cached.
+
+    The corpus revision is read once, up front, and used for the save, so an
+    answer that spans an ingest is stored under the revision it started with.
+    A retrieval failure raises ServiceError (the service's handler turns it
+    into an error response); it never degrades to an ungrounded answer.
+    """
     query = query.strip()
 
-    cached = await cache.get(query, model)
+    revision = await cache.revision()
+    cached = await cache.get(query, model, revision=revision)
     if cached:
         return ChatResponse(response=cached, model=model or "", cached=True)
 
@@ -30,7 +37,7 @@ async def answer_query(
 
     response = result.get("response", "")
     if response:
-        await cache.set(query, model, response)
+        await cache.set(query, model, response, revision=revision)
 
     return ChatResponse(
         response=response,
@@ -57,7 +64,8 @@ async def stream_answer(
     """
     query = query.strip()
 
-    cached = await cache.get(query, model)
+    revision = await cache.revision()
+    cached = await cache.get(query, model, revision=revision)
     if cached:
         yield json.dumps({"meta": {"cached": True, "sources": []}}) + "\n"
         yield json.dumps({"delta": cached}) + "\n"
@@ -85,5 +93,5 @@ async def stream_answer(
 
     response = "".join(parts)
     if response:
-        await cache.set(query, model, response)
+        await cache.set(query, model, response, revision=revision)
     yield json.dumps({"done": True, "model": model or ""}) + "\n"

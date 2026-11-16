@@ -2,6 +2,8 @@
 chunker plugins, an in-memory vector store, and fakes for llm-service and Redis.
 """
 
+import json
+
 import pytest
 from fastapi.testclient import TestClient
 from identity import Issuer
@@ -60,12 +62,21 @@ class FakeLLMClient:
 
 class NoCache:
     def __init__(self, *_: object) -> None:
-        pass
+        self.bumps = 0
+        self.bump_error: Exception | None = None
 
-    async def get(self, prompt, model=None):
+    async def revision(self):
+        return 0
+
+    async def bump_revision(self):
+        if self.bump_error:
+            raise self.bump_error
+        self.bumps += 1
+
+    async def get(self, prompt, model=None, *, revision=None):
         return None
 
-    async def set(self, prompt, model, value):
+    async def set(self, prompt, model, value, *, revision=None):
         pass
 
     async def stats(self):
@@ -170,6 +181,75 @@ def test_store_outage_degrades_like_before(monkeypatch: pytest.MonkeyPatch, issu
             "document_count": 0,
         }
         assert client.post("/documents/clear").json() == {"cleared": False}
+
+
+def test_ingest_bumps_the_cache_revision(client) -> None:
+    assert _upload(client, make_pdf(["some text"])).status_code == 200
+    assert client.app.state.cache.bumps == 1
+
+
+def test_a_failed_ingest_does_not_bump_the_revision(client) -> None:
+    assert _upload(client, b"hello", content_type="text/plain").status_code == 400
+    assert client.app.state.cache.bumps == 0
+
+
+def test_clearing_documents_bumps_the_cache_revision(client) -> None:
+    assert client.post("/documents/clear").json() == {"cleared": True}
+    assert client.app.state.cache.bumps == 1
+
+
+def test_a_failed_clear_does_not_bump_the_revision(monkeypatch, issuer) -> None:
+    _patch(monkeypatch, OfflineStore(name="chroma"), issuer)
+    with TestClient(main.app, headers=issuer.bearer("admin")) as client:
+        assert client.post("/documents/clear").json() == {"cleared": False}
+        assert client.app.state.cache.bumps == 0
+
+
+def test_a_bump_failure_does_not_fail_the_upload_or_the_clear(client) -> None:
+    client.app.state.cache.bump_error = ConnectionError("redis down")
+    assert _upload(client, make_pdf(["some text"])).status_code == 200
+    assert client.post("/documents/clear").json() == {"cleared": True}
+
+
+class SearchDownStore(MemoryVectorStore):
+    async def search(self, embedding, *, scope, top_k):
+        raise ServiceError(ErrorCode.UPSTREAM_UNAVAILABLE, "Chroma unavailable")
+
+
+@pytest.fixture
+def search_down_client(monkeypatch: pytest.MonkeyPatch, issuer: Issuer):
+    _patch(monkeypatch, SearchDownStore(name="chroma"), issuer)
+    with TestClient(main.app, headers=issuer.bearer("admin")) as client:
+        yield client
+
+
+def test_a_store_outage_fails_chat_instead_of_answering_ungrounded(search_down_client) -> None:
+    res = search_down_client.post("/chat", json={"message": "anything"})
+    assert res.status_code == 503
+    assert res.json()["error"]["code"] == "upstream_unavailable"
+    assert search_down_client.app.state.llm.prompts == []
+
+
+def test_a_store_outage_fails_v1_chat_before_any_generation(search_down_client) -> None:
+    body = {"messages": [{"role": "user", "content": "hi"}]}
+    for stream in (False, True):
+        res = search_down_client.post("/v1/chat/completions", json={**body, "stream": stream})
+        assert res.status_code == 503
+    assert search_down_client.app.state.llm.prompts == []
+
+
+def test_a_store_outage_streams_an_error_and_no_delta(search_down_client) -> None:
+    res = search_down_client.post("/chat/stream", json={"message": "anything"})
+    lines = [json.loads(line) for line in res.text.splitlines()]
+    assert lines == [{"error": "Chroma unavailable"}]
+    assert search_down_client.app.state.llm.prompts == []
+
+
+def test_an_empty_healthy_index_still_answers_ungrounded(client) -> None:
+    res = client.post("/chat", json={"message": "anything"})
+    assert res.status_code == 200
+    assert res.json()["sources"] == []
+    assert len(client.app.state.llm.prompts) == 1
 
 
 def test_bad_uploads_are_400_envelopes(client) -> None:

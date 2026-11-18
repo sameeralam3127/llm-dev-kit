@@ -354,6 +354,8 @@ what they do, but that is disclosure, not a sandbox.
 
 ## Development
 
+New to the project? Read [CONTRIBUTING.md](CONTRIBUTING.md) first.
+
 **Python services**
 
 ```bash

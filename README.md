@@ -277,6 +277,7 @@ flowchart LR
   GW -->|/v1, /api/rag| RAG[rag-service ×2<br/>retrieval and chat]
   GW -->|/api/llm| LLM[llm-service<br/>model routing]
   WEB -->|user's token| RAG
+  WEB --> SQ[(SQLite<br/>users, chats, keys, audit)]
   MCP -->|API key| RAG
   RAG -->|caller's token| LLM
   RAG -.->|verify tokens| WEB
@@ -290,7 +291,7 @@ flowchart LR
 | Service | What it does |
 | --- | --- |
 | `nginx` | The gateway and the only published port. Routes to the app and APIs and balances across rag-service replicas. |
-| `web` | The Next.js chat app. It is also the identity service: it signs short-lived tokens and publishes their keys at `/.well-known/jwks.json`. |
+| `web` | The Next.js chat app. It is also the identity service: it signs short-lived tokens and publishes their keys at `/.well-known/jwks.json`. Users, chats, API keys and the audit log live in its SQLite database. |
 | `rag-service` | Retrieval, grounded chat, the `/v1` API, PDF ingestion and the answer cache. Two replicas by default. |
 | `llm-service` | One interface to every model: Ollama locally, cloud providers through LiteLLM. |
 | `mcp` | An MCP server over stdio for agents (profile `mcp`). |
@@ -300,6 +301,38 @@ flowchart LR
 The Python services never trust the gateway: each verifies the caller's token
 itself. [ARCHITECTURE.md](ARCHITECTURE.md) has the request flows and the Docker
 build strategy.
+
+### Where it is heading: v3
+
+Version 2.0.0 (the "v3" plan, planned for February 2027) replaces the three
+separate stores with Postgres, scopes every document to a workspace, and makes
+one service the only path to a model. The services are built and tested in the
+repository, but Compose does not start them yet.
+
+```mermaid
+flowchart LR
+  B[Browser] --> E[Edge proxy<br/>only published port]
+  SDK[Scripts and SDKs<br/>workspace API key] --> E
+  E --> W[web<br/>Next.js and identity]
+  E --> C[core-api<br/>auth, workspaces, chat, retrieval]
+  W -->|signed identity| C
+  C --> PG[(Postgres 16 + pgvector)]
+  C -->|model request| G[model-gateway]
+  I[ingest-worker] -->|claim jobs| PG
+  I -->|embeddings| G
+  G -->|audit event| PG
+  G --> O[Ollama]
+  G -.->|refused in sovereign mode| CL[Cloud models]
+```
+
+| Change from today | Why |
+| --- | --- |
+| Postgres with pgvector replaces SQLite, Chroma and Redis | One system of record, and retrieval is filtered by workspace in SQL |
+| `model-gateway` is the only caller of a model | Sovereign mode refuses cloud models before any prompt leaves the network, and every permitted call is audited |
+| `ingest-worker` claims jobs from a Postgres queue | Large PDFs no longer block a web request |
+
+The plan, its milestones and its decisions are in
+[docs/v3/ROADMAP.md](docs/v3/ROADMAP.md).
 
 ## Configuration
 

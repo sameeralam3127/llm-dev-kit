@@ -1,0 +1,22 @@
+[project]
+name = "ldk-plugin-loader-text"
+version = "0.1.0"
+description = "llm-dev-kit plugin: plain text and Markdown document loader."
+requires-python = ">=3.12"
+license = "MIT"
+dependencies = [
+    "ldk-core",
+]
+
+[project.entry-points."llm_dev_kit.plugins"]
+"loader.text" = "ldk_plugin_loader_text:plugin"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+ldk_plugin_loader_text = ["py.typed", "manifests/*.json"]
+
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"

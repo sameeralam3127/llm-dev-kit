@@ -5,6 +5,7 @@
 -e ./services/plugins/litellm
 -e ./services/plugins/chroma
 -e ./services/plugins/loader_pdf
+-e ./services/plugins/loader_text
 -e ./services/plugins/chunker_fixed
 -e ./services/plugins/tools
 -e ./services/plugins/auth

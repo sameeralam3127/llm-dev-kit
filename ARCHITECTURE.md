@@ -46,10 +46,14 @@ flowchart LR
 | `/sso/*` with the SSO profile | Keycloak |
 
 Nginx disables proxy buffering for streaming responses. It shows a startup page
-when the `web` container is unavailable. Only `/v1/*`, `/api/rag/*` and
-`/api/llm/*` keep real upstream status codes. The web app's own `/api/*` routes
-share the catch-all `location /`, so a failed web response there is currently
-rewritten to a `200` page ([#92](https://github.com/sameeralam3127/llm-dev-kit/issues/92)).
+only for page navigations, handled by the catch-all `location /`, when the `web`
+container is unavailable. Every API route keeps real upstream status codes:
+`/v1/*`, `/api/rag/*` and `/api/llm/*`, and also the web app's own `/api/*`
+routes, which have a `location /api/` of their own with no page rewrite. A
+failed or slow web response on those routes reaches the client as `502`, `503`
+or `504`. The longer `/api/rag/` and `/api/llm/` prefixes still win over
+`/api/`. `scripts/gateway-failure-check.sh` stops `web` on a live stack and
+proves both behaviours; CI runs it after the smoke test.
 
 ## Known limits of the v1 stack
 
@@ -64,7 +68,7 @@ reading the source.
 | One shared document index: separation between users ends before retrieval. This is stated in the README, and is by design until workspaces arrive in v3 | In code | [#15](https://github.com/sameeralam3127/llm-dev-kit/issues/15) |
 | Concurrent sends to one chat fail with `500` and the message is lost (a transaction times out under SQLite). Message positions are also not a database invariant | **Reproduced** (2, 3, 5 and 10 simultaneous sends) | [#82](https://github.com/sameeralam3127/llm-dev-kit/issues/82) |
 | The answer cache was keyed by question and model only, so an upload that did not go through the admin console left stale answers for up to an hour. A vector-store outage also answered from general knowledge as if no documents matched | **Fixed**: cache keys carry a document revision that every ingest and index clear bumps, and a retrieval failure is now a `503`. A relevance floor for retrieval is tracked in [#80](https://github.com/sameeralam3127/llm-dev-kit/issues/80) | [#6](https://github.com/sameeralam3127/llm-dev-kit/issues/6) |
-| The web app's failed API calls look like `200` pages at the gateway | In code | [#92](https://github.com/sameeralam3127/llm-dev-kit/issues/92) |
+| The web app's failed API calls looked like `200` pages at the gateway, hiding outages and backpressure from clients, monitors and retries | **Fixed**: the web app's `/api/*` routes have their own gateway location and return the real `502`, `503` or `504`; only page navigations get the starting page. A live-stack check in CI proves it | [#92](https://github.com/sameeralam3127/llm-dev-kit/issues/92) |
 | Invalid API keys share, and can exhaust, the token-exchange limit | In code | [#93](https://github.com/sameeralam3127/llm-dev-kit/issues/93) |
 | A failed `/v1` stream reports its error as ordinary text followed by a normal stop marker | In code | [#81](https://github.com/sameeralam3127/llm-dev-kit/issues/81) |
 | `ALLOW_LEGACY_ANONYMOUS` makes unauthenticated callers administrators when set | In code | [#88](https://github.com/sameeralam3127/llm-dev-kit/issues/88) |

@@ -432,6 +432,7 @@ npm run dev                               # http://localhost:3000
 | `make test-python` / `make test-web` | One side only. Postgres-backed tests need Docker running |
 | `make e2e` | Starts the whole stack with `docker compose up --wait`, then smoke-tests it |
 | `make smoke` | Smoke-tests a stack that is already running: health of every service, sign-in redirects, 401s on every API, security headers. Read-only, so it is safe against an instance you use |
+| `make gateway-check` | Stops the web container briefly on a running stack and checks what the gateway answers: a real `502`, `503` or `504` on the web app's API routes, the starting page on page navigations. Restarts web when done, so not for an instance in use |
 
 CI runs four jobs on every pull request and push, and again before images are
 published from `main`:
@@ -441,7 +442,7 @@ published from `main`:
 | `python` | ruff, mypy, pytest against a real Chroma and a real Postgres with pgvector |
 | `web` | typecheck, lint, Vitest, production build |
 | `images` | Builds every image and proves each one starts |
-| `stack` | Starts the full Compose stack and runs `scripts/smoke.sh` against it, including a real sign-up |
+| `stack` | Starts the full Compose stack and runs `scripts/smoke.sh` against it, including a real sign-up, then `scripts/gateway-failure-check.sh`, which stops web and checks the gateway reports it honestly |
 
 ### Releases and versions
 
@@ -483,6 +484,7 @@ deploy/keycloak/         the realm the sso profile imports
 docs/                    setup, usage, the v2 plan and migration notes, the v3 roadmap
 tests/                   Python unit, contract and service tests
 scripts/smoke.sh         smoke test of a running stack (make smoke, CI's stack job)
+scripts/gateway-failure-check.sh  what the gateway says with web down (make gateway-check)
 Makefile                 the same checks CI runs: make check, make e2e
 ```
 

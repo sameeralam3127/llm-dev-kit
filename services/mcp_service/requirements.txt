@@ -1,2 +1,4 @@
 mcp<2  # 2.x reworked the server API; upgrade with the marketplace work in #18
 pydantic-settings
+# Transitive (httpx): floor at the first release without published advisories (#85).
+certifi>=2026.10.18

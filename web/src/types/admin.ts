@@ -46,6 +46,17 @@ export interface AdminOverview {
   /** The last 14 days, today included. */
   activity: ActivityDay[]
   recentUsers: Pick<AdminUser, 'id' | 'name' | 'email' | 'role' | 'createdAt'>[]
+  /** The heaviest user-and-model pairs by message count, at most USAGE_ROWS. */
+  usage: AdminUsageRow[]
+}
+
+export interface AdminUsageRow {
+  userId: string
+  user: string
+  email: string
+  model: string
+  chats: number
+  messages: number
 }
 
 /** Any user's API key, as an admin sees it. The key itself is never listed. */
@@ -81,4 +92,53 @@ export interface AdminConfig {
   defaultModel: string
   identity: { issuer: string; audience: string }
   services: { rag: string; llm: string }
+  /** What the app enforces today, read-only (see server/rate-limit.ts). */
+  rateLimits: { name: string; limit: number; windowSeconds: number; per: string }[]
+  /** Link to an external dashboard such as Grafana, when GRAFANA_URL is set. */
+  dashboardUrl: string | null
+}
+
+export interface AuditEventDTO {
+  id: string
+  at: string
+  actorId: string | null
+  actorEmail: string | null
+  /** `user.role_changed`, `api_key.revoked`, `document.uploaded`, ... */
+  action: string
+  target: string | null
+  detail: Record<string, unknown> | null
+}
+
+export type IngestionStatus = 'running' | 'succeeded' | 'failed' | 'interrupted'
+
+export interface IngestionJobDTO {
+  id: string
+  filename: string
+  sizeBytes: number
+  /** `interrupted` is a running job that outlived any possible upload (the web app restarted). */
+  status: IngestionStatus
+  chunks: number | null
+  error: string | null
+  startedAt: string
+  finishedAt: string | null
+  /** Who uploaded it, when still known. */
+  uploadedBy: string | null
+}
+
+export interface AdminPlugin {
+  /** Which service's registry listed it. */
+  service: 'llm-service' | 'rag-service'
+  kind: string
+  name: string
+  version: string
+  enabled: boolean
+  description: string
+  /** What the plugin declares it does (disclosure, not a sandbox). */
+  permissions: string[]
+}
+
+export interface PluginInventory {
+  plugins: AdminPlugin[]
+  /** Services that could not be asked, so the list is known to be incomplete. */
+  unreachable: string[]
 }

@@ -9,8 +9,8 @@ export const dynamic = 'force-dynamic'
 type RouteContext = { params: Promise<{ keyId: string }> }
 
 export const DELETE = withErrorHandling(async (_request: Request, context: RouteContext) => {
-  await requireAdmin()
+  const admin = await requireAdmin()
   const { keyId } = await context.params
-  await revokeAnyApiKey(keyId)
+  await revokeAnyApiKey(admin, keyId)
   return new NextResponse(null, { status: 204 })
 })

@@ -4,6 +4,8 @@ import { oauthProvidersEnabled } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { getEnv } from '@/lib/env'
 import { asRole, type Role } from '@/lib/roles'
+import { type Actor, recordAudit } from '@/server/audit'
+import { RATE_LIMITS } from '@/server/rate-limit'
 import { plural } from '@/lib/utils'
 import { ApiError, type ApiErrorCode, notFound } from '@/server/http'
 import { mintAccessToken } from '@/server/identity/tokens'
@@ -13,9 +15,13 @@ import type {
   AdminConfig,
   AdminHealth,
   AdminOverview,
+  AdminPlugin,
+  AdminUsageRow,
   AdminUser,
   DocumentStats,
   HealthCheck,
+  IngestionJobDTO,
+  PluginInventory,
   StoreStatus,
   UploadResult,
 } from '@/types/admin'
@@ -57,9 +63,12 @@ export async function listUsers(): Promise<AdminUser[]> {
  * last one cannot be demoted, not even by themselves. Tokens already issued
  * keep their old role for at most five minutes; API keys follow at once.
  */
-export async function setUserRole(userId: string, role: Role): Promise<AdminUser> {
+export async function setUserRole(actor: Actor, userId: string, role: Role): Promise<AdminUser> {
   await db.$transaction(async (tx) => {
-    const target = await tx.user.findUnique({ where: { id: userId }, select: { role: true } })
+    const target = await tx.user.findUnique({
+      where: { id: userId },
+      select: { role: true, email: true },
+    })
     if (!target) throw notFound('User')
 
     if (asRole(target.role) === 'admin' && role !== 'admin') {
@@ -69,6 +78,20 @@ export async function setUserRole(userId: string, role: Role): Promise<AdminUser
       }
     }
     await tx.user.update({ where: { id: userId }, data: { role } })
+
+    // Committed with the change itself: no role change without its entry.
+    const from = asRole(target.role)
+    if (from !== role) {
+      await recordAudit(
+        actor,
+        {
+          action: 'user.role_changed',
+          target: `user:${userId}`,
+          detail: { email: target.email, from, to: role },
+        },
+        tx,
+      )
+    }
   })
 
   const updated = (await listUsers()).find((user) => user.id === userId)
@@ -190,7 +213,7 @@ export async function getOverview(): Promise<AdminOverview> {
   today.setUTCHours(0, 0, 0, 0)
   const since = new Date(today.getTime() - (ACTIVITY_DAYS - 1) * DAY_MS)
 
-  const [users, admins, chats, messages, sharedChats, apiKeys, recent, questions, newChats] =
+  const [users, admins, chats, messages, sharedChats, apiKeys, recent, questions, newChats, usage] =
     await Promise.all([
       db.user.count(),
       db.user.count({ where: { role: 'admin' } }),
@@ -210,6 +233,7 @@ export async function getOverview(): Promise<AdminOverview> {
         select: { createdAt: true },
       }),
       db.chat.findMany({ where: { createdAt: { gte: since } }, select: { createdAt: true } }),
+      usageByUserAndModel(),
     ])
 
   const activity: ActivityDay[] = Array.from({ length: ACTIVITY_DAYS }, (_, i) => ({
@@ -235,7 +259,51 @@ export async function getOverview(): Promise<AdminOverview> {
       role: asRole(user.role),
       createdAt: user.createdAt.toISOString(),
     })),
+    usage,
   }
+}
+
+/** Rows shown in the usage table: enough to spot heavy use, bounded for any instance size. */
+export const USAGE_ROWS = 50
+
+export interface UsageQueryRow {
+  userId: string
+  name: string | null
+  email: string
+  model: string
+  /** SQLite returns numbers; Postgres returns bigints for COUNT. */
+  chats: number | bigint
+  messages: number | bigint
+}
+
+/** Shape the grouped rows for the API. */
+export function toUsageRows(rows: UsageQueryRow[]): AdminUsageRow[] {
+  return rows.map((row) => ({
+    userId: row.userId,
+    user: row.name ?? row.email,
+    email: row.email,
+    model: row.model,
+    chats: Number(row.chats),
+    messages: Number(row.messages),
+  }))
+}
+
+/**
+ * Chats and messages per user and model, grouped and sorted in the database,
+ * so the cost does not grow with the number of chats held in memory.
+ */
+async function usageByUserAndModel(): Promise<AdminUsageRow[]> {
+  const rows = await db.$queryRaw<UsageQueryRow[]>`
+    SELECT c."userId" AS "userId", u."name" AS "name", u."email" AS "email",
+           c."model" AS "model",
+           COUNT(DISTINCT c."id") AS "chats", COUNT(m."id") AS "messages"
+    FROM "Chat" c
+    JOIN "User" u ON u."id" = c."userId"
+    LEFT JOIN "Message" m ON m."chatId" = c."id"
+    GROUP BY c."userId", u."name", u."email", c."model"
+    ORDER BY "messages" DESC, u."email" ASC, c."model" ASC
+    LIMIT ${USAGE_ROWS}`
+  return toUsageRows(rows)
 }
 
 // ---------------------------------------------------------------- API keys
@@ -269,12 +337,21 @@ export async function listAllApiKeys(): Promise<AdminApiKey[]> {
  * Revoke anyone's key. The Python services cache a verified key for at most
  * a minute, so it stops working within one.
  */
-export async function revokeAnyApiKey(keyId: string): Promise<void> {
+export async function revokeAnyApiKey(actor: Actor, keyId: string): Promise<void> {
+  const key = await db.apiKey.findUnique({
+    where: { id: keyId },
+    select: { name: true, prefix: true, user: { select: { email: true } } },
+  })
   const result = await db.apiKey.updateMany({
     where: { id: keyId, revokedAt: null },
     data: { revokedAt: new Date() },
   })
   if (result.count === 0) throw notFound('Active API key')
+  await recordAudit(actor, {
+    action: 'api_key.revoked',
+    target: `api_key:${keyId}`,
+    detail: { name: key?.name, prefix: key?.prefix, owner: key?.user.email },
+  })
 }
 
 // --------------------------------------------------------------- documents
@@ -350,37 +427,138 @@ export async function getDocumentStats(adminId: string): Promise<DocumentStats> 
   }
 }
 
-/** Drop every cached answer; returns how many there were. */
-export async function clearAnswerCache(adminId: string): Promise<number> {
+/** Drop every cached answer without a record: callers that already audit a bigger action use this. */
+async function dropCachedAnswers(adminId: string): Promise<number> {
   const body = await ragJson(adminId, '/cache/clear', { method: 'POST' })
   return typeof body['cleared'] === 'number' ? body['cleared'] : 0
+}
+
+/** Drop every cached answer; returns how many there were. */
+export async function clearAnswerCache(actor: Actor): Promise<number> {
+  const cleared = await dropCachedAnswers(actor.id)
+  await recordAudit(actor, { action: 'cache.cleared', detail: { cleared } })
+  return cleared
 }
 
 /**
  * Remove every document, for every user. Cached answers go too: they were
  * written from documents that no longer exist.
  */
-export async function clearDocumentIndex(adminId: string): Promise<{ cacheCleared: number | null }> {
-  const body = await ragJson(adminId, '/documents/clear', { method: 'POST' })
+export async function clearDocumentIndex(actor: Actor): Promise<{ cacheCleared: number | null }> {
+  const body = await ragJson(actor.id, '/documents/clear', { method: 'POST' })
   if (body['cleared'] !== true) {
     throw new ApiError('upstream_unavailable', 'The vector store is unreachable; nothing was removed')
   }
-  return { cacheCleared: await clearAnswerCache(adminId).catch(() => null) }
+  const cacheCleared = await dropCachedAnswers(actor.id).catch(() => null)
+  await recordAudit(actor, { action: 'document.index_cleared', detail: { cacheCleared } })
+  return { cacheCleared }
 }
 
-/** Index one PDF, then drop cached answers so none predates it. */
-export async function uploadDocument(adminId: string, file: File): Promise<UploadResult> {
+/**
+ * Index one PDF, then drop cached answers so none predates it. The upload is
+ * recorded as a job from start to finish, and as an audit entry either way.
+ */
+export async function uploadDocument(actor: Actor, file: File): Promise<UploadResult> {
+  const job = await db.ingestionJob.create({
+    data: { uploadedBy: actor.email, filename: file.name, sizeBytes: file.size, status: 'running' },
+    select: { id: true },
+  })
   const form = new FormData()
   form.append('file', file, file.name)
-  const body = await ragJson(adminId, '/ingest/pdf', {
-    method: 'POST',
-    body: form,
-    timeoutMs: UPLOAD_TIMEOUT_MS,
-  })
+  try {
+    const body = await ragJson(actor.id, '/ingest/pdf', {
+      method: 'POST',
+      body: form,
+      timeoutMs: UPLOAD_TIMEOUT_MS,
+    })
+    const chunks = typeof body['chunks'] === 'number' ? body['chunks'] : 0
+    const cacheCleared = await dropCachedAnswers(actor.id).catch(() => null)
+    await db.ingestionJob.update({
+      where: { id: job.id },
+      data: { status: 'succeeded', chunks, finishedAt: new Date() },
+    })
+    await recordAudit(actor, {
+      action: 'document.uploaded',
+      target: file.name,
+      detail: { bytes: file.size, chunks },
+    })
+    return { filename: file.name, chunks, cacheCleared }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Upload failed'
+    await db.ingestionJob.update({
+      where: { id: job.id },
+      data: { status: 'failed', error: message.slice(0, 500), finishedAt: new Date() },
+    })
+    await recordAudit(actor, {
+      action: 'document.upload_failed',
+      target: file.name,
+      detail: { bytes: file.size, error: message.slice(0, 200) },
+    })
+    throw error
+  }
+}
+
+/** A "running" job older than this outlived any possible upload: the web app restarted mid-way. */
+const INTERRUPTED_AFTER_MS = UPLOAD_TIMEOUT_MS + 60_000
+
+/** The most recent console uploads, newest first. */
+export async function listIngestionJobs(limit = 20): Promise<IngestionJobDTO[]> {
+  const rows = await db.ingestionJob.findMany({ orderBy: { startedAt: 'desc' }, take: limit })
+  const now = Date.now()
+  return rows.map((row) => ({
+    id: row.id,
+    filename: row.filename,
+    sizeBytes: row.sizeBytes,
+    status:
+      row.status === 'running' && now - row.startedAt.getTime() > INTERRUPTED_AFTER_MS
+        ? 'interrupted'
+        : (row.status as IngestionJobDTO['status']),
+    chunks: row.chunks,
+    error: row.error,
+    startedAt: row.startedAt.toISOString(),
+    finishedAt: row.finishedAt?.toISOString() ?? null,
+    uploadedBy: row.uploadedBy,
+  }))
+}
+
+// ----------------------------------------------------------------- plugins
+
+/**
+ * What each Python service has installed, from its own plugin registry.
+ * Read-only: a toggle would apply to one replica and be lost on restart.
+ */
+export async function getPluginInventory(actor: Actor): Promise<PluginInventory> {
+  const env = getEnv()
+  const { token } = await mintAccessToken(actor.id)
+  const services = [
+    { name: 'llm-service', url: env.LLM_SERVICE_URL },
+    { name: 'rag-service', url: env.RAG_SERVICE_URL },
+  ] as const
+
+  const results = await Promise.all(
+    services.map(async ({ name, url }) => {
+      const res = await probe(`${url}/plugins`, { headers: { Authorization: `Bearer ${token}` } })
+      const body = res?.ok ? ((await res.json().catch(() => null)) as unknown) : null
+      if (!Array.isArray(body)) return { name, plugins: null }
+      return { name, plugins: body.map((row) => toPlugin(name, row as Record<string, unknown>)) }
+    }),
+  )
+
   return {
-    filename: file.name,
-    chunks: typeof body['chunks'] === 'number' ? body['chunks'] : 0,
-    cacheCleared: await clearAnswerCache(adminId).catch(() => null),
+    plugins: results.flatMap((result) => result.plugins ?? []),
+    unreachable: results.filter((result) => result.plugins === null).map((result) => result.name),
+  }
+}
+
+function toPlugin(service: AdminPlugin['service'], row: Record<string, unknown>): AdminPlugin {
+  return {
+    service,
+    kind: String(row['kind'] ?? ''),
+    name: String(row['name'] ?? ''),
+    version: String(row['version'] ?? ''),
+    enabled: row['enabled'] === true,
+    description: String(row['description'] ?? ''),
+    permissions: Array.isArray(row['permissions']) ? row['permissions'].map(String) : [],
   }
 }
 
@@ -397,5 +575,15 @@ export function getConfig(): AdminConfig {
     defaultModel: env.DEFAULT_MODEL,
     identity: { issuer: env.IDENTITY_ISSUER, audience: env.IDENTITY_AUDIENCE },
     services: { rag: env.RAG_SERVICE_URL, llm: env.LLM_SERVICE_URL },
+    rateLimits: [
+      { name: 'Sign-up', ...rateLimitView(RATE_LIMITS.register) },
+      { name: 'Chat messages', ...rateLimitView(RATE_LIMITS.chat) },
+      { name: 'API key exchange', ...rateLimitView(RATE_LIMITS.tokenExchange) },
+    ],
+    dashboardUrl: env.GRAFANA_URL || null,
   }
+}
+
+function rateLimitView(rule: { limit: number; windowMs: number; per: string }) {
+  return { limit: rule.limit, windowSeconds: rule.windowMs / 1000, per: rule.per }
 }

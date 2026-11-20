@@ -50,6 +50,8 @@ const serverSchema = z.object({
   /** Base URLs the admin health page checks. */
   RAG_SERVICE_URL: z.string().url().default('http://localhost:8020'),
   LLM_SERVICE_URL: z.string().url().default('http://localhost:8010'),
+  /** Optional: a Grafana (or other dashboard) link shown on the admin health page. */
+  GRAFANA_URL: z.union([z.string().url(), z.literal('')]).optional(),
 
   /** `iss` and `aud` of the access tokens; must match the Python services. */
   IDENTITY_ISSUER: z.string().min(1).default('llm-dev-kit-web'),

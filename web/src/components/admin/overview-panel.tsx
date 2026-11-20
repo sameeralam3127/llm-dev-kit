@@ -130,6 +130,48 @@ export function OverviewPanel() {
       </div>
 
       <Panel
+        title="Usage by user and model"
+        description="Chats and messages per account and model, the 50 heaviest first"
+      >
+        {overview.data ? (
+          overview.data.usage.length ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <caption className="sr-only">Usage by user and model</caption>
+                <thead className="border-b text-xs text-muted-foreground">
+                  <tr>
+                    <th scope="col" className="px-4 py-2.5 font-medium">User</th>
+                    <th scope="col" className="px-4 py-2.5 font-medium">Model</th>
+                    <th scope="col" className="px-4 py-2.5 text-right font-medium">Chats</th>
+                    <th scope="col" className="px-4 py-2.5 text-right font-medium">Messages</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {overview.data.usage.map((row) => (
+                    <tr key={`${row.userId}:${row.model}`}>
+                      <th scope="row" className="max-w-[16rem] truncate px-4 py-2.5 font-medium">
+                        <span className="block truncate">{row.user}</span>
+                        <span className="block truncate text-xs font-normal text-muted-foreground">{row.email}</span>
+                      </th>
+                      <td className="whitespace-nowrap px-4 py-2.5 font-mono text-xs">{row.model}</td>
+                      <td className="px-4 py-2.5 text-right tabular-nums">{row.chats}</td>
+                      <td className="px-4 py-2.5 text-right tabular-nums">{row.messages}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="px-4 py-6 text-sm text-muted-foreground">No chat usage yet.</p>
+          )
+        ) : (
+          <div className="space-y-3 px-4 py-4">
+            {Array.from({ length: 3 }, (_, i) => <Skeleton key={i} className="h-10 w-full" />)}
+          </div>
+        )}
+      </Panel>
+
+      <Panel
         title="Newest accounts"
         actions={<SectionLink href={ROUTES.adminUsers}>All users</SectionLink>}
       >

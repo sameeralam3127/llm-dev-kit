@@ -8,5 +8,5 @@ export const dynamic = 'force-dynamic'
 
 export const POST = withErrorHandling(async () => {
   const admin = await requireAdmin()
-  return NextResponse.json({ data: { cleared: await clearAnswerCache(admin.id) } })
+  return NextResponse.json({ data: { cleared: await clearAnswerCache(admin) } })
 })

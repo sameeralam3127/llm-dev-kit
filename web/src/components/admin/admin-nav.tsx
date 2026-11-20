@@ -7,6 +7,7 @@ import {
   KeyRound,
   LayoutDashboard,
   type LucideIcon,
+  ScrollText,
   Users,
 } from 'lucide-react'
 import Link from 'next/link'
@@ -38,7 +39,10 @@ export const ADMIN_SECTIONS: { label: string; items: NavItem[] }[] = [
   },
   {
     label: 'System',
-    items: [{ href: ROUTES.adminSystem, label: 'Health & settings', icon: Activity }],
+    items: [
+      { href: ROUTES.adminAudit, label: 'Audit log', icon: ScrollText },
+      { href: ROUTES.adminSystem, label: 'Health & settings', icon: Activity },
+    ],
   },
 ]
 

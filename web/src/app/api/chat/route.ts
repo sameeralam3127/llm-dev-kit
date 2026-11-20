@@ -2,7 +2,7 @@ import { backendCredential, getChatProvider } from '@/lib/llm'
 import { ProviderError } from '@/lib/llm/types'
 import { sendMessageSchema } from '@/lib/validations/chat'
 import { ApiError, jsonError, parseBody, requireUser, toApiError } from '@/server/http'
-import { rateLimit } from '@/server/rate-limit'
+import { RATE_LIMITS, rateLimit } from '@/server/rate-limit'
 import {
   finalizeAssistantMessage,
   prepareTurn,
@@ -26,7 +26,7 @@ export async function POST(request: Request) {
   try {
     const user = await requireUser()
 
-    const limit = rateLimit(`chat:${user.id}`, 60, 60_000)
+    const limit = rateLimit(`chat:${user.id}`, RATE_LIMITS.chat.limit, RATE_LIMITS.chat.windowMs)
     if (!limit.ok) {
       throw new ApiError(
         'rate_limited',

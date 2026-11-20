@@ -12,4 +12,11 @@ export async function register() {
     // runs the same check, so nothing is lost.
     console.warn('ensureAdmin at startup failed:', error)
   }
+  const { ensureAuditTriggers } = await import('@/server/audit')
+  try {
+    await ensureAuditTriggers()
+  } catch (error) {
+    // Same as above: a fresh checkout may not have the table yet.
+    console.warn('audit triggers at startup failed:', error)
+  }
 }

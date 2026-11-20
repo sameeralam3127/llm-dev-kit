@@ -10,8 +10,8 @@ export const dynamic = 'force-dynamic'
 type RouteContext = { params: Promise<{ userId: string }> }
 
 export const PATCH = withErrorHandling(async (request: Request, context: RouteContext) => {
-  await requireAdmin()
+  const admin = await requireAdmin()
   const { userId } = await context.params
   const { role } = await parseBody(request, updateUserSchema)
-  return NextResponse.json({ data: await setUserRole(userId, role) })
+  return NextResponse.json({ data: await setUserRole(admin, userId, role) })
 })

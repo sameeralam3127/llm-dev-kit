@@ -196,3 +196,41 @@ model MessageVersion {
 
   @@index([messageId, position])
 }
+
+/// Who did what, for admin actions. Append-only: nothing updates or deletes a
+/// row (SQLite triggers installed at startup enforce it; see instrumentation.ts).
+/// No foreign keys, so the history outlives the accounts it mentions. `detail`
+/// is JSON text and must never hold a secret: names and prefixes only.
+model AuditEvent {
+  id         String   @id @default(cuid())
+  at         DateTime @default(now())
+  actorId    String?
+  /// A snapshot, so the entry still reads correctly after an email changes.
+  actorEmail String?
+  /// `user.role_changed`, `api_key.revoked`, `document.uploaded`, ...
+  action     String
+  /// `user:<id>`, `api_key:<id>`, a filename, ...
+  target     String?
+  detail     String?
+
+  @@index([at])
+  @@index([action, at])
+}
+
+/// One upload from the admin console, from start to finish. Files sent straight
+/// to the API (curl) bypass the web app and are not recorded here.
+model IngestionJob {
+  id         String    @id @default(cuid())
+  /// The uploader's email, as a snapshot.
+  uploadedBy String?
+  filename   String
+  sizeBytes  Int
+  /// "running" | "succeeded" | "failed"
+  status     String
+  chunks     Int?
+  error      String?
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+
+  @@index([startedAt])
+}

@@ -268,6 +268,11 @@ the logs.
 
 ## How it works
 
+![Architecture of the current stack (v1.0.0): the browser, SDKs and MCP agents reach an Nginx gateway, which routes to web, rag-service and llm-service, backed by SQLite, ChromaDB, Redis and Ollama](docs/images/architecture-v1.png)
+
+<details>
+<summary>Text version of this diagram</summary>
+
 ```mermaid
 flowchart LR
   B[Browser] --> GW
@@ -287,6 +292,8 @@ flowchart LR
   LLM --> OL[Ollama on the host]
   LLM -.->|optional| CL[Cloud models]
 ```
+
+</details>
 
 | Service | What it does |
 | --- | --- |
@@ -309,6 +316,11 @@ separate stores with Postgres, scopes every document to a workspace, and makes
 one service the only path to a model. The services are built and tested in the
 repository, but Compose does not start them yet.
 
+![Target architecture for v3 (2.0.0): an edge proxy in front of web and core-api, Postgres with pgvector as the one system of record, model-gateway as the only path to Ollama or cloud models, and an ingest-worker](docs/images/architecture-v3.png)
+
+<details>
+<summary>Text version of this diagram</summary>
+
 ```mermaid
 flowchart LR
   B[Browser] --> E[Edge proxy<br/>only published port]
@@ -324,6 +336,8 @@ flowchart LR
   G --> O[Ollama]
   G -.->|refused in sovereign mode| CL[Cloud models]
 ```
+
+</details>
 
 | Change from today | Why |
 | --- | --- |

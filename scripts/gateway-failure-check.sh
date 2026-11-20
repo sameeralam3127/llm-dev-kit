@@ -67,7 +67,13 @@ sign_in_page_up() {
   grep -q '<title>Sign in' <<<"$body"
 }
 api_answers_for_real() { [[ "$(status GET /api/admin/overview)" == "401" ]]; }
-sign_in_page_gone() { ! sign_in_page_up; }
+# The gateway serves its starting page only once a request to web fails
+# outright, so this is true only after nginx has noticed web is down.
+starting_page_shown() {
+  local body
+  body=$(curl -s --max-time 10 -H 'Accept: text/html' "$BASE/") || return 1
+  grep -qi 'starting up' <<<"$body"
+}
 
 echo "Gateway failure check against $BASE"
 
@@ -76,9 +82,12 @@ pass "web is up before the check"
 
 $COMPOSE stop web >/dev/null
 web_stopped=1
-# nginx re-resolves web every 10 s; until then it may still hold the old
-# address. Wait until the gateway has noticed, then check what it says.
-wait_for "the gateway to notice web is down" sign_in_page_gone || exit 1
+# nginx re-resolves web every 10 s. Until then it still holds the stopped
+# container's address, and a request there hangs instead of failing, so
+# "the sign-in page is gone" is not enough (a timeout looks the same). Wait
+# until the gateway really answers with its starting page, then check what
+# the API routes get.
+wait_for "the gateway to notice web is down" starting_page_shown || exit 1
 
 expect_gateway_error "GET /api/health with web down" "$(status GET /api/health)"
 expect_gateway_error "POST /api/chat with web down" "$(status POST /api/chat \

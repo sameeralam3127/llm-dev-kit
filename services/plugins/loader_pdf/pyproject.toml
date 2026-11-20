@@ -6,7 +6,9 @@ requires-python = ">=3.12"
 license = "MIT"
 dependencies = [
     "ldk-core",
-    "pypdf>=4",
+    # Parses untrusted uploads; 6.21.4 is the first release without the published
+    # parser advisories (#85).
+    "pypdf>=6.21.4",
 ]
 
 [project.entry-points."llm_dev_kit.plugins"]

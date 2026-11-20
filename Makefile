@@ -4,7 +4,7 @@
 PYTHON ?= python
 
 .DEFAULT_GOAL := help
-.PHONY: help install lint typecheck test test-python test-web build-web check up down smoke e2e
+.PHONY: help install lint typecheck test test-python test-web build-web check up down smoke gateway-check e2e
 
 help: ## List the targets
 	@grep -E '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  make %-12s %s\n", $$1, $$2}'
@@ -43,5 +43,8 @@ down: ## Stop the stack and remove containers left behind by removed services (v
 
 smoke: ## Read-only smoke test of the running stack, through the gateway
 	scripts/smoke.sh
+
+gateway-check: ## Stop the web container briefly and check the gateway's answers (not read-only: web restarts)
+	scripts/gateway-failure-check.sh
 
 e2e: up smoke ## Start the stack, then smoke-test it

@@ -269,6 +269,11 @@ the logs.
 
 ## How it works
 
+![Architecture of the current stack (v1.0.0): the browser, SDKs and MCP agents reach an Nginx gateway, which routes to web, rag-service and llm-service, backed by SQLite, ChromaDB, Redis and Ollama](docs/images/architecture-v1.png)
+
+<details>
+<summary>Text version of this diagram</summary>
+
 ```mermaid
 flowchart LR
   B[Browser] --> GW
@@ -278,6 +283,7 @@ flowchart LR
   GW -->|/v1, /api/rag| RAG[rag-service ×2<br/>retrieval and chat]
   GW -->|/api/llm| LLM[llm-service<br/>model routing]
   WEB -->|user's token| RAG
+  WEB --> SQ[(SQLite<br/>users, chats, keys, audit)]
   MCP -->|API key| RAG
   RAG -->|caller's token| LLM
   RAG -.->|verify tokens| WEB
@@ -288,10 +294,12 @@ flowchart LR
   LLM -.->|optional| CL[Cloud models]
 ```
 
+</details>
+
 | Service | What it does |
 | --- | --- |
 | `nginx` | The gateway and the only published port. Routes to the app and APIs and balances across rag-service replicas. |
-| `web` | The Next.js chat app. It is also the identity service: it signs short-lived tokens and publishes their keys at `/.well-known/jwks.json`. |
+| `web` | The Next.js chat app. It is also the identity service: it signs short-lived tokens and publishes their keys at `/.well-known/jwks.json`. Users, chats, API keys and the audit log live in its SQLite database. |
 | `rag-service` | Retrieval, grounded chat, the `/v1` API, PDF ingestion and the answer cache. Two replicas by default. |
 | `llm-service` | One interface to every model: Ollama locally, cloud providers through LiteLLM. |
 | `mcp` | An MCP server over stdio for agents (profile `mcp`). |
@@ -301,6 +309,45 @@ flowchart LR
 The Python services never trust the gateway: each verifies the caller's token
 itself. [ARCHITECTURE.md](ARCHITECTURE.md) has the request flows and the Docker
 build strategy.
+
+### Where it is heading: v3
+
+Version 2.0.0 (the "v3" plan, planned for February 2027) replaces the three
+separate stores with Postgres, scopes every document to a workspace, and makes
+one service the only path to a model. The services are built and tested in the
+repository, but Compose does not start them yet.
+
+![Target architecture for v3 (2.0.0): an edge proxy in front of web and core-api, Postgres with pgvector as the one system of record, model-gateway as the only path to Ollama or cloud models, and an ingest-worker](docs/images/architecture-v3.png)
+
+<details>
+<summary>Text version of this diagram</summary>
+
+```mermaid
+flowchart LR
+  B[Browser] --> E[Edge proxy<br/>only published port]
+  SDK[Scripts and SDKs<br/>workspace API key] --> E
+  E --> W[web<br/>Next.js and identity]
+  E --> C[core-api<br/>auth, workspaces, chat, retrieval]
+  W -->|signed identity| C
+  C --> PG[(Postgres 16 + pgvector)]
+  C -->|model request| G[model-gateway]
+  I[ingest-worker] -->|claim jobs| PG
+  I -->|embeddings| G
+  G -->|audit event| PG
+  G --> O[Ollama]
+  G -.->|refused in sovereign mode| CL[Cloud models]
+```
+
+</details>
+
+| Change from today | Why |
+| --- | --- |
+| Postgres with pgvector replaces SQLite, Chroma and Redis | One system of record, and retrieval is filtered by workspace in SQL |
+| `model-gateway` is the only caller of a model | Sovereign mode refuses cloud models before any prompt leaves the network, and every permitted call is audited |
+| `ingest-worker` claims jobs from a Postgres queue | Large PDFs no longer block a web request |
+
+The plan, its milestones and its decisions are in
+[docs/v3/ROADMAP.md](docs/v3/ROADMAP.md).
 
 ## Configuration
 
@@ -386,6 +433,7 @@ npm run dev                               # http://localhost:3000
 | `make test-python` / `make test-web` | One side only. Postgres-backed tests need Docker running |
 | `make e2e` | Starts the whole stack with `docker compose up --wait`, then smoke-tests it |
 | `make smoke` | Smoke-tests a stack that is already running: health of every service, sign-in redirects, 401s on every API, security headers. Read-only, so it is safe against an instance you use |
+| `make gateway-check` | Stops the web container briefly on a running stack and checks what the gateway answers: a real `502`, `503` or `504` on the web app's API routes, the starting page on page navigations. Restarts web when done, so not for an instance in use |
 
 CI runs four jobs on every pull request and push, and again before images are
 published from `main`:
@@ -395,7 +443,7 @@ published from `main`:
 | `python` | ruff, mypy, pytest against a real Chroma and a real Postgres with pgvector |
 | `web` | typecheck, lint, Vitest, production build |
 | `images` | Builds every image and proves each one starts |
-| `stack` | Starts the full Compose stack and runs `scripts/smoke.sh` against it, including a real sign-up |
+| `stack` | Starts the full Compose stack and runs `scripts/smoke.sh` against it, including a real sign-up, then `scripts/gateway-failure-check.sh`, which stops web and checks the gateway reports it honestly |
 
 ### Releases and versions
 
@@ -437,6 +485,7 @@ deploy/keycloak/         the realm the sso profile imports
 docs/                    setup, usage, the v2 plan and migration notes, the v3 roadmap
 tests/                   Python unit, contract and service tests
 scripts/smoke.sh         smoke test of a running stack (make smoke, CI's stack job)
+scripts/gateway-failure-check.sh  what the gateway says with web down (make gateway-check)
 Makefile                 the same checks CI runs: make check, make e2e
 ```
 

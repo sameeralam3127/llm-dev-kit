@@ -154,8 +154,10 @@ jobs:
   # Start the whole stack the way users run it (`docker compose up`) and
   # smoke-test it through the gateway with scripts/smoke.sh: health of every
   # service, sign-in redirects, 401s on every API, security headers, and a
-  # real registration. No model is installed, so this proves the wiring, not
-  # the answers. Run the same check locally with `make e2e`.
+  # real registration, then scripts/gateway-failure-check.sh for what the
+  # gateway says when web is down. No model is installed, so this proves the
+  # wiring, not the answers. Run the same checks locally with `make e2e` and
+  # `make gateway-check`.
   stack:
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -171,6 +173,13 @@ jobs:
 
       - name: Smoke test
         run: SMOKE_REGISTER=1 scripts/smoke.sh
+
+      # Stops the web container and checks what the gateway answers: a real
+      # 502, 503 or 504 on the web app's API routes, the starting page on page
+      # navigations. Starts web again and waits for the sign-in page. Last,
+      # because it briefly takes web down.
+      - name: Gateway failure check
+        run: scripts/gateway-failure-check.sh
 
       - name: Service logs
         if: failure()

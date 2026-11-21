@@ -54,7 +54,11 @@ export function LoginForm({ callbackUrl, initialError }: LoginFormProps) {
     })
 
     if (result?.error) {
-      setError('That email and password combination did not work.')
+      setError(
+        result.code === 'rate_limited'
+          ? 'Too many sign-in attempts. Wait a few minutes, then try again.'
+          : 'That email and password combination did not work.',
+      )
       setIsPending(false)
       return
     }

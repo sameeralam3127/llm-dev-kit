@@ -22,8 +22,8 @@ model User {
   image         String?
   /// Null for OAuth-only users.
   passwordHash  String?
-  /// "admin" | "user" | "viewer"; narrowed in lib/roles.ts. The earliest user
-  /// is promoted to admin whenever no admin exists (server/identity/admin.ts).
+  /// "admin" | "user" | "viewer"; narrowed in lib/roles.ts. The first admin is
+  /// made with the setup code (server/identity/admin.ts).
   role          String    @default("user")
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -112,6 +112,15 @@ model SigningKey {
   createdAt  DateTime @default(now())
 
   @@index([createdAt])
+}
+
+/// The one-time code that makes the first admin (server/identity/admin.ts).
+/// `hash` is null while no code is pending. A row existing at all marks a
+/// database that has been through roles.
+model SetupCode {
+  id        String   @id
+  hash      String?
+  createdAt DateTime @default(now())
 }
 
 // ---------------------------------------------------------------------------

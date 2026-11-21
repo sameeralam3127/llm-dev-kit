@@ -68,8 +68,10 @@ echo "AUTH_SECRET=$(openssl rand -base64 32)" >> .env
 docker compose up --build
 ```
 
-**3. Open <http://localhost:8080> and create an account.** The first account
-becomes the admin.
+**3. Open <http://localhost:8080> and create the admin account.** On first start
+the web container prints a setup code (`docker compose logs web`). Sign up with
+it in the "Setup code" field and that account becomes the admin. Accounts made
+without it are plain users.
 
 **4. Add a document and ask about it.** As the admin, open the account menu
 (bottom left) → **Admin** → **Documents** and drop a PDF onto the page. From a
@@ -358,7 +360,7 @@ The ones you are most likely to change:
 | `AUTH_SECRET` | none, required | Signs sessions and encrypts the token signing keys. `openssl rand -base64 32` |
 | `WEB_PUBLIC_URL` | `http://localhost:8080` | The address people type into their browser |
 | `GATEWAY_BIND` | `127.0.0.1` | Set `0.0.0.0` to let other machines on your network in |
-| `ALLOW_REGISTRATION` | `true` | Set `false` once your team has signed up. Covers password sign-up and a first GitHub or SSO sign-in |
+| `ALLOW_REGISTRATION` | `true` | Set `false` once the admin exists. Covers password sign-up and a first GitHub or SSO sign-in |
 | `AUTH_SSO_CREATE_USERS` | `false` | With registration closed, still create an account on a first single sign-on sign-in |
 | `DEFAULT_CHAT_MODEL` | `llama3.1` | Any model you have pulled in Ollama |
 | `OPENAI_API_KEY`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY` | unset | Enable those providers' models for everyone |

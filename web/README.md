@@ -182,9 +182,11 @@ This app is the identity service the rest of the stack trusts
 (`server/identity/`):
 
 - **Roles.** `User.role` is `admin`, `user` or `viewer` (`lib/roles.ts`, which
-  must match `ldk_core.auth`). `ensureAdmin()` promotes the earliest user
-  whenever there is no admin. It runs in the registration transaction, on
-  OAuth user creation, and at startup (`instrumentation.ts`).
+  must match `ldk_core.auth`). While no admin exists, startup
+  (`instrumentation.ts`) issues a one-time setup code and stores only its hash
+  in `SetupCode`; a sign-up that presents it becomes the admin and spends it.
+  Nothing is promoted by account age, except once, for databases that predate
+  `SetupCode`.
 - **Access tokens.** Every call to rag-service carries a 5-minute RS256 token
   for the signed-in user (`sub`, `roles`, `scope`, `iss`, `aud`), minted from
   the role in the database, so a demotion bites within one token lifetime.

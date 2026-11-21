@@ -9,8 +9,8 @@ import { authConfig } from '@/lib/auth/config'
 import { rewritingFetch } from '@/lib/auth/rewriting-fetch'
 import { db } from '@/lib/db'
 import { getEnv } from '@/lib/env'
-import { loginSchema } from '@/lib/validations/auth'
 import { ensureAdmin } from '@/server/identity/admin'
+import { authorizePassword } from '@/server/identity/password-sign-in'
 import { allowSignIn } from '@/server/identity/registration'
 
 const BCRYPT_ROUNDS = 12
@@ -36,25 +36,14 @@ function buildProviders(): NextAuthConfig['providers'] {
         email: { label: 'Email', type: 'email' },
         password: { label: 'Password', type: 'password' },
       },
-      async authorize(raw) {
-        const parsed = loginSchema.safeParse(raw)
-        if (!parsed.success) return null
-
-        const { email, password } = parsed.data
-        const user = await db.user.findUnique({ where: { email } })
-
-        const matches = await bcrypt.compare(
-          password,
-          user?.passwordHash ?? DUMMY_HASH,
-        )
-        if (!user?.passwordHash || !matches) return null
-
-        return {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          image: user.image,
-        }
+      // Limited per address and per email before bcrypt runs; see
+      // server/identity/password-sign-in.ts.
+      authorize(raw, request) {
+        return authorizePassword(raw, request, {
+          findUser: (email) => db.user.findUnique({ where: { email } }),
+          compare: (plain, hash) => bcrypt.compare(plain, hash),
+          dummyHash: DUMMY_HASH,
+        })
       },
     }),
   ]

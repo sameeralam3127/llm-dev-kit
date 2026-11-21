@@ -57,6 +57,21 @@ export function rateLimit(
   }
 }
 
+/**
+ * Whether `key` has already used `limit` in its current window, without
+ * counting this check. For limits that count only failures: check first,
+ * call `rateLimit` once the attempt has failed.
+ */
+export function isLimited(key: string, limit: number): boolean {
+  const bucket = buckets.get(key)
+  return Boolean(bucket && bucket.resetAt > Date.now() && bucket.count >= limit)
+}
+
+/** Forget `key`'s window, for example after a successful sign-in. */
+export function clearLimit(key: string): void {
+  buckets.delete(key)
+}
+
 /** Best-effort client identity for anonymous endpoints. */
 export function clientKey(request: Request, scope: string): string {
   // X-Real-IP is set by the gateway from $remote_addr, which a client cannot

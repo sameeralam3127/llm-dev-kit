@@ -31,6 +31,7 @@ export function RegisterForm({ callbackUrl }: RegisterFormProps) {
       name: formData.get('name'),
       email: formData.get('email'),
       password: formData.get('password'),
+      setupCode: formData.get('setupCode'),
     })
 
     if (!parsed.success) {
@@ -143,6 +144,21 @@ export function RegisterForm({ callbackUrl }: RegisterFormProps) {
         >
           {fieldErrors['password'] ??
             'At least 10 characters, including a letter and a number.'}
+        </p>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="setupCode">Setup code</Label>
+        <Input
+          id="setupCode"
+          name="setupCode"
+          autoComplete="off"
+          spellCheck={false}
+          aria-describedby="setup-code-hint"
+        />
+        <p id="setup-code-hint" className="text-xs text-muted-foreground">
+          Only for the first admin of a new install. Copy it from the web log;
+          leave it empty otherwise.
         </p>
       </div>
 

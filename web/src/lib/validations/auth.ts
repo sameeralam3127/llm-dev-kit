@@ -25,6 +25,12 @@ export const registerSchema = z.object({
   name: z.string().trim().min(1, 'Enter your name').max(80),
   email: emailSchema,
   password: passwordSchema,
+  setupCode: z
+    .string()
+    .trim()
+    .max(100)
+    .optional()
+    .transform((value) => value || undefined),
 })
 
 export type LoginInput = z.infer<typeof loginSchema>

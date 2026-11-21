@@ -1,15 +1,26 @@
 /**
- * Runs once when the server starts. Databases from before roles existed have
- * users but no admin; promote the earliest one so the instance is manageable.
+ * Runs once when the server starts. While the instance has no admin, prints a
+ * fresh setup code for the first sign-up to present.
  */
 export async function register() {
   if (process.env.NEXT_RUNTIME !== 'nodejs') return
-  const { ensureAdmin } = await import('@/server/identity/admin')
+  const { bootstrapAdmin } = await import('@/server/identity/admin')
   try {
-    await ensureAdmin()
+    const code = await bootstrapAdmin()
+    if (code) {
+      console.log(
+        [
+          '',
+          `First admin setup code: ${code}`,
+          'Sign up with it in the "Setup code" field to become the admin.',
+          'The code is replaced on each restart until an admin exists.',
+          '',
+        ].join('\n'),
+      )
+    }
   } catch (error) {
-    // The schema may not exist yet in a fresh dev checkout; registration
-    // runs the same check, so nothing is lost.
-    console.warn('ensureAdmin at startup failed:', error)
+    // The schema may not exist yet in a fresh dev checkout; the first sign-up
+    // creates the same state, so nothing is lost.
+    console.warn('Setup code not issued at startup:', error)
   }
 }

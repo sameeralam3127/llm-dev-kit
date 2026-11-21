@@ -129,7 +129,6 @@ vi.mock('@/server/http', () => {
   return { ApiError, notFound: (what: string) => new ApiError('not_found', `${what} not found`) }
 })
 
-import { ensureAdmin } from '@/server/identity/admin'
 import { createApiKey, resolveApiKey, revokeApiKey } from '@/server/identity/api-keys'
 import { publishedKeys, resetSigningKeyCache, ROTATE_AFTER_MS } from '@/server/identity/keys'
 import { open, seal } from '@/server/identity/secret-box'
@@ -248,23 +247,6 @@ describe('signing keys', () => {
     resetSigningKeyCache()
     await verify((await mintAccessToken('u1')).token)
     expect(state.keys).toHaveLength(2)
-  })
-})
-
-describe('first admin', () => {
-  it('promotes the earliest user when there is no admin', async () => {
-    user('newer', 'user', 1)
-    user('oldest', 'user', 5)
-    await ensureAdmin()
-    expect(state.users.find((u) => u.id === 'oldest')!.role).toBe('admin')
-    expect(state.users.find((u) => u.id === 'newer')!.role).toBe('user')
-  })
-
-  it('leaves an existing admin alone', async () => {
-    user('oldest', 'user', 5)
-    user('boss', 'admin', 1)
-    await ensureAdmin()
-    expect(state.users.filter((u) => u.role === 'admin').map((u) => u.id)).toEqual(['boss'])
   })
 })
 

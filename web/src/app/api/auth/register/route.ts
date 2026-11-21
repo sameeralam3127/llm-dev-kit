@@ -1,14 +1,16 @@
 import { NextResponse } from 'next/server'
 
-import { hashPassword } from '@/lib/auth'
+import { hashPassword, verifyPassword } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { getEnv } from '@/lib/env'
 import { registerSchema } from '@/lib/validations/auth'
-import { ensureAdmin } from '@/server/identity/admin'
+import { claimFirstAdmin, ensureRolesStarted } from '@/server/identity/admin'
 import { ApiError, parseBody, withErrorHandling } from '@/server/http'
 import { clientKey, rateLimit } from '@/server/rate-limit'
 
 export const runtime = 'nodejs'
+
+const PUBLIC_USER = { id: true, name: true, email: true, role: true } as const
 
 export const POST = withErrorHandling(async (request: Request) => {
   if (!getEnv().ALLOW_REGISTRATION) {
@@ -23,30 +25,47 @@ export const POST = withErrorHandling(async (request: Request) => {
     )
   }
 
-  const { name, email, password } = await parseBody(request, registerSchema)
+  const { name, email, password, setupCode } = await parseBody(request, registerSchema)
 
   const existing = await db.user.findUnique({
     where: { email },
-    select: { id: true },
+    select: { id: true, passwordHash: true },
   })
   if (existing) {
-    // The address is already discoverable via the sign-in form, so a clear
-    // message here costs nothing and saves a confusing dead end.
-    throw new ApiError('conflict', 'An account with that email already exists')
+    // An account made before the first admin existed is promoted by its own
+    // password together with the setup code.
+    const proven =
+      setupCode !== undefined &&
+      existing.passwordHash !== null &&
+      (await verifyPassword(password, existing.passwordHash))
+    const promoted = proven
+      ? await db.$transaction(async (tx) => {
+          await ensureRolesStarted(tx)
+          if (!(await claimFirstAdmin(setupCode, tx))) return null
+          return tx.user.update({
+            where: { id: existing.id },
+            data: { role: 'admin' },
+            select: PUBLIC_USER,
+          })
+        })
+      : null
+    if (!promoted) {
+      // The address is already discoverable via the sign-in form, so a clear
+      // message here costs nothing and saves a confusing dead end.
+      throw new ApiError('conflict', 'An account with that email already exists')
+    }
+    return NextResponse.json({ data: promoted })
   }
 
   const passwordHash = await hashPassword(password)
-  // The first account becomes the admin in the same transaction that creates
-  // it, so there is never a moment with users but no admin.
+  // The setup code is checked in the same transaction that creates the
+  // account, so a sign-up that fails spends nothing.
   const user = await db.$transaction(async (tx) => {
-    const created = await tx.user.create({
-      data: { name, email, passwordHash },
-      select: { id: true },
-    })
-    await ensureAdmin(tx)
-    return tx.user.findUniqueOrThrow({
-      where: { id: created.id },
-      select: { id: true, name: true, email: true, role: true },
+    await ensureRolesStarted(tx)
+    const admin = await claimFirstAdmin(setupCode, tx)
+    return tx.user.create({
+      data: { name, email, passwordHash, role: admin ? 'admin' : 'user' },
+      select: PUBLIC_USER,
     })
   })
 

@@ -45,7 +45,7 @@ export function ConfigPanel({ config }: { config: AdminConfig }) {
         <Row label="Public address" hint="WEB_PUBLIC_URL: what people type into their browser.">
           <span className="font-mono text-xs">{config.publicUrl ?? 'Not set (uses the request host)'}</span>
         </Row>
-        <Row label="Open registration" hint="ALLOW_REGISTRATION: anyone who can reach the app can sign up while this is on.">
+        <Row label="Open registration" hint="ALLOW_REGISTRATION: while on, anyone who can reach the app can sign up, with a password, GitHub or SSO. Off: only existing accounts sign in (AUTH_SSO_CREATE_USERS can still let new SSO users in).">
           <OnOff on={config.registrationOpen} />
         </Row>
         <Row label="Sign-in methods">

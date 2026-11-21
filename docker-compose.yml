@@ -67,6 +67,8 @@ services:
       AUTH_URL: ${WEB_PUBLIC_URL:-http://localhost:8080}
       AUTH_TRUST_HOST: "true"
       ALLOW_REGISTRATION: ${ALLOW_REGISTRATION:-true}
+      # With registration closed, still create users on a first SSO sign-in.
+      AUTH_SSO_CREATE_USERS: ${AUTH_SSO_CREATE_USERS:-false}
       # SSO (sso profile). Registered only when all three are set.
       AUTH_KEYCLOAK_ID: ${AUTH_KEYCLOAK_ID:-}
       AUTH_KEYCLOAK_SECRET: ${AUTH_KEYCLOAK_SECRET:-}

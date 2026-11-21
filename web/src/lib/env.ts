@@ -55,10 +55,22 @@ const serverSchema = z.object({
   IDENTITY_ISSUER: z.string().min(1).default('llm-dev-kit-web'),
   IDENTITY_AUDIENCE: z.string().min(1).default('llm-dev-kit'),
 
-  /** Set false to lock the instance to existing users. */
+  /**
+   * Set false to lock the instance to existing users. Covers every way in:
+   * password sign-up, and a first GitHub or SSO sign-in.
+   */
   ALLOW_REGISTRATION: z
     .enum(['true', 'false'])
     .default('true')
+    .transform((value) => value === 'true'),
+
+  /**
+   * With registration closed, still create a user on a first SSO sign-in.
+   * For when the identity provider already decides who may sign in.
+   */
+  AUTH_SSO_CREATE_USERS: z
+    .enum(['true', 'false'])
+    .default('false')
     .transform((value) => value === 'true'),
 })
 

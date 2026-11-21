@@ -1,7 +1,7 @@
 import { CredentialsSignin } from 'next-auth'
 
 import { loginSchema } from '@/lib/validations/auth'
-import { clearLimit, clientKey, isLimited, rateLimit } from '@/server/rate-limit'
+import { clearLimit, clientKey, isLimited, RATE_LIMITS, rateLimit } from '@/server/rate-limit'
 
 /**
  * Limits on password sign-in, both checked before bcrypt runs.
@@ -15,11 +15,12 @@ import { clearLimit, clientKey, isLimited, rateLimit } from '@/server/rate-limit
  *   reached without the gateway). Unknown emails count the same way, so the
  *   limit reveals nothing about which accounts exist.
  *
- * Both are in-process (see rate-limit.ts): per replica, reset on restart.
+ * Both are in-process (see rate-limit.ts): per replica, reset on restart. The
+ * numbers live in RATE_LIMITS, which the admin console shows.
  */
 export const SIGN_IN_LIMITS = {
-  perAddress: { limit: 10, windowMs: 60_000 },
-  perEmail: { limit: 5, windowMs: 15 * 60_000 },
+  perAddress: RATE_LIMITS.signIn,
+  perEmail: RATE_LIMITS.signInFailures,
 } as const
 
 /** Thrown when a limit is hit; the sign-in form shows its `code`. */

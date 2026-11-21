@@ -577,6 +577,8 @@ export function getConfig(): AdminConfig {
     services: { rag: env.RAG_SERVICE_URL, llm: env.LLM_SERVICE_URL },
     rateLimits: [
       { name: 'Sign-up', ...rateLimitView(RATE_LIMITS.register) },
+      { name: 'Password sign-in', ...rateLimitView(RATE_LIMITS.signIn) },
+      { name: 'Failed password sign-ins', ...rateLimitView(RATE_LIMITS.signInFailures) },
       { name: 'Chat messages', ...rateLimitView(RATE_LIMITS.chat) },
       { name: 'API key exchange', ...rateLimitView(RATE_LIMITS.tokenExchange) },
     ],

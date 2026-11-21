@@ -81,6 +81,13 @@ describe('configuration shown to admins', () => {
     const { rateLimits } = getConfig()
     expect(rateLimits).toEqual([
       { name: 'Sign-up', limit: RATE_LIMITS.register.limit, windowSeconds: 3600, per: 'IP address' },
+      { name: 'Password sign-in', limit: 10, windowSeconds: 60, per: 'IP address' },
+      {
+        name: 'Failed password sign-ins',
+        limit: 5,
+        windowSeconds: 900,
+        per: 'email, failed attempts only',
+      },
       { name: 'Chat messages', limit: RATE_LIMITS.chat.limit, windowSeconds: 60, per: 'user' },
       { name: 'API key exchange', limit: RATE_LIMITS.tokenExchange.limit, windowSeconds: 60, per: 'IP address' },
     ])

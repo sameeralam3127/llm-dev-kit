@@ -11,6 +11,7 @@ import { db } from '@/lib/db'
 import { getEnv } from '@/lib/env'
 import { loginSchema } from '@/lib/validations/auth'
 import { ensureAdmin } from '@/server/identity/admin'
+import { allowSignIn } from '@/server/identity/registration'
 
 const BCRYPT_ROUNDS = 12
 
@@ -99,6 +100,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
   adapter: PrismaAdapter(db),
   providers: buildProviders(),
+  callbacks: {
+    ...authConfig.callbacks,
+    // Runs before the adapter creates a user: with registration closed, a
+    // first GitHub or SSO sign-in must not open an account.
+    signIn: ({ account, user }) => allowSignIn(account, user.email),
+  },
   events: {
     // An OAuth sign-in can create the very first user.
     async createUser() {

@@ -20,6 +20,8 @@ const SIGN_IN_ERRORS: Record<string, string> = {
   OAuthAccountNotLinked:
     'That email already has an account here. Sign in with its password instead: accounts are not linked by email, so owning the same address elsewhere cannot take one over.',
   AccessDenied: 'Access was denied.',
+  RegistrationClosed:
+    'This instance is not accepting new accounts, so signing in with that account did not create one. Ask an administrator for access.',
   Configuration: 'Sign-in is misconfigured on this server. Ask your administrator to check its logs.',
 }
 

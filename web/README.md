@@ -224,7 +224,8 @@ This app is the identity service the rest of the stack trusts
 | `IDENTITY_ISSUER` / `IDENTITY_AUDIENCE` | | `llm-dev-kit-web` / `llm-dev-kit` | `iss` and `aud` of access tokens; must match `AUTH_ISSUER` / `AUTH_AUDIENCE` on the Python services |
 | `DEFAULT_MODEL` | | `llama3.1` | |
 | `LLM_REQUEST_TIMEOUT_MS` | | `120000` | |
-| `ALLOW_REGISTRATION` | | `true` | `false` locks to existing users |
+| `ALLOW_REGISTRATION` | | `true` | `false` locks to existing users: no password sign-up, and no new accounts from a first GitHub or SSO sign-in |
+| `AUTH_SSO_CREATE_USERS` | | `false` | With registration closed, still create a user on a first SSO sign-in |
 | `AUTH_GITHUB_ID` / `AUTH_GITHUB_SECRET` | | — | Both needed to enable OAuth |
 | `AUTH_KEYCLOAK_ID` / `_SECRET` / `_ISSUER` | | — | All three enable single sign-on; `_INTERNAL_ISSUER` is how the server reaches the same issuer from inside Docker |
 

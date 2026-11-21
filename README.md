@@ -358,7 +358,8 @@ The ones you are most likely to change:
 | `AUTH_SECRET` | none, required | Signs sessions and encrypts the token signing keys. `openssl rand -base64 32` |
 | `WEB_PUBLIC_URL` | `http://localhost:8080` | The address people type into their browser |
 | `GATEWAY_BIND` | `127.0.0.1` | Set `0.0.0.0` to let other machines on your network in |
-| `ALLOW_REGISTRATION` | `true` | Set `false` once your team has signed up |
+| `ALLOW_REGISTRATION` | `true` | Set `false` once your team has signed up. Covers password sign-up and a first GitHub or SSO sign-in |
+| `AUTH_SSO_CREATE_USERS` | `false` | With registration closed, still create an account on a first single sign-on sign-in |
 | `DEFAULT_CHAT_MODEL` | `llama3.1` | Any model you have pulled in Ollama |
 | `OPENAI_API_KEY`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY` | unset | Enable those providers' models for everyone |
 | `KEYCLOAK_ADMIN_PASSWORD`, `AUTH_KEYCLOAK_*` | unset | Single sign-on; see the SSO section of `.env.example` |
@@ -524,8 +525,7 @@ sign-on and the admin console. Every release is listed in
 - The v3 services (`core_api`, `ingest_worker`, `model_gateway`) are in the
   repository and fully tested, but Compose does not start them yet.
 - Known security problems are tracked in the open on the project's issue
-  tracker. Until the registration fix ships, do not rely on
-  `ALLOW_REGISTRATION=false` while GitHub sign-in is on.
+  tracker.
 
 **Next:** 1.1.0 closes the open security issues for today's stack. Then v3
 Milestone 1 ("secure core") moves the web app onto Postgres and core-api and

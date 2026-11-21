@@ -259,10 +259,17 @@ app's own `/api/auth`, `/api/chat`, `/api/chats`, `/api/folders` and
 
 Before putting this in front of real users:
 
+- **Password sign-in is rate limited** before bcrypt runs: 10 attempts a
+  minute per client address, and 5 failed attempts per email every 15
+  minutes (unknown emails count too). A correct password clears that email's
+  failures. The per-address limit relies on the gateway's `X-Real-IP`; reached
+  directly on :3000 a client can set that header itself, which is why the
+  per-email limit exists.
 - **Rate limiting is per-process.** `server/rate-limit.ts` is an in-memory
   fixed-window limiter — enough to blunt credential stuffing on a single
-  instance. Behind more than one replica it becomes per-replica; move it to
-  Redis (the compose stack already runs one) before treating it as a quota.
+  instance. Behind more than one replica it becomes per-replica, and a restart
+  resets it; move it to Redis (the compose stack already runs one) before
+  treating it as a quota.
 - **Move off SQLite** for concurrent writers. See the one-word change above.
 - **Set `AUTH_SECRET` to a real random value.** The committed `.env` is a
   development placeholder.

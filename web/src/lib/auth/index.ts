@@ -9,7 +9,6 @@ import { authConfig } from '@/lib/auth/config'
 import { rewritingFetch } from '@/lib/auth/rewriting-fetch'
 import { db } from '@/lib/db'
 import { getEnv } from '@/lib/env'
-import { ensureAdmin } from '@/server/identity/admin'
 import { authorizePassword } from '@/server/identity/password-sign-in'
 import { allowSignIn } from '@/server/identity/registration'
 
@@ -24,6 +23,10 @@ const DUMMY_HASH = '$2a$12$M4d1x8Vd4bYvUq1JzPPPyeaJXwqQ0oR4YyU2vD4xNQZbkOJ4ktYAe
 
 export async function hashPassword(plain: string): Promise<string> {
   return bcrypt.hash(plain, BCRYPT_ROUNDS)
+}
+
+export async function verifyPassword(plain: string, hash: string): Promise<boolean> {
+  return bcrypt.compare(plain, hash)
 }
 
 function buildProviders(): NextAuthConfig['providers'] {
@@ -94,12 +97,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     // Runs before the adapter creates a user: with registration closed, a
     // first GitHub or SSO sign-in must not open an account.
     signIn: ({ account, user }) => allowSignIn(account, user.email),
-  },
-  events: {
-    // An OAuth sign-in can create the very first user.
-    async createUser() {
-      await ensureAdmin()
-    },
   },
   secret: process.env.AUTH_SECRET,
 })

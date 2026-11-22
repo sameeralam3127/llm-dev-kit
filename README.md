@@ -225,7 +225,7 @@ Each layer of the system, where it lives, and how far along it is.
 | Hybrid search (vector and full text, fused) | [`services/core_api`](services/core_api) | 🚧 |
 | Background ingestion queue | [`services/ingest_worker`](services/ingest_worker) | 🚧 |
 | Model gateway and sovereign mode | [`services/model_gateway`](services/model_gateway): the only path to a model, with an audit trail | 🚧 |
-| Reranking | — | 🧭 |
+| Reranking | — | 🧭 [issue](https://github.com/sameeralam3127/llm-dev-kit/issues/158) |
 | Evaluation of retrieval and citations | — | 🧭 [issue](https://github.com/sameeralam3127/llm-dev-kit/issues/80) |
 | LLM tracing | — | 🧭 [issue](https://github.com/sameeralam3127/llm-dev-kit/issues/16) |
 | Guardrails and prompt-injection defence | — | 🧭 [issue](https://github.com/sameeralam3127/llm-dev-kit/issues/49) |

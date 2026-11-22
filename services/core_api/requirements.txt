@@ -9,5 +9,5 @@ httpx
 # Transitive (httpx, fastapi): floors at the first releases without published
 # advisories. ingest-worker and model-gateway install core-api, so they inherit
 # these (#85).
-certifi>=2026.10.18
+certifi>=2026.10.23
 opentelemetry-api>=1.45.2

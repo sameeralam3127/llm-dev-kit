@@ -1,0 +1,50 @@
+name: Feature request
+description: Suggest something new or a change to how something works.
+title: "feat: "
+labels: ["type: feature"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What are you trying to do, and what gets in the way today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you propose
+      description: How it could work. Rough is fine.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you considered
+  - type: dropdown
+    id: layer
+    attributes:
+      label: Which layer of the AI stack
+      description: See "The AI stack, piece by piece" in the README.
+      options:
+        - Inference and model routing
+        - Embeddings
+        - Document loading and chunking
+        - Retrieval and RAG
+        - API or MCP
+        - Authentication and access
+        - Observability
+        - Evaluation
+        - Guardrails
+        - Agents
+        - Web app
+        - Infrastructure and CI
+        - Not sure
+    validations:
+      required: true
+  - type: checkboxes
+    id: help
+    attributes:
+      label: Contributing
+      options:
+        - label: I would like to build this myself, with some guidance.

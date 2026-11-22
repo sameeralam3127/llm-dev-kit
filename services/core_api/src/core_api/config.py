@@ -32,6 +32,11 @@ class Settings(CoreSettings):
     model_gateway_url: str = Field(default="http://model-gateway:8010", alias="MODEL_GATEWAY_URL")
     #: core-api's own service credential for model-gateway.
     model_gateway_token: SecretStr = Field(alias="MODEL_GATEWAY_TOKEN")
+    #: The web app's service credential, for keeping the shared team workspace
+    #: in step with its users' roles (api/internal.py). Unset: those calls are 401.
+    web_service_token: SecretStr | None = Field(
+        default=None, alias="WEB_SERVICE_TOKEN", min_length=32
+    )
     default_chat_model: str = Field(default="llama3.1", alias="DEFAULT_CHAT_MODEL")
     embed_model: str = Field(default="nomic-embed-text", alias="EMBED_MODEL")
     embed_dimension: int = Field(default=768, alias="EMBED_DIMENSION")

@@ -67,6 +67,14 @@ class WorkspaceStore(Protocol):
         """``user_id``'s role in the workspace, or ``None`` if not a member."""
         ...
 
+    async def ensure_workspace(self, *, slug: str, name: str) -> UUID:
+        """The workspace with ``slug``, created (with no members) if missing."""
+        ...
+
+    async def set_role(self, workspace_id: UUID, user_id: str, role: Role | None) -> Role | None:
+        """Set ``user_id``'s role, or remove them for ``None``; returns the previous role."""
+        ...
+
 
 class ApiKeyStore(Protocol):
     """Workspace API keys."""

@@ -254,7 +254,8 @@ This app is the identity service the rest of the stack trusts
 | `AUTH_SECRET` | ✓ | — | ≥ 32 chars; `openssl rand -base64 32` |
 | `AUTH_URL` | | `http://localhost:3000` | Public origin |
 | `LLM_BASE_URL` | | `http://localhost:8080/api/rag/v1` | OpenAI-compatible `/v1` |
-| `CORE_API_URL` | | — | v3 core-api base URL (the lite profile). When set, chat goes to its `/v1` in the user's personal workspace, created on first use, instead of `LLM_BASE_URL` |
+| `CORE_API_URL` | | — | v3 core-api base URL (the lite profile). When set, chat goes to its `/v1` in the instance's shared team workspace instead of `LLM_BASE_URL`; each user's role there follows their web role (admin → owner, user → editor, viewer → reader) |
+| `WEB_SERVICE_TOKEN` | with `CORE_API_URL` | — | The web app's credential for core-api's internal calls that keep team roles in step; must equal core-api's `WEB_SERVICE_TOKEN` (≥ 32 chars) |
 | `LLM_API_KEY` | | — | Only for a third-party backend. Unset (or `sk-local*`) sends each user's own access token, which rag-service requires |
 | `IDENTITY_ISSUER` / `IDENTITY_AUDIENCE` | | `llm-dev-kit-web` / `llm-dev-kit` | `iss` and `aud` of access tokens; must match `AUTH_ISSUER` / `AUTH_AUDIENCE` on the Python services |
 | `DEFAULT_MODEL` | | `llama3.1` | |

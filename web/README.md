@@ -295,6 +295,12 @@ Before putting this in front of real users:
   failures. The per-address limit relies on the gateway's `X-Real-IP`; reached
   directly on :3000 a client can set that header itself, which is why the
   per-email limit exists.
+- **API key exchange limits failures only.** The Python services exchange
+  `sk-ldk-` keys at `/api/identity/token`. A valid key is never limited; 60
+  invalid keys a minute per caller address are answered with 401, after which
+  that address gets 429 with `Retry-After`. The services reach this route
+  from inside the network, so they share one address and one failure budget:
+  a flood of made-up keys slows other invalid callers, never valid ones.
 - **Rate limiting is per-process.** `server/rate-limit.ts` is an in-memory
   fixed-window limiter — enough to blunt credential stuffing on a single
   instance. Behind more than one replica it becomes per-replica, and a restart

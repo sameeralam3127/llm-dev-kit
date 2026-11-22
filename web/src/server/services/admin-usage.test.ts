@@ -89,7 +89,12 @@ describe('configuration shown to admins', () => {
         per: 'email, failed attempts only',
       },
       { name: 'Chat messages', limit: RATE_LIMITS.chat.limit, windowSeconds: 60, per: 'user' },
-      { name: 'API key exchange', limit: RATE_LIMITS.tokenExchange.limit, windowSeconds: 60, per: 'IP address' },
+      {
+        name: 'Invalid API keys',
+        limit: 60,
+        windowSeconds: 60,
+        per: 'caller address, invalid keys only',
+      },
     ])
   })
 

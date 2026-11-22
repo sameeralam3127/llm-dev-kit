@@ -12,7 +12,7 @@ interface Bucket {
 export const RATE_LIMITS = {
   register: { limit: 5, windowMs: 60 * 60 * 1000, per: 'IP address' },
   chat: { limit: 60, windowMs: 60_000, per: 'user' },
-  tokenExchange: { limit: 300, windowMs: 60_000, per: 'IP address' },
+  tokenExchange: { limit: 60, windowMs: 60_000, per: 'caller address, invalid keys only' },
   signIn: { limit: 10, windowMs: 60_000, per: 'IP address' },
   signInFailures: { limit: 5, windowMs: 15 * 60_000, per: 'email, failed attempts only' },
 } as const

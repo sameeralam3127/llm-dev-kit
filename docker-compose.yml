@@ -120,6 +120,8 @@ services:
       # Callers are verified against the web app's keys (AUTH_JWKS_URL defaults
       # to http://web:3000/.well-known/jwks.json); see docs/v2/MIGRATION.md.
       ALLOW_LEGACY_ANONYMOUS: ${ALLOW_LEGACY_ANONYMOUS:-false}
+      # Refused unless this is loopback; see .env.example.
+      GATEWAY_BIND: ${GATEWAY_BIND:-127.0.0.1}
       # Optional: also accept access tokens straight from an OIDC issuer.
       AUTH_OIDC_ISSUER: ${AUTH_OIDC_ISSUER:-}
       AUTH_OIDC_DISCOVERY_URL: ${AUTH_OIDC_DISCOVERY_URL:-}
@@ -162,6 +164,8 @@ services:
       DEFAULT_CHAT_MODEL: ${DEFAULT_CHAT_MODEL:-llama3.1}
       CACHE_TTL: ${CACHE_TTL:-3600}
       ALLOW_LEGACY_ANONYMOUS: ${ALLOW_LEGACY_ANONYMOUS:-false}
+      # Refused unless this is loopback; see .env.example.
+      GATEWAY_BIND: ${GATEWAY_BIND:-127.0.0.1}
       AUTH_OIDC_ISSUER: ${AUTH_OIDC_ISSUER:-}
       AUTH_OIDC_DISCOVERY_URL: ${AUTH_OIDC_DISCOVERY_URL:-}
     ulimits: *high-connection-ulimits

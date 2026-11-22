@@ -580,7 +580,7 @@ export function getConfig(): AdminConfig {
       { name: 'Password sign-in', ...rateLimitView(RATE_LIMITS.signIn) },
       { name: 'Failed password sign-ins', ...rateLimitView(RATE_LIMITS.signInFailures) },
       { name: 'Chat messages', ...rateLimitView(RATE_LIMITS.chat) },
-      { name: 'API key exchange', ...rateLimitView(RATE_LIMITS.tokenExchange) },
+      { name: 'Invalid API keys', ...rateLimitView(RATE_LIMITS.tokenExchange) },
     ],
     dashboardUrl: env.GRAFANA_URL || null,
   }

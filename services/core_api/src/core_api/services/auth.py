@@ -8,6 +8,9 @@ Two kinds of credential are accepted:
 * a **workspace API key** (``ldk_…``), checked against its stored HMAC.
 
 Anything else, including no credential, is a 401 that says nothing about why.
+That includes v2 personal keys (``sk-ldk-…``) and tokens obtained with one:
+they never expire and span every workspace the user is in, so treating them as
+a session would skip the workspace binding and scope limits of ``ldk_`` keys.
 """
 
 from __future__ import annotations
@@ -21,6 +24,8 @@ from core_api.ports.stores import ApiKeyStore, WorkspaceStore
 from ldk_core.auth import bearer_token, unauthorized
 from ldk_core.errors import ErrorCode, ServiceError, bad_request
 from ldk_core.ports import AuthProvider
+
+V2_PERSONAL_KEY_PREFIX = "sk-ldk-"
 
 
 class AccessResolver:
@@ -46,8 +51,13 @@ class AccessResolver:
             raise unauthorized()
         if token.startswith(api_keys.KEY_PREFIX):
             return await self._from_api_key(token)
+        # Refused before the verifier, which would exchange it at the web app.
+        if token.startswith(V2_PERSONAL_KEY_PREFIX):
+            raise unauthorized()
         if self._sessions.accepts(token):
             principal = await self._sessions.authenticate(token)
+            if principal.kind != "user":
+                raise unauthorized()
             return Caller(user_id=principal.subject, via="session")
         raise unauthorized()
 

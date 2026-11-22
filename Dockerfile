@@ -7,11 +7,11 @@
 # nginx.conf is bind-mounted by docker-compose so config changes need no rebuild.
 # The "starting up" fallback page is baked in — it's static and never changes.
 # 1.27.3+ is needed for re-resolving upstreams (`resolve` in nginx.conf).
-FROM nginx:1.27.5-alpine AS gateway
+FROM nginx:1.27.5-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10 AS gateway
 COPY nginx/starting.html /usr/share/nginx/html/_starting.html
 
 
-FROM python:3.12-slim AS base
+FROM python:3.12-slim@sha256:5e2bdb1b0d542d5039cffb8181c65930093949194a65c365dfb1b0fe13a4fa5b AS base
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \

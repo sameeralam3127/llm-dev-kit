@@ -108,8 +108,10 @@ class Authenticator:
         self.providers = tuple(providers)
         self.allow_anonymous = allow_anonymous
         if allow_anonymous:
-            _log.warning(
-                "ALLOW_LEGACY_ANONYMOUS is on: requests without a credential get full access",
+            _log.error(
+                "ALLOW_LEGACY_ANONYMOUS is on: every request without a credential gets "
+                "full admin access. Move clients to personal API keys; the setting is "
+                "removed in 2.0.0.",
             )
 
     async def authenticate(self, authorization: str | None) -> Principal:

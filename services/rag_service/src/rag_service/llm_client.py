@@ -69,13 +69,11 @@ class LLMServiceClient:
         prompt: str,
         model: str | None = None,
         api_key: str | None = None,
-        options: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         payload = {
             "prompt": prompt,
             "model": model,
             "api_key": api_key,
-            "options": options or {},
         }
         try:
             res = await self._client.post("/generate", json=payload)
@@ -95,13 +93,11 @@ class LLMServiceClient:
         prompt: str,
         model: str | None = None,
         api_key: str | None = None,
-        options: dict[str, Any] | None = None,
     ) -> AsyncIterator[str]:
         payload = {
             "prompt": prompt,
             "model": model,
             "api_key": api_key,
-            "options": options or {},
         }
         try:
             async with self._client.stream("POST", "/generate/stream", json=payload) as res:

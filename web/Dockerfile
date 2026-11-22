@@ -54,6 +54,9 @@ COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/.next ./.next
 COPY --from=build /app/public ./public
 COPY --from=build /app/package.json ./package.json
+# `next start` reads runtime settings (poweredByHeader, the proxy body limit)
+# from here; without it they silently fall back to the defaults.
+COPY --from=build /app/next.config.mjs ./next.config.mjs
 COPY --from=build /app/prisma ./prisma
 
 # SQLite lives here; mount a volume so history survives container replacement.

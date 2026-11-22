@@ -25,7 +25,7 @@ function makeQueryClient() {
   })
 }
 
-export function Providers({ children }: { children: React.ReactNode }) {
+export function Providers({ children, nonce }: { children: React.ReactNode; nonce?: string }) {
   // Created in state, not at module scope: a module-level client would be
   // shared across requests on the server and leak one user's data to the next.
   const [queryClient] = useState(makeQueryClient)
@@ -39,6 +39,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
           defaultTheme="system"
           enableSystem
           disableTransitionOnChange
+          // The theme script runs before hydration; the CSP needs its nonce.
+          nonce={nonce}
         >
           <TooltipProvider delayDuration={300} skipDelayDuration={0}>
             {children}

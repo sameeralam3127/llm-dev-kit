@@ -256,6 +256,7 @@ the health checks needs `Authorization: Bearer <api key>`.
 | `POST /api/rag/chat` | viewer | Grounded chat with its sources; `"api_key"` in the body uses your own cloud key for that call |
 | `POST /api/rag/chat/stream` | viewer | The same, streamed as NDJSON (`meta`, `delta`, `done`) |
 | `GET /api/llm/models` | viewer | Local and configured cloud models |
+| `POST /api/llm/generate`, `POST /api/llm/generate/stream` | viewer | Generate from a prompt; the only tunables are `temperature` (0 to 2) and `max_tokens` (1 to 4096) |
 | `POST /api/rag/ingest/pdf` | user | Add a PDF (multipart field `file`, up to 64 MB) |
 | `GET /api/rag/documents/stats`, `POST /api/rag/documents/clear` | admin | Count or clear the index |
 | `GET /api/rag/cache/stats`, `POST /api/rag/cache/clear` | admin | Inspect or clear cached answers |

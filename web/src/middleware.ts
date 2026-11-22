@@ -1,8 +1,9 @@
 import NextAuth from 'next-auth'
-import { NextResponse } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 
 import { authConfig } from '@/lib/auth/config'
 import { ROUTES } from '@/lib/constants'
+import { contentSecurityPolicy, newNonce } from '@/lib/security/csp'
 
 const { auth } = NextAuth(authConfig)
 
@@ -21,9 +22,21 @@ const PUBLIC_PREFIXES = [
   '/api/health',
 ]
 
-export default auth((request) => {
+/**
+ * Pass the request on with its CSP. Next.js reads the nonce from the request's
+ * Content-Security-Policy header and puts it on its own scripts; the root
+ * layout reads `x-nonce` for the theme script.
+ */
+function next(request: NextRequest, nonce: string, csp: string) {
+  const headers = new Headers(request.headers)
+  headers.set('x-nonce', nonce)
+  headers.set('Content-Security-Policy', csp)
+  return NextResponse.next({ request: { headers } })
+}
+
+function route(request: NextRequest & { auth: unknown }, nonce: string, csp: string) {
   const { pathname, search } = request.nextUrl
-  const isAuthenticated = Boolean(request.auth?.user)
+  const isAuthenticated = Boolean((request.auth as { user?: unknown } | null)?.user)
   const isPublic = PUBLIC_PREFIXES.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
   )
@@ -33,7 +46,7 @@ export default auth((request) => {
     return NextResponse.redirect(new URL(ROUTES.home, request.nextUrl))
   }
 
-  if (isAuthenticated || isPublic) return NextResponse.next()
+  if (isAuthenticated || isPublic) return next(request, nonce, csp)
 
   // API callers get a machine-readable 401 rather than an HTML redirect they
   // would have to sniff for.
@@ -49,6 +62,14 @@ export default auth((request) => {
     loginUrl.searchParams.set('callbackUrl', `${pathname}${search}`)
   }
   return NextResponse.redirect(loginUrl)
+}
+
+export default auth((request) => {
+  const nonce = newNonce()
+  const csp = contentSecurityPolicy(nonce, { dev: process.env.NODE_ENV === 'development' })
+  const response = route(request, nonce, csp)
+  response.headers.set('Content-Security-Policy', csp)
+  return response
 })
 
 export const config = {

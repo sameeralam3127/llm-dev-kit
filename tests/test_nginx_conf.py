@@ -65,3 +65,8 @@ def test_every_proxied_location_sends_the_client_address(name: str, body: str) -
         f"location {name} sets its own proxy_set_header, so nginx drops the "
         f"server-level ones; it must repeat {sorted(missing)}"
     )
+
+
+def test_server_header_hides_the_nginx_version() -> None:
+    conf = CONF.read_text()
+    assert re.search(r"^\s*server_tokens\s+off;", conf, re.MULTILINE)

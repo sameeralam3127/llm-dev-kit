@@ -23,6 +23,13 @@ const nextConfig = {
             key: 'Permissions-Policy',
             value: 'camera=(), microphone=(), geolocation=()',
           },
+          // Sign-in providers redirect the whole page rather than opening a
+          // popup, so no other window needs a handle on this one.
+          { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
+          { key: 'Cross-Origin-Resource-Policy', value: 'same-origin' },
+          // No Cross-Origin-Embedder-Policy: require-corp would block GitHub
+          // avatars, which send no CORP header, and nothing here needs
+          // cross-origin isolation. The CSP is set per request in middleware.ts.
         ],
       },
     ]

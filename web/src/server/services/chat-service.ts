@@ -1,5 +1,6 @@
 import 'server-only'
 
+import type { Prisma } from '@prisma/client'
 import { nanoid } from 'nanoid'
 
 import { LIMITS } from '@/lib/constants'
@@ -219,7 +220,35 @@ export async function prepareTurn(
   userId: string,
   input: SendMessageInput,
 ): Promise<PreparedTurn> {
-  const chat = await db.chat.findFirst({
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await db.$transaction((tx) => writeTurn(tx, userId, input), TURN_TRANSACTION)
+    } catch (error) {
+      // (chatId, position) is unique. Turns are serialised (lib/db.ts), so a
+      // conflict means another process wrote to this chat; read again and retry.
+      if (attempt < TURN_ATTEMPTS && isUniqueConflict(error)) continue
+      throw error
+    }
+  }
+}
+
+const TURN_ATTEMPTS = 3
+
+/** Turns queue behind each other on SQLite's single connection; give them room. */
+const TURN_TRANSACTION = { maxWait: 10_000, timeout: 10_000 }
+
+function isUniqueConflict(error: unknown): boolean {
+  return (error as { code?: unknown } | null)?.code === 'P2002'
+}
+
+async function writeTurn(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  input: SendMessageInput,
+): Promise<PreparedTurn> {
+  // Read inside the transaction: positions derived from a read taken before
+  // it were how simultaneous sends ended up sharing a position.
+  const chat = await tx.chat.findFirst({
     where: { id: input.chatId, userId },
     include: { messages: { orderBy: { position: 'asc' } } },
   })
@@ -228,7 +257,7 @@ export async function prepareTurn(
   const model = input.model ?? chat.model
   const messages = chat.messages
 
-  return db.$transaction(async (tx) => {
+  {
     let userMessageRow
     let assistantMessageId: string
     let historyEnd: number
@@ -376,7 +405,7 @@ export async function prepareTurn(
       model,
       providerMessages: buildProviderMessages(chat.systemPrompt, history),
     }
-  })
+  }
 }
 
 function buildProviderMessages(

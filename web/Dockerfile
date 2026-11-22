@@ -29,6 +29,12 @@ COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# sqlite (default) or postgresql, for the v3 lite profile. `npm run build`
+# regenerates the Prisma client from the switched schema, and the runtime stage
+# copies that schema for `prisma db push`.
+ARG DATABASE_PROVIDER=sqlite
+RUN node prisma/use-provider.mjs "$DATABASE_PROVIDER"
+
 # Config is validated at startup, but `next build` still evaluates it while
 # prerendering the few static pages, so placeholders have to exist here.
 #

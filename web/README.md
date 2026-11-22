@@ -176,15 +176,19 @@ through previous answers instead of losing them.
 ### Database
 
 Prisma with SQLite by default: no setup, file-backed, survives restarts. The
-schema deliberately avoids enums, `Json` and scalar lists, so moving to Postgres
-is a one-word change:
+schema deliberately avoids enums, `Json` and scalar lists, so it runs on
+Postgres unchanged apart from the provider. The image chooses at build time:
 
-```prisma
-datasource db {
-  provider = "postgresql"   // was "sqlite"
-  url      = env("DATABASE_URL")
-}
+```bash
+docker build --build-arg DATABASE_PROVIDER=postgresql -t llm-dev-kit-web:pg web
+# DATABASE_URL=postgresql://user:pass@postgres:5432/ldk?schema=app
 ```
+
+`?schema=app` keeps the web app's tables in their own Postgres schema, beside
+core-api's `core` schema in the same database (the v3 lite profile). Locally,
+`node prisma/use-provider.mjs postgresql` switches the checked-out schema; do
+not commit that. Where the two databases differ (the audit log's append-only
+triggers, case-insensitive search), the code asks `lib/db-kind.ts`.
 
 Roles and folder colours are stored as strings and narrowed back to union types
 in `server/mappers.ts`.
@@ -320,6 +324,7 @@ Before putting this in front of real users:
   With several, a writer waiting for SQLite's lock ties up one of the query
   engine's threads (one per CPU), and simultaneous chat turns stalled until
   their transactions expired. One connection queues the work instead.
-- **Move off SQLite** for concurrent writers. See the one-word change above.
+- **Move off SQLite** for concurrent writers: build the image for Postgres, as
+  described under Database above.
 - **Set `AUTH_SECRET` to a real random value.** The committed `.env` is a
   development placeholder.

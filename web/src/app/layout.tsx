@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next'
+import { headers } from 'next/headers'
 
 import { Providers } from '@/components/providers'
 import { Toaster } from '@/components/ui/toaster'
@@ -26,15 +27,18 @@ export const viewport: Viewport = {
   maximumScale: 5,
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  // Set by middleware.ts with the Content-Security-Policy; reading it renders
+  // every page per request, which a nonce-based policy needs anyway.
+  const nonce = (await headers()).get('x-nonce') ?? undefined
   return (
     // suppressHydrationWarning: next-themes sets the class on <html> before
     // React hydrates, which is a deliberate mismatch.
     <html lang="en" suppressHydrationWarning>
       <body className="min-h-dvh bg-background font-sans text-foreground">
-        <Providers>
+        <Providers nonce={nonce}>
           {children}
           <Toaster />
         </Providers>

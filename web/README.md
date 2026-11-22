@@ -273,6 +273,15 @@ Before putting this in front of real users:
   that address gets 429 with `Retry-After`. The services reach this route
   from inside the network, so they share one address and one failure budget:
   a flood of made-up keys slows other invalid callers, never valid ones.
+- **Content-Security-Policy** is set per request in `middleware.ts`
+  (`lib/security/csp.ts`): scripts run only with that response's nonce, so
+  injected markup cannot run script. Images load only from this app and
+  GitHub avatars, so a model answer cannot make the browser send data to
+  another host; an image link in an answer from elsewhere does not display.
+  `Cross-Origin-Opener-Policy` and `Cross-Origin-Resource-Policy` are
+  `same-origin`. There is no `Cross-Origin-Embedder-Policy`: `require-corp`
+  would block GitHub avatars, and nothing here needs cross-origin isolation.
+  Reading the nonce renders every page per request.
 - **Rate limiting is per-process.** `server/rate-limit.ts` is an in-memory
   fixed-window limiter — enough to blunt credential stuffing on a single
   instance. Behind more than one replica it becomes per-replica, and a restart

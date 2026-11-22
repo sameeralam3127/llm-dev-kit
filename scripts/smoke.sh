@@ -52,9 +52,28 @@ pass "sign-in page answers"
 expect 307 "signed-out visitors are sent to sign-in" "$(status GET /)"
 expect 307 "the admin console needs a session" "$(status GET /admin)"
 
-headers=$(curl -s -D - -o /dev/null "$BASE/login")
+# Headers and body from one response, so the page's script nonces can be
+# compared with the policy's.
+login_headers=$(mktemp)
+login_body=$(mktemp)
+trap 'rm -f "$login_headers" "$login_body"' EXIT
+curl -s -D "$login_headers" -o "$login_body" "$BASE/login"
+headers=$(tr -d '\r' <"$login_headers")
 grep -qi '^x-frame-options: *DENY' <<<"$headers" && pass "X-Frame-Options: DENY" || fail "X-Frame-Options header missing"
 grep -qi '^x-content-type-options: *nosniff' <<<"$headers" && pass "X-Content-Type-Options: nosniff" || fail "X-Content-Type-Options header missing"
+grep -qi '^cross-origin-opener-policy: *same-origin' <<<"$headers" && pass "Cross-Origin-Opener-Policy: same-origin" || fail "Cross-Origin-Opener-Policy header missing"
+grep -qi '^cross-origin-resource-policy: *same-origin' <<<"$headers" && pass "Cross-Origin-Resource-Policy: same-origin" || fail "Cross-Origin-Resource-Policy header missing"
+grep -qi '^x-powered-by:' <<<"$headers" && fail "X-Powered-By reveals the framework" || pass "no X-Powered-By header"
+grep -qiE '^server: *nginx/[0-9]' <<<"$headers" && fail "Server header reveals the nginx version" || pass "Server header has no version"
+csp=$(grep -i '^content-security-policy:' <<<"$headers" || true)
+nonce=$(grep -oE "'nonce-[A-Za-z0-9+/=]+'" <<<"$csp" | head -1 | sed -E "s/'nonce-(.*)'/\1/" || true)
+if [[ -n "$nonce" ]] && ! grep -qiE "script-src[^;]*unsafe-inline" <<<"$csp"; then
+  pass "Content-Security-Policy allows scripts by nonce only"
+else
+  fail "Content-Security-Policy is missing or allows inline scripts: ${csp:-none}"
+fi
+unsigned=$(grep -oE '<script[^>]*>' "$login_body" | grep -vc "nonce=\"$nonce\"" || true)
+[[ -n "$nonce" && "$unsigned" == "0" ]] && pass "every script on the page carries the nonce" || fail "$unsigned script tag(s) without the response's nonce"
 
 # 2. Every Python service answers its public health check through the gateway.
 expect 200 "rag-service health" "$(status GET /api/rag/health)"

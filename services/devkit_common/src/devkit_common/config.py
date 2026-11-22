@@ -67,8 +67,11 @@ class Settings(CoreSettings):
     auth_oidc_discovery_url: str | None = Field(default=None, alias="AUTH_OIDC_DISCOVERY_URL")
     auth_oidc_audience: str = Field(default="llm-dev-kit", alias="AUTH_OIDC_AUDIENCE")
     auth_oidc_roles_claim: str = Field(default="realm_access.roles", alias="AUTH_OIDC_ROLES_CLAIM")
-    # Pre-v2 behaviour, for one release: no credential means full access.
+    # Pre-v2 behaviour: no credential means full access. Removed in 2.0.0, and
+    # refused at startup unless the gateway listens on loopback only.
     allow_legacy_anonymous: bool = Field(default=False, alias="ALLOW_LEGACY_ANONYMOUS")
+    # The interface the gateway publishes on, as docker compose sets it.
+    gateway_bind: str = Field(default="127.0.0.1", alias="GATEWAY_BIND")
     # mcp-service's own credential, a personal API key (sk-ldk-...).
     ldk_api_key: str | None = Field(default=None, alias="LDK_API_KEY", repr=False)
 

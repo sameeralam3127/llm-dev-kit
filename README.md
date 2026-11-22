@@ -365,7 +365,7 @@ The ones you are most likely to change:
 | `DEFAULT_CHAT_MODEL` | `llama3.1` | Any model you have pulled in Ollama |
 | `OPENAI_API_KEY`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY` | unset | Enable those providers' models for everyone |
 | `KEYCLOAK_ADMIN_PASSWORD`, `AUTH_KEYCLOAK_*` | unset | Single sign-on; see the SSO section of `.env.example` |
-| `ALLOW_LEGACY_ANONYMOUS` | `false` | Temporary escape hatch for clients without keys; see [MIGRATION.md](docs/v2/MIGRATION.md) |
+| `ALLOW_LEGACY_ANONYMOUS` | `false` | Temporary escape hatch for clients without keys, refused unless `GATEWAY_BIND` is loopback. Removed in 2.0.0; see [MIGRATION.md](docs/v2/MIGRATION.md) |
 
 Want Ollama in Docker instead of on the host? Run
 `docker compose --profile ollama up` and set

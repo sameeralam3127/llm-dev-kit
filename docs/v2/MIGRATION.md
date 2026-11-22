@@ -74,16 +74,18 @@ key for at most 60 seconds.
 ### The escape hatch: `ALLOW_LEGACY_ANONYMOUS`
 
 If you cannot update every client at once, set
-`ALLOW_LEGACY_ANONYMOUS=true` in `.env` and run `docker compose up -d`. For
-**one release** the old behaviour comes back:
+`ALLOW_LEGACY_ANONYMOUS=true` in `.env` and run `docker compose up -d`. Until
+**2.0.0** the old behaviour comes back:
 
 - a call without a credential gets full access, as before;
 - a Bearer that is not a personal key or an access token is treated as a
   cloud provider key on `/v1`, as before;
 - a credential that *is* a key or token must still be valid.
 
-Every anonymous request is logged as a warning. The setting is removed in the
-release after v2; plan to be off it by then.
+Every anonymous request is logged as a warning. Because an anonymous caller is
+an administrator, the services refuse to start with the setting on unless
+`GATEWAY_BIND` is loopback (`127.0.0.1`, the default): it never faces a
+network. The setting is **removed in 2.0.0**; plan to be off it by then.
 
 ### Accounts are no longer linked by email
 

@@ -99,3 +99,14 @@ def test_the_dev_overlay_is_opt_in() -> None:
 )
 def test_host_ip_parsing(entry: str | int | dict[str, Any], host_ip: str) -> None:
     assert _host_ip(entry) == host_ip
+
+
+@pytest.mark.parametrize("service", ["llm-service", "rag-service"])
+def test_services_reading_legacy_anonymous_know_the_gateway_bind(service: str) -> None:
+    """They refuse ALLOW_LEGACY_ANONYMOUS off loopback, so they must see the
+    same GATEWAY_BIND the gateway's port uses, default included."""
+    services = _services(ROOT / "docker-compose.yml")
+    environment = services[service]["environment"]
+    assert "ALLOW_LEGACY_ANONYMOUS" in environment
+    gateway_port = services[GATEWAY]["ports"][0]
+    assert _default(environment["GATEWAY_BIND"]) == _host_ip(gateway_port) == "127.0.0.1"

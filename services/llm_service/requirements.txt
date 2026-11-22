@@ -4,5 +4,5 @@ pydantic-settings
 uvicorn[standard]
 # Transitive (httpx, fastapi): floors at the first releases without published
 # advisories, so a stale pip cache or image layer cannot keep the old ones (#85).
-certifi>=2026.10.18
+certifi>=2026.10.23
 opentelemetry-api>=1.45.2

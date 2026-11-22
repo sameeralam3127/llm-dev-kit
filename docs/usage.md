@@ -45,6 +45,13 @@ curl -H "Authorization: Bearer $KEY" -F "file=@handbook.pdf" \
 - **PDF only, up to 64 MB per file.** Text is read from the PDF's text layer
   and there is no OCR: scanned pages add nothing, and a PDF with no text at
   all is refused with a 400.
+- **Parsing has limits too.** A PDF can cost far more to read than its size
+  suggests, so a file with more than 2,000 pages, more than 4 million
+  characters of text, or that takes longer than 60 seconds to read is refused
+  with a 400 saying which limit it hit, and so is a document that would split
+  into more than 10,000 chunks. Split a very large document into parts. The
+  limits are the `loader.pdf` plugin's `max_pages`, `max_chars` and
+  `max_seconds` settings.
 - **Uploading the same file twice indexes it twice.** To replace a document,
   clear the index and upload everything again.
 - **Cached answers follow the documents.** Answers are cached for an hour by

@@ -6,11 +6,13 @@ import itertools
 from contextlib import asynccontextmanager
 
 import psycopg
+import pytest
 from core_api_helpers import FakeEmbedder, add_member, as_user, bearer, new_key, new_workspace
-from pdfs import make_pdf
+from pdfs import make_pdf, make_shared_stream_pdf
 from psycopg_pool import AsyncConnectionPool
 
 from core_api.adapters.postgres import PostgresStore
+from ingest_worker import pipeline
 from ingest_worker.pipeline import process_next
 from ldk_core.errors import ErrorCode, ServiceError
 from ldk_plugin_chunker_fixed import FixedWindowChunker
@@ -29,12 +31,12 @@ async def store_for(db_url):
         yield PostgresStore(pool)
 
 
-async def work(db_url, embedder=None, *, worker_id="w1", batch_size=32):
+async def work(db_url, embedder=None, *, worker_id="w1", batch_size=32, loader=None):
     async with store_for(db_url) as store:
         return await process_next(
             queue=store,
             store=store,
-            loader=PdfLoader(),
+            loader=loader or PdfLoader(),
             chunker=FixedWindowChunker(),
             embedder=embedder or FakeEmbedder(),
             worker_id=worker_id,
@@ -290,3 +292,25 @@ def test_listing_never_shows_another_workspaces_documents(client, issuer) -> Non
         "/api/v1/documents", headers={**as_user(issuer, "bob"), "X-Workspace-Id": mine}
     )
     assert peek.status_code == 403
+
+
+def test_a_pdf_over_a_parsing_limit_fails_at_once_without_retries(client, issuer, db_url) -> None:
+    ws = new_workspace(client, issuer)
+    bomb = make_shared_stream_pdf(pages=400)
+    assert upload(client, issuer, ws, bomb).status_code == 202
+    assert asyncio.run(work(db_url, loader=PdfLoader(max_chars=50_000))) == "failed"
+    ((state, attempts, error),) = sql(
+        db_url, "SELECT state, attempts, last_error FROM core.ingestion_jobs"
+    )
+    assert (state, attempts) == ("failed", 1)
+    assert "characters" in error
+
+
+def test_a_document_over_the_chunk_cap_fails_at_once(
+    client, issuer, db_url, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(pipeline, "MAX_CHUNKS_PER_DOCUMENT", 1)
+    ws = new_workspace(client, issuer)
+    assert upload(client, issuer, ws, make_pdf([LONG_TEXT])).status_code == 202
+    assert asyncio.run(work(db_url)) == "failed"
+    assert sql(db_url, "SELECT state, attempts FROM core.ingestion_jobs") == [("failed", 1)]

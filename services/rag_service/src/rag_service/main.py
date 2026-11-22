@@ -16,6 +16,7 @@ from ldk_core.errors import ServiceError, bad_request
 from ldk_core.observability import get_logger
 from ldk_core.plugins import CHUNKER, LOADER, VECTOR_STORE, PluginKind, PluginRegistry
 from ldk_core.ports import ChunkRecord, VectorStore
+from ldk_core.ports.chunker import MAX_CHUNKS_PER_DOCUMENT, check_chunk_count
 from rag_service.cache import ChatCache
 from rag_service.chat import answer_query, stream_answer
 from rag_service.llm_client import LLMServiceClient
@@ -128,7 +129,9 @@ async def ingest_pdf(request: Request, file: UploadFile = File(...)) -> IngestRe
 
     data = await file.read()
     document = await asyncio.to_thread(loader.load, data, filename=file.filename)
-    chunks = await asyncio.to_thread(chunker.chunk, document)
+    chunks = check_chunk_count(
+        await asyncio.to_thread(chunker.chunk, document), MAX_CHUNKS_PER_DOCUMENT
+    )
 
     embeddings = await request.app.state.llm.embed_many([c.text for c in chunks])
     document_id = uuid4().hex

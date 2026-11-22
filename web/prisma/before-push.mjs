@@ -8,8 +8,12 @@
 // fresh database and on every start.
 import { PrismaClient } from '@prisma/client'
 
-// One connection: the ranking lives in a temporary table, which is per connection.
 const url = process.env.DATABASE_URL ?? ''
+// SQLite only: sqlite_master does not exist elsewhere, and failing here would
+// stop the container from starting after a switch to another database.
+if (!url.startsWith('file:')) process.exit(0)
+
+// One connection: the ranking lives in a temporary table, which is per connection.
 const db = new PrismaClient({
   datasourceUrl: url.includes('connection_limit=') ? url : `${url}${url.includes('?') ? '&' : '?'}connection_limit=1`,
 })

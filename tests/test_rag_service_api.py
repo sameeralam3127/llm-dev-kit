@@ -409,3 +409,14 @@ def test_one_requests_identity_does_not_leak_into_the_next(legacy_client, issuer
     forwarded = legacy_client.app.state.llm.forwarded
     assert forwarded[0] and forwarded[0].startswith("Bearer ")
     assert forwarded[1] is None
+
+
+def test_a_document_over_the_chunk_cap_is_refused_before_embedding(
+    client, store: MemoryVectorStore, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(main, "MAX_CHUNKS_PER_DOCUMENT", 1)
+    res = _upload(client, make_pdf(["x " * 400]))
+    assert res.status_code == 400
+    assert "chunks" in res.json()["error"]["message"]
+    assert not store._collections.get("documents")
+    assert client.app.state.cache.bumps == 0

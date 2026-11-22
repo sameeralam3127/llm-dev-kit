@@ -28,8 +28,9 @@ interface ModelListResponse {
 
 /**
  * Talks to any OpenAI-compatible `/v1` server. In this repo that is
- * `rag-service`, which answers with retrieval-augmented context, but the same
- * adapter works against Ollama's compat layer or a hosted API.
+ * `rag-service`, or core-api in the lite profile, both of which answer with
+ * retrieval-augmented context; the same adapter works against Ollama's compat
+ * layer or a hosted API.
  */
 export class OpenAICompatibleProvider implements ChatProvider {
   readonly name = 'openai-compatible'
@@ -41,6 +42,7 @@ export class OpenAICompatibleProvider implements ChatProvider {
       method: 'GET',
       ...(options.signal ? { signal: options.signal } : {}),
       ...(options.authorization ? { authorization: options.authorization } : {}),
+      ...(options.workspaceId ? { workspaceId: options.workspaceId } : {}),
     })
     const payload = (await response.json()) as ModelListResponse
 
@@ -63,6 +65,7 @@ export class OpenAICompatibleProvider implements ChatProvider {
       method: 'POST',
       ...(request.signal ? { signal: request.signal } : {}),
       ...(request.authorization ? { authorization: request.authorization } : {}),
+      ...(request.workspaceId ? { workspaceId: request.workspaceId } : {}),
       body: JSON.stringify({
         model: request.model,
         messages: request.messages.map((message) => ({
@@ -108,7 +111,13 @@ export class OpenAICompatibleProvider implements ChatProvider {
 
   private async request(
     path: string,
-    init: { method: string; body?: string; signal?: AbortSignal; authorization?: string },
+    init: {
+      method: string
+      body?: string
+      signal?: AbortSignal
+      authorization?: string
+      workspaceId?: string
+    },
   ): Promise<Response> {
     const credential = init.authorization ?? this.config.apiKey
     const timeout = AbortSignal.timeout(this.config.timeoutMs)
@@ -124,6 +133,7 @@ export class OpenAICompatibleProvider implements ChatProvider {
         headers: {
           'Content-Type': 'application/json',
           ...(credential ? { Authorization: `Bearer ${credential}` } : {}),
+          ...(init.workspaceId ? { 'X-Workspace-Id': init.workspaceId } : {}),
         },
         ...(init.body === undefined ? {} : { body: init.body }),
         cache: 'no-store',

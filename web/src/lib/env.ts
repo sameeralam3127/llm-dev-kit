@@ -36,6 +36,14 @@ const serverSchema = z.object({
    */
   LLM_BASE_URL: z.string().url().default('http://localhost:8080/api/rag/v1'),
   /**
+   * core-api's base URL (the lite profile). When set, chat goes to its /v1 in
+   * the user's personal workspace instead of LLM_BASE_URL.
+   */
+  CORE_API_URL: z
+    .union([z.string().url(), z.literal('')])
+    .optional()
+    .transform((value) => value || undefined),
+  /**
    * Only for a backend that is not this repo's rag-service (raw Ollama, a
    * hosted API). Unset, or a `sk-local*` placeholder, means "rag-service":
    * each request then carries the signed-in user's own access token.

@@ -3,6 +3,7 @@ import 'server-only'
 import { getEnv } from '@/lib/env'
 import { OpenAICompatibleProvider } from '@/lib/llm/openai-compatible'
 import type { ChatProvider, ProviderModel } from '@/lib/llm/types'
+import { personalWorkspaceId } from '@/server/core-api/workspaces'
 import { mintAccessToken } from '@/server/identity/tokens'
 
 let provider: ChatProvider | null = null
@@ -12,7 +13,7 @@ export function getChatProvider(): ChatProvider {
   if (!provider) {
     const env = getEnv()
     provider = new OpenAICompatibleProvider({
-      baseUrl: env.LLM_BASE_URL,
+      baseUrl: backendBaseUrl(),
       ...(env.LLM_API_KEY ? { apiKey: env.LLM_API_KEY } : {}),
       timeoutMs: env.LLM_REQUEST_TIMEOUT_MS,
     })
@@ -20,14 +21,32 @@ export function getChatProvider(): ChatProvider {
   return provider
 }
 
+/** core-api's `/v1` when CORE_API_URL is set (the lite profile), else LLM_BASE_URL. */
+export function backendBaseUrl(): string {
+  const env = getEnv()
+  return env.CORE_API_URL ? `${env.CORE_API_URL.replace(/\/$/, '')}/v1` : env.LLM_BASE_URL
+}
+
+export interface BackendOptions {
+  authorization?: string
+  workspaceId?: string
+}
+
 /**
- * The credential to call the model backend with on `userId`'s behalf: their
- * own short-lived access token, so rag-service and llm-service see who is
- * asking. A configured third-party key replaces it.
+ * How to call the model backend on `userId`'s behalf: with their own
+ * short-lived access token, so the services see who is asking. core-api also
+ * needs the workspace to act in: the user's personal one. A configured
+ * third-party key replaces the token.
  */
-export async function backendCredential(userId: string): Promise<string | undefined> {
-  if (getEnv().LLM_API_KEY) return undefined
-  return (await mintAccessToken(userId)).token
+export async function backendOptions(userId: string): Promise<BackendOptions> {
+  const env = getEnv()
+  if (env.CORE_API_URL) {
+    const { token } = await mintAccessToken(userId)
+    const baseUrl = env.CORE_API_URL.replace(/\/$/, '')
+    return { authorization: token, workspaceId: await personalWorkspaceId(userId, token, { baseUrl }) }
+  }
+  if (env.LLM_API_KEY) return {}
+  return { authorization: (await mintAccessToken(userId)).token }
 }
 
 const MODEL_CACHE_TTL_MS = 60_000
@@ -43,8 +62,7 @@ export async function getAvailableModels(userId: string): Promise<ProviderModel[
 
   const env = getEnv()
   try {
-    const authorization = await backendCredential(userId)
-    const models = await getChatProvider().listModels(authorization ? { authorization } : {})
+    const models = await getChatProvider().listModels(await backendOptions(userId))
     const resolved =
       models.length > 0 ? models : [fallbackModel(env.DEFAULT_MODEL)]
     modelCache = { models: resolved, expiresAt: now + MODEL_CACHE_TTL_MS }

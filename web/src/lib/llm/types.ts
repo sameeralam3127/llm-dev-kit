@@ -12,11 +12,14 @@ export interface CompletionRequest {
   temperature?: number
   /** Bearer credential for this call: the user's access token. */
   authorization?: string
+  /** core-api's workspace to act in, sent as X-Workspace-Id. */
+  workspaceId?: string
 }
 
 export interface ListModelsOptions {
   signal?: AbortSignal
   authorization?: string
+  workspaceId?: string
 }
 
 export interface ProviderModel {

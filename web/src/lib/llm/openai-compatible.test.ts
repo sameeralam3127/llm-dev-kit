@@ -47,3 +47,29 @@ describe('OpenAI-compatible streams', () => {
     await expect(collect()).rejects.toThrow(/ended before/)
   })
 })
+
+describe('acting in a workspace', () => {
+  it('sends X-Workspace-Id on chat and model calls when given one', async () => {
+    const seen: Array<string | null> = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init: RequestInit) => {
+        seen.push(new Headers(init.headers).get('x-workspace-id'))
+        if (url.endsWith('/models')) return new Response(JSON.stringify({ data: [{ id: 'llama3.1' }] }))
+        return new Response(chunk('ok') + 'data: [DONE]\n\n')
+      }),
+    )
+    const provider = new OpenAICompatibleProvider({ baseUrl: 'http://core.test/v1', timeoutMs: 5000 })
+    await provider.listModels({ authorization: 't', workspaceId: 'ws-1' })
+    for await (const _ of provider.streamCompletion({
+      model: 'llama3.1',
+      messages: [{ role: 'user', content: 'hi' }],
+      authorization: 't',
+      workspaceId: 'ws-1',
+    })) {
+      // drain
+    }
+    await provider.listModels({ authorization: 't' })
+    expect(seen).toEqual(['ws-1', 'ws-1', null])
+  })
+})

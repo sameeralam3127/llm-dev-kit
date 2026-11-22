@@ -287,6 +287,10 @@ Before putting this in front of real users:
   instance. Behind more than one replica it becomes per-replica, and a restart
   resets it; move it to Redis (the compose stack already runs one) before
   treating it as a quota.
+- **SQLite runs on one connection** (`lib/db.ts` adds `connection_limit=1`).
+  With several, a writer waiting for SQLite's lock ties up one of the query
+  engine's threads (one per CPU), and simultaneous chat turns stalled until
+  their transactions expired. One connection queues the work instead.
 - **Move off SQLite** for concurrent writers. See the one-word change above.
 - **Set `AUTH_SECRET` to a real random value.** The committed `.env` is a
   development placeholder.

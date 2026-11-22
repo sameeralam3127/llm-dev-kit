@@ -70,4 +70,6 @@ HEALTHCHECK --interval=15s --timeout=5s --retries=10 --start-period=20s \
   CMD node -e "fetch('http://127.0.0.1:3000/login').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
 # Push the schema on boot so a fresh volume is usable without a manual step.
-CMD ["sh", "-c", "npx prisma db push --skip-generate && npm run start"]
+# Duplicate message positions from older versions are renumbered first, or the
+# push could not add their unique index.
+CMD ["sh", "-c", "node prisma/before-push.mjs && npx prisma db push --skip-generate && npm run start"]

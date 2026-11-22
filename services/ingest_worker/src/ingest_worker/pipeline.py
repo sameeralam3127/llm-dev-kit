@@ -12,6 +12,7 @@ from core_api.domain.ingestion import IndexedChunk, backoff_seconds, batched, is
 from core_api.ports.jobs import IngestionStore, Job, JobQueue
 from ldk_core.observability import correlation_scope, get_logger
 from ldk_core.ports import Chunker, DocumentLoader, Embedder
+from ldk_core.ports.chunker import MAX_CHUNKS_PER_DOCUMENT, check_chunk_count
 
 Outcome = Literal["succeeded", "retrying", "failed", "lease_lost"]
 
@@ -57,10 +58,13 @@ async def _index(
     if blob is None:
         raise LookupError(f"document {job.document_id} has no stored upload")
     # Parsing and chunking are CPU-bound pure Python. Running them in a thread
-    # keeps this process's event loop responsive; running the worker as its own
-    # process keeps that work away from the API's GIL entirely.
+    # keeps this process's event loop responsive. loader.pdf parses in a child
+    # process it kills at its time limit, well inside the lease, and its limit
+    # errors are invalid_request, so the job fails at once instead of retrying.
     document = await asyncio.to_thread(loader.load, blob.data, filename=blob.filename)
-    pieces = await asyncio.to_thread(chunker.chunk, document)
+    pieces = check_chunk_count(
+        await asyncio.to_thread(chunker.chunk, document), MAX_CHUNKS_PER_DOCUMENT
+    )
 
     indexed: list[IndexedChunk] = []
     for batch in batched(pieces, batch_size):

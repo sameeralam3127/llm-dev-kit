@@ -1,9 +1,17 @@
 {
   "schema_version": 1,
   "name": "pdf",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "kind": "loader",
-  "description": "Extracts text from PDF files page by page with pypdf. Scanned (image-only) PDFs yield no text.",
+  "description": "Extracts text from PDF files page by page with pypdf, in a child process with page, character and time limits. Scanned (image-only) PDFs yield no text.",
   "permissions": [],
-  "config_schema": {"type": "object", "additionalProperties": false}
+  "config_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "max_pages": {"type": "integer", "minimum": 1},
+      "max_chars": {"type": "integer", "minimum": 1},
+      "max_seconds": {"type": "number", "exclusiveMinimum": 0}
+    }
+  }
 }

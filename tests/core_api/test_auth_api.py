@@ -144,3 +144,23 @@ def test_key_lifecycle_is_audited(client, issuer, db_url) -> None:
             )
         ]
     assert actions == ["workspace.create", "api_key.create", "api_key.revoke"]
+
+
+# ------------------------------------------------- v2 personal keys are not sessions
+# A v2 personal key (sk-ldk-...) never expires and carries the user's every
+# workspace. Accepted as a session it would skip the workspace binding and
+# scope limits that v3 keys enforce, and the audit log would say "session".
+
+
+def test_a_v2_personal_key_is_refused_and_never_exchanged(client, issuer) -> None:
+    issuer.api_keys["sk-ldk-" + "a" * 43] = "user"
+    headers = bearer("sk-ldk-" + "a" * 43)
+    assert client.get("/api/v1/me", headers=headers).status_code == 401
+    res = client.post("/api/v1/workspaces", json={"slug": "spawn", "name": "x"}, headers=headers)
+    assert res.status_code == 401
+    assert issuer.exchanges == 0
+
+
+def test_a_token_obtained_with_a_personal_key_is_not_a_session(client, issuer) -> None:
+    exchanged = {"Authorization": f"Bearer {issuer.token('user', sub='alice', amr=['api_key'])}"}
+    assert client.get("/api/v1/me", headers=exchanged).status_code == 401

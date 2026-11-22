@@ -39,12 +39,13 @@ its emphasis in four ways.
    workspace-scoped retrieval and a mandatory model gateway remove the largest
    structural limits (see "Known limits" in [ARCHITECTURE.md](../../ARCHITECTURE.md)).
    Nothing in the review argues for a different architecture.
-3. **Consider a staged cutover when step (f) starts.** The current plan is one
-   migration of the web app from SQLite to Postgres. The review's alternative is
-   to put v3 behind a flag, import documents into workspace-scoped collections,
-   compare retrieval offline, and switch reads per workspace with a rollback.
-   It costs more steps and makes every one reversible. Decide at the start of
-   step (f); not decided here.
+3. **Cutover: opt-in first, then the default (decided November 2026).** v1
+   stays the default `docker compose up` while v3 runs beside it as
+   `--profile lite`, with its own Postgres. A migration script copies accounts,
+   chats and keys from SQLite and leaves the v1 data untouched, so going back
+   means switching profiles. 2.0.0 makes v3 the default. This was chosen over a
+   per-workspace staged switch (more reversible, but too many steps for
+   February) and a one-shot migration (no way back without a backup).
 4. **Defer scale and ecosystem work until v3 ships.** The 10,000-user target and
    any-cloud hosting ([#53](https://github.com/sameeralam3127/llm-dev-kit/issues/53)),
    the Helm chart ([#41](https://github.com/sameeralam3127/llm-dev-kit/issues/41)),
@@ -171,8 +172,21 @@ teaches.
 | c | Ingestion | `FOR UPDATE SKIP LOCKED`, idempotency, atomic replace in one transaction | ✅ |
 | d | Retrieval and chat | Hybrid search and Reciprocal Rank Fusion; citations | ✅ |
 | e | model-gateway sovereignty | Egress by construction, not by policy; audit trails | ✅ |
-| f | Web integration | Moving Prisma from SQLite to Postgres; acting on a user's behalf. Also fixes #51 | Next |
+| f | Web integration, in the sub-steps below | Moving Prisma from SQLite to Postgres; acting on a user's behalf. Also fixes #51 | In progress |
 | g | Compose, CI and docs | Docker secrets, read-only filesystems, image scanning, SBOMs. Also fixes #55 | |
+
+#### Step (f) sub-steps
+
+Each is one pull request into `v3`, reviewed before the next starts. v1's
+SQLite path keeps working throughout.
+
+| Sub-step | Builds |
+| --- | --- |
+| f1 | core-api accepts only real user sessions: v2 personal keys and tokens exchanged from them get 401 (#51) |
+| f2 | Acting on a user's behalf: each web user gets a personal workspace in core-api on first use, and the chat provider calls core-api `/v1` with the user's session token and workspace when `CORE_API_URL` is set, and rag-service otherwise |
+| f3 | Prisma on Postgres: a Postgres variant of the schema in its own `app` schema, chosen at build time, so the `lite` web image uses Postgres and the default image stays on SQLite |
+| f4 | Documents through core-api: the admin documents page uploads to and lists from `/api/v1/documents` in the lite profile |
+| f5 | Migration: a script that copies users, accounts, chats, messages and API keys from SQLite to Postgres, idempotent and read-only on the SQLite side. v1 keeps only chunks, not the original PDFs, so documents are re-uploaded (or exported as text and re-ingested) |
 
 ### Definition of done
 

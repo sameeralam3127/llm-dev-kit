@@ -552,6 +552,10 @@ marked `good first issue` are small and self-contained, and those marked
 `help wanted` are open for anyone. The [roadmap](docs/v3/ROADMAP.md) says which
 release each piece of work belongs to.
 
+Found a security problem? Please report it privately, as
+[SECURITY.md](SECURITY.md) describes, not in a public issue. Everyone taking
+part is expected to follow the [code of conduct](CODE_OF_CONDUCT.md).
+
 ## Troubleshooting
 
 | Symptom | Fix |
@@ -571,6 +575,7 @@ More in [docs/setup.md](docs/setup.md#troubleshooting).
 | [docs/setup.md](docs/setup.md) | Install step by step and fix common problems |
 | [docs/usage.md](docs/usage.md) | Add documents, chat, and bring in your team |
 | [CHANGELOG.md](CHANGELOG.md) | See what changed in each release |
+| [SECURITY.md](SECURITY.md) | Report a vulnerability privately |
 | [docs/v2/MIGRATION.md](docs/v2/MIGRATION.md) | Upgrade clients to API keys |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Understand request flows and the Docker build |
 | [docs/v2/PLAN.md](docs/v2/PLAN.md) | See how the v1 features were planned and built |

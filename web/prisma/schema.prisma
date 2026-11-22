@@ -188,7 +188,10 @@ model Message {
   chat     Chat             @relation(fields: [chatId], references: [id], onDelete: Cascade)
   versions MessageVersion[]
 
-  @@index([chatId, position])
+  /// Unique: two messages at one position meant a lost turn. Existing
+  /// duplicates are renumbered before the schema is pushed
+  /// (prisma/before-push.mjs).
+  @@unique([chatId, position])
 }
 
 /// Previous contents of an assistant message, so the UI can page through

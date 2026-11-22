@@ -100,6 +100,10 @@ export class OpenAICompatibleProvider implements ChatProvider {
         yield text
       }
     }
+
+    // OpenAI-compatible servers end a finished answer with [DONE]. Without it
+    // the answer was cut off, and must not be stored as complete.
+    throw new ProviderError('The model stream ended before it finished', 'upstream_error')
   }
 
   private async request(

@@ -31,6 +31,9 @@ class FakeLLMClient:
         # The Authorization this client would send to llm-service, per call.
         self.forwarded: list[str | None] = []
         self.embed_error: ServiceError | None = None
+        # Raised by generate_stream after this many deltas.
+        self.stream_error: ServiceError | None = None
+        self.stream_error_after = 0
 
     async def models(self) -> list[str]:
         return ["llama3.1"]
@@ -53,8 +56,10 @@ class FakeLLMClient:
         self.prompts.append(prompt)
         self.api_keys.append(api_key)
         self.forwarded.append(auth_headers().get("Authorization"))
-        yield "grounded "
-        yield "answer"
+        for index, piece in enumerate(["grounded ", "answer"]):
+            if self.stream_error and index == self.stream_error_after:
+                raise self.stream_error
+            yield piece
 
     async def close(self) -> None:
         pass
@@ -420,3 +425,77 @@ def test_a_document_over_the_chunk_cap_is_refused_before_embedding(
     assert "chunks" in res.json()["error"]["message"]
     assert not store._collections.get("documents")
     assert client.app.state.cache.bumps == 0
+
+
+# ------------------------------------------------------------ failed /v1 streams
+# A failed generation must never look like a finished answer to an OpenAI
+# client: before the first token it is an HTTP error; after it, an error event
+# and no finish_reason "stop" or [DONE].
+
+STREAM_BODY = {"messages": [{"role": "user", "content": "hi"}], "stream": True}
+
+
+def _frames(text: str) -> list:
+    data = [line[len("data: ") :] for line in text.split("\n\n") if line.startswith("data: ")]
+    return [item if item == "[DONE]" else json.loads(item) for item in data]
+
+
+def test_a_failure_before_the_first_token_is_an_http_error_not_a_stream(client) -> None:
+    client.app.state.llm.stream_error = ServiceError(ErrorCode.UPSTREAM_ERROR, "model not found")
+    res = client.post("/v1/chat/completions", json=STREAM_BODY)
+    assert res.status_code == 502
+    assert res.headers["content-type"].startswith("application/json")
+    assert res.json()["error"] == {"code": "upstream_error", "message": "model not found"}
+
+
+def test_a_failure_mid_stream_ends_with_an_error_event_and_no_done(client) -> None:
+    client.app.state.llm.stream_error = ServiceError(ErrorCode.UPSTREAM_ERROR, "model crashed")
+    client.app.state.llm.stream_error_after = 1
+    res = client.post("/v1/chat/completions", json=STREAM_BODY)
+    frames = _frames(res.text)
+
+    assert [f["choices"][0]["delta"] for f in frames[:2]] == [
+        {"role": "assistant", "content": ""},
+        {"content": "grounded "},
+    ]
+    assert frames[2] == {
+        "error": {"message": "model crashed", "type": "upstream_error", "code": "upstream_error"}
+    }
+    assert len(frames) == 3
+    assert "[DONE]" not in res.text
+    assert '"finish_reason": "stop"' not in res.text
+    assert "[error]" not in res.text
+
+
+def test_a_successful_stream_is_unchanged(client) -> None:
+    frames = _frames(client.post("/v1/chat/completions", json=STREAM_BODY).text)
+    assert [f["choices"][0] for f in frames[:-1]] == [
+        {"index": 0, "delta": {"role": "assistant", "content": ""}, "finish_reason": None},
+        {"index": 0, "delta": {"content": "grounded "}, "finish_reason": None},
+        {"index": 0, "delta": {"content": "answer"}, "finish_reason": None},
+        {"index": 0, "delta": {}, "finish_reason": "stop"},
+    ]
+    assert frames[-1] == "[DONE]"
+
+
+def test_the_official_openai_sdk_raises_on_both_kinds_of_failure(client, issuer) -> None:
+    openai = pytest.importorskip("openai")
+    token = issuer.bearer("admin")["Authorization"].removeprefix("Bearer ")
+    sdk = openai.OpenAI(
+        base_url="http://testserver/v1", api_key=token, http_client=client, max_retries=0
+    )
+    ask = {"model": "llama3.1", "messages": [{"role": "user", "content": "hi"}], "stream": True}
+    llm = client.app.state.llm
+
+    parts = [c.choices[0].delta.content or "" for c in sdk.chat.completions.create(**ask)]
+    assert "".join(parts) == "grounded answer"
+
+    llm.stream_error = ServiceError(ErrorCode.UPSTREAM_ERROR, "model not found")
+    with pytest.raises(openai.APIStatusError) as before:
+        sdk.chat.completions.create(**ask)
+    assert before.value.status_code == 502
+
+    llm.stream_error_after = 1
+    with pytest.raises(openai.APIError, match="model not found"):
+        for _ in sdk.chat.completions.create(**ask):
+            pass

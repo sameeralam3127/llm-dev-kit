@@ -1,6 +1,7 @@
 # Weekly, grouped dependency updates: a few pull requests a week, not dozens.
-# Security updates (switched on in the repository settings) still arrive at
-# once and on their own.
+# Major versions are ignored here and upgraded on purpose, since they can break
+# the build or the UI. Security updates are switched on separately, in the
+# repository settings.
 version: 2
 updates:
   - package-ecosystem: pip
@@ -8,6 +9,9 @@ updates:
       - "/"
       - "/services/*"
       - "/services/plugins/*"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     schedule:
       interval: weekly
       day: monday
@@ -20,6 +24,9 @@ updates:
 
   - package-ecosystem: npm
     directory: "/web"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     schedule:
       interval: weekly
       day: monday
@@ -32,6 +39,9 @@ updates:
 
   - package-ecosystem: github-actions
     directory: "/"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     schedule:
       interval: weekly
       day: monday
@@ -46,6 +56,11 @@ updates:
     directories:
       - "/"
       - "/web"
+    # Patch tags and digest refreshes only: a new Python, Node or nginx minor is
+    # an upgrade to plan, not a weekly bump.
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
     schedule:
       interval: weekly
       day: monday

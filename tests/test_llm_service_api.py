@@ -197,3 +197,59 @@ def test_only_health_is_public(client) -> None:
         res = client.request(method, path, headers=anonymous)
         assert res.status_code == 401, path
         assert res.json()["error"]["code"] == "unauthorized", path
+
+
+# ---------------------------------------------------------------- bounded generation
+# Callers choose only a bounded temperature and output length; runner options
+# such as num_ctx come from configuration, never from a request.
+
+
+@pytest.mark.parametrize("route", ["/generate", "/generate/stream"])
+def test_raw_ollama_options_are_refused(client, ollama: FakeOllama, route: str) -> None:
+    res = client.post(route, json={"prompt": "hi", "options": {"num_ctx": 131072}})
+    assert res.status_code == 400
+    assert res.json()["error"]["code"] == "invalid_request"
+    assert not [path for path, _ in ollama.requests if path in ("/api/generate", "/api/chat")]
+
+
+def test_only_bounded_temperature_and_length_reach_ollama(client, ollama: FakeOllama) -> None:
+    res = client.post("/generate", json={"prompt": "hi", "temperature": 0.2, "max_tokens": 200})
+    assert res.status_code == 200
+    assert ollama.requests[-1][1]["options"] == {"temperature": 0.2, "num_predict": 200}
+
+
+def test_default_output_length_stays_within_the_maximum(client, ollama: FakeOllama) -> None:
+    client.post("/generate", json={"prompt": "hi"})
+    assert 0 < ollama.requests[-1][1]["options"]["num_predict"] <= main.MAX_OUTPUT_TOKENS
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        {"max_tokens": main.MAX_OUTPUT_TOKENS + 1},
+        {"max_tokens": 0},
+        {"max_tokens": -1},
+        {"temperature": 2.5},
+        {"temperature": -0.1},
+    ],
+    ids=["max_tokens-over", "max_tokens-zero", "max_tokens-unbounded", "temp-high", "temp-low"],
+)
+def test_out_of_range_values_are_refused(client, field: dict) -> None:
+    res = client.post("/generate", json={"prompt": "hi", "model": "openai/gpt-4o", **field})
+    assert res.status_code == 400
+    assert res.json()["error"]["code"] == "invalid_request"
+
+
+def test_cloud_output_length_is_capped_too(client, cloud: FakeLiteLLM) -> None:
+    client.post("/generate", json={"prompt": "hi", "model": "openai/gpt-4o", "max_tokens": 300})
+    assert cloud.calls[-1]["max_tokens"] == 300
+    res = client.post(
+        "/generate",
+        json={"prompt": "hi", "model": "openai/gpt-4o", "max_tokens": main.MAX_OUTPUT_TOKENS + 1},
+    )
+    assert res.status_code == 400
+
+
+def test_prompt_length_is_bounded(client) -> None:
+    res = client.post("/generate", json={"prompt": "x" * (main.MAX_PROMPT_CHARS + 1)})
+    assert res.status_code == 400

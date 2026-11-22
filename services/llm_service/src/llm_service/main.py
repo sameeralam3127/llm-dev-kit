@@ -6,7 +6,7 @@ from typing import Any
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from devkit_common.auth import build_authenticator, require
 from devkit_common.config import Settings, get_settings
@@ -71,11 +71,25 @@ app = FastAPI(title=f"{settings.app_name} — LLM Service", version="0.3.0", lif
 install_service(app, service="llm-service", settings=settings)
 
 
+MAX_OUTPUT_TOKENS = 4096
+"""The most tokens one request may ask a model to generate."""
+
+MAX_PROMPT_CHARS = 200_000
+"""Room for a question plus retrieved context, with a wide margin."""
+
+
 class GenerateRequest(BaseModel):
-    prompt: str = Field(min_length=1)
+    """A generation request. Callers choose only bounded sampling settings:
+    runner options such as Ollama's ``num_ctx`` reload the shared model, so
+    they come from configuration, never from a request."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    prompt: str = Field(min_length=1, max_length=MAX_PROMPT_CHARS)
     model: str | None = None
     api_key: str | None = None
-    options: dict[str, Any] = {}
+    temperature: float | None = Field(default=None, ge=0, le=2)
+    max_tokens: int | None = Field(default=None, ge=1, le=MAX_OUTPUT_TOKENS)
 
 
 class EmbedRequest(BaseModel):
@@ -113,7 +127,8 @@ def _completion(req: GenerateRequest, provider_name: str, model_name: str) -> Co
         messages=[ChatMessage("user", req.prompt)],
         # The local provider never needs a key; don't hand it one.
         api_key=None if provider_name == LOCAL_PROVIDER else req.api_key,
-        extra=req.options,
+        temperature=req.temperature,
+        max_tokens=req.max_tokens,
     )
 
 

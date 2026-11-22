@@ -4,6 +4,7 @@ import type { Prisma } from '@prisma/client'
 import { nanoid } from 'nanoid'
 
 import { LIMITS } from '@/lib/constants'
+import { containsText, isPostgres } from '@/lib/db-kind'
 import { db } from '@/lib/db'
 import { getEnv } from '@/lib/env'
 import type { ProviderMessage } from '@/lib/llm/types'
@@ -43,8 +44,8 @@ export async function listChats(
       ...(q
         ? {
             OR: [
-              { title: { contains: q } },
-              { messages: { some: { content: { contains: q } } } },
+              { title: containsText(q) },
+              { messages: { some: { content: containsText(q) } } },
             ],
           }
         : {}),
@@ -246,6 +247,11 @@ async function writeTurn(
   userId: string,
   input: SendMessageInput,
 ): Promise<PreparedTurn> {
+  // On Postgres, turns on one chat queue on its row lock rather than collide
+  // and retry. SQLite needs no lock: it runs on a single connection (lib/db.ts).
+  if (isPostgres()) {
+    await tx.$queryRaw`SELECT 1 FROM "Chat" WHERE "id" = ${input.chatId} FOR UPDATE`
+  }
   // Read inside the transaction: positions derived from a read taken before
   // it were how simultaneous sends ended up sharing a position.
   const chat = await tx.chat.findFirst({

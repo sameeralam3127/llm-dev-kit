@@ -11,7 +11,7 @@ interface Row {
   detail: string | null
 }
 
-const state = vi.hoisted(() => ({ rows: [] as Row[], sql: [] as string[] }))
+const state = vi.hoisted(() => ({ rows: [] as Row[], sql: [] as string[], postgres: false }))
 
 vi.mock('@/lib/db', () => ({
   db: {
@@ -36,6 +36,8 @@ vi.mock('@/lib/db', () => ({
   },
 }))
 
+vi.mock('@/lib/db-kind', () => ({ isPostgres: () => state.postgres }))
+
 import { ensureAuditTriggers, listAuditEvents, recordAudit } from '@/server/audit'
 
 const ACTOR = { id: 'u1', email: 'admin@example.test' }
@@ -43,6 +45,7 @@ const ACTOR = { id: 'u1', email: 'admin@example.test' }
 beforeEach(() => {
   state.rows = []
   state.sql = []
+  state.postgres = false
 })
 
 describe('recordAudit', () => {
@@ -98,5 +101,15 @@ describe('ensureAuditTriggers', () => {
     expect(state.sql.join('\n')).toMatch(/BEFORE UPDATE ON "AuditEvent"[\s\S]*RAISE\(ABORT/)
     expect(state.sql.join('\n')).toMatch(/BEFORE DELETE ON "AuditEvent"[\s\S]*RAISE\(ABORT/)
     expect(state.sql.every((sql) => sql.includes('IF NOT EXISTS'))).toBe(true)
+  })
+
+  it('uses a plpgsql trigger function on Postgres, re-runnable at every start', async () => {
+    state.postgres = true
+    await ensureAuditTriggers()
+    const sql = state.sql.join('\n')
+    expect(sql).toMatch(/CREATE OR REPLACE FUNCTION audit_event_append_only\(\)[\s\S]*RAISE EXCEPTION/)
+    expect(sql).toMatch(/CREATE OR REPLACE TRIGGER audit_event_no_update BEFORE UPDATE ON "AuditEvent"/)
+    expect(sql).toMatch(/CREATE OR REPLACE TRIGGER audit_event_no_delete BEFORE DELETE ON "AuditEvent"/)
+    expect(sql).not.toMatch(/RAISE\(ABORT/)
   })
 })

@@ -1,5 +1,6 @@
-// Portable schema: no enums, no Json, no scalar lists — switching `provider`
-// to "postgresql" / "mysql" is a one-word change with no other edits required.
+// Portable schema: no enums, no Json, no scalar lists. It stays on SQLite here;
+// the web image built with DATABASE_PROVIDER=postgresql switches the provider
+// (prisma/use-provider.mjs) for the v3 lite profile.
 
 generator client {
   provider = "prisma-client-js"

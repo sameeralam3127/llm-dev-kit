@@ -3,6 +3,7 @@ import 'server-only'
 import type { Prisma } from '@prisma/client'
 
 import { db } from '@/lib/db'
+import { isPostgres } from '@/lib/db-kind'
 import type { AuditEventDTO } from '@/types/admin'
 
 /** Who is acting. Snapshotted into the entry, so it survives account changes. */
@@ -107,6 +108,22 @@ function parseDetail(text: string | null): Record<string, unknown> | null {
  * log to Postgres in v3 with a separate role is the real fix (#55).
  */
 export async function ensureAuditTriggers(): Promise<void> {
+  if (isPostgres()) {
+    await db.$executeRawUnsafe(
+      'CREATE OR REPLACE FUNCTION audit_event_append_only() RETURNS trigger ' +
+        "LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'AuditEvent is append-only'; END $$",
+    )
+    for (const [name, event] of [
+      ['audit_event_no_update', 'UPDATE'],
+      ['audit_event_no_delete', 'DELETE'],
+    ] as const) {
+      await db.$executeRawUnsafe(
+        `CREATE OR REPLACE TRIGGER ${name} BEFORE ${event} ON "AuditEvent" ` +
+          'FOR EACH ROW EXECUTE FUNCTION audit_event_append_only()',
+      )
+    }
+    return
+  }
   for (const [name, event] of [
     ['audit_event_no_update', 'UPDATE'],
     ['audit_event_no_delete', 'DELETE'],

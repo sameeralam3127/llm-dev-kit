@@ -189,6 +189,11 @@ Admins get a console of their own at `/admin`, separate from the chat.
   an account is refused, not silently linked.
 - **Short-lived credentials.** The services verify 5-minute signed tokens
   themselves, so the gateway is never trusted blindly.
+- **Safe first run.** The first admin needs a one-time setup code from the web
+  log, so a stranger who reaches a new instance first cannot claim it.
+- **Hardened by default.** Password sign-in and API key checks are rate
+  limited, pages carry a strict Content-Security-Policy, uploads have page,
+  text and time limits, and model options are bounded for every caller.
 
 ### Operations
 
@@ -309,7 +314,7 @@ flowchart LR
 | `keycloak` | Optional single sign-on (profile `sso`). |
 
 The Python services never trust the gateway: each verifies the caller's token
-itself. [ARCHITECTURE.md](ARCHITECTURE.md) has the request flows and the Docker
+itself. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) has the request flows and the Docker
 build strategy.
 
 ### Where it is heading: v3
@@ -458,7 +463,7 @@ from [Conventional Commits](https://www.conventionalcommits.org/) by
   release, `feat:` a minor one, and `feat!:` or a `BREAKING CHANGE:` footer a
   major one. `docs:`, `test:`, `ci:` and `chore:` make no release.
 - **Every merge to `main`** updates one open release PR with the next version
-  and its [CHANGELOG.md](CHANGELOG.md) entry.
+  and its [changelog](.github/CHANGELOG.md) entry.
 - **Merging the release PR** tags `vX.Y.Z`, publishes the GitHub release, and
   pushes the images to `ghcr.io/sameeralam3127/llm-dev-kit-<service>` as
   `X.Y.Z`, `X.Y` and `X`. Pushes to `main` are also published as `latest`.
@@ -499,7 +504,7 @@ Makefile                 the same checks CI runs: make check, make e2e
 **v1.0.0 is the current release** (2026-10-25). It is what `docker compose up`
 runs: chat, grounded answers from your PDFs, accounts, roles, API keys, single
 sign-on and the admin console. Every release is listed in
-[CHANGELOG.md](CHANGELOG.md).
+[the changelog](.github/CHANGELOG.md).
 
 | Release | When | What |
 | --- | --- | --- |
@@ -513,16 +518,15 @@ sign-on and the admin console. Every release is listed in
 | ✅ | Core | Interfaces, plugin registry, contract tests, CI gate |
 | ✅ | Authentication | Tokens, API keys, roles, SSO. Breaking for `/v1`: see [MIGRATION.md](docs/v2/MIGRATION.md) |
 | ✅ | Admin console | Overview, users, API keys, documents, health and settings |
-| 🚧 | v3 secure core | Postgres schema, workspace API keys, ingestion queue, hybrid search and model-gateway are built and tested; the web app moves onto them next |
+| 🚧 | v3 secure core | Postgres schema, workspace API keys, ingestion queue, hybrid search and model-gateway are built and tested; the web app is moving onto them (Postgres, chat through core-api and a shared team workspace are done on the `v3` branch) |
 | ⏳ | Sovereign mode end to end | Already enforced in model-gateway; reaches Compose with v3 |
-| ⏳ | Per-user documents | Workspaces on pgvector with citations, in v3 |
+| ⏳ | Per-user documents | Personal workspaces, after v3; v3 keeps one shared team workspace, as today |
 | ⏳ | Distribution | Multi-arch images, Helm chart, any-cloud hosting, after v3 ships |
 
 **Good to know today:**
 
-- Documents are shared by every user until workspaces arrive with v3.
-- Sending several messages to the same chat at once can fail with an error
-  and lose a message. One message at a time works.
+- Documents are shared by every user. v3 keeps it that way, in one team
+  workspace; personal workspaces come later.
 - Models whose names end in `-cloud` run on ollama.com, not on your machine;
   the admin console lists them separately.
 - The v3 services (`core_api`, `ingest_worker`, `model_gateway`) are in the
@@ -532,7 +536,8 @@ sign-on and the admin console. Every release is listed in
 
 **Next:** 1.1.0 closes the open security issues for today's stack. Then v3
 Milestone 1 ("secure core") moves the web app onto Postgres and core-api and
-brings model-gateway into Compose. Steps (a) to (e) are done on the `v3` branch.
+brings model-gateway into Compose. Steps (a) to (e) are done on the `v3` branch,
+and step (f), moving the web app across, is under way.
 Milestones and decisions are in [docs/v3/ROADMAP.md](docs/v3/ROADMAP.md).
 
 ## Contributing
@@ -553,8 +558,8 @@ marked `good first issue` are small and self-contained, and those marked
 release each piece of work belongs to.
 
 Found a security problem? Please report it privately, as
-[SECURITY.md](SECURITY.md) describes, not in a public issue. Everyone taking
-part is expected to follow the [code of conduct](CODE_OF_CONDUCT.md).
+the [security policy](.github/SECURITY.md) describes, not in a public issue. Everyone taking
+part is expected to follow the [code of conduct](.github/CODE_OF_CONDUCT.md).
 
 ## Troubleshooting
 
@@ -564,6 +569,10 @@ part is expected to follow the [code of conduct](CODE_OF_CONDUCT.md).
 | "No local models" in the model picker | Check `ollama list`, and that `.env` has no `OLLAMA_HOST=http://localhost:11434` line |
 | `401` from the API | Send `Authorization: Bearer sk-ldk-…`; a revoked key stops working within a minute |
 | `403` from the API | Your role cannot do that: only `user` and `admin` add documents |
+| Your new account is not the admin | Sign up with the setup code from `docker compose logs web` in the "Setup code" field; an existing account can sign up again with its password and the code |
+| "Too many sign-in attempts" | Wait a few minutes: 10 attempts a minute per address, 5 failed attempts per email every 15 minutes |
+| A PDF upload is refused with a limit | It has more than 2,000 pages, 4 million characters, takes over 60 seconds to read, or makes more than 10,000 chunks; split it into parts |
+| llm-service or rag-service will not start, naming `ALLOW_LEGACY_ANONYMOUS` | That setting makes anonymous callers admins, so it is refused unless `GATEWAY_BIND` is `127.0.0.1`. Give clients API keys and turn it off |
 | Nothing at `localhost:8080` | `docker compose ps`; if services show `Exited`, run `docker compose up -d` |
 
 More in [docs/setup.md](docs/setup.md#troubleshooting).
@@ -574,10 +583,10 @@ More in [docs/setup.md](docs/setup.md#troubleshooting).
 | --- | --- |
 | [docs/setup.md](docs/setup.md) | Install step by step and fix common problems |
 | [docs/usage.md](docs/usage.md) | Add documents, chat, and bring in your team |
-| [CHANGELOG.md](CHANGELOG.md) | See what changed in each release |
-| [SECURITY.md](SECURITY.md) | Report a vulnerability privately |
+| [CHANGELOG.md](.github/CHANGELOG.md) | See what changed in each release |
+| [SECURITY.md](.github/SECURITY.md) | Report a vulnerability privately |
 | [docs/v2/MIGRATION.md](docs/v2/MIGRATION.md) | Upgrade clients to API keys |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | Understand request flows and the Docker build |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Understand request flows and the Docker build |
 | [docs/v2/PLAN.md](docs/v2/PLAN.md) | See how the v1 features were planned and built |
 | [docs/v3/ROADMAP.md](docs/v3/ROADMAP.md) | See where the project is going next |
 | [web/README.md](web/README.md) | Work on the web app |

@@ -85,7 +85,7 @@ applies there too.
 
 The v3 services and their migrations are implemented in the repository, but
 they are not yet in the default Compose file. Their contract is defined in
-[the v3 roadmap](docs/v3/ROADMAP.md).
+[the v3 roadmap](v3/ROADMAP.md).
 
 ```mermaid
 flowchart LR

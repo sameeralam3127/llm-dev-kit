@@ -3,7 +3,7 @@
 A step-by-step walkthrough for getting the stack running, ingesting your own
 documents, and diagnosing the most common ways it breaks. For a high-level
 overview see [../README.md](../README.md); for request-flow diagrams see
-[../ARCHITECTURE.md](../ARCHITECTURE.md).
+[ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Prerequisites
 

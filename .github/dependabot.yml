@@ -1,0 +1,56 @@
+# Weekly, grouped dependency updates: a few pull requests a week, not dozens.
+# Security updates (switched on in the repository settings) still arrive at
+# once and on their own.
+version: 2
+updates:
+  - package-ecosystem: pip
+    directories:
+      - "/"
+      - "/services/*"
+      - "/services/plugins/*"
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      python-minor-and-patch:
+        update-types: [minor, patch]
+    commit-message:
+      prefix: "fix(deps)"
+      prefix-development: "chore(deps)"
+
+  - package-ecosystem: npm
+    directory: "/web"
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      web-minor-and-patch:
+        update-types: [minor, patch]
+    commit-message:
+      prefix: "fix(deps)"
+      prefix-development: "chore(deps)"
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: "ci"
+
+  # Base images are pinned by digest; this keeps the digests current.
+  - package-ecosystem: docker
+    directories:
+      - "/"
+      - "/web"
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      base-images:
+        patterns: ["*"]
+    commit-message:
+      prefix: "fix(deps)"

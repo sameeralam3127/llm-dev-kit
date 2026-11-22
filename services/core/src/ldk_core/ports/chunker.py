@@ -38,11 +38,9 @@ class Chunker(Protocol):
     @property
     def name(self) -> str:
         """Registry name, e.g. ``"recursive"``."""
-        ...
 
     def chunk(self, document: LoadedDocument) -> list[TextChunk]:
         """Split ``document``, in reading order."""
-        ...
 
 
 def check_chunk_count(

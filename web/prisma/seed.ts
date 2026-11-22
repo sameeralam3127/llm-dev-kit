@@ -70,7 +70,7 @@ async function main() {
     },
   })
 
-  console.log(`Seed complete. Sign in as ${DEMO_EMAIL} / ${DEMO_PASSWORD}`)
+  console.log(`Seed complete. Sign in as ${DEMO_EMAIL}`)
 }
 
 main()

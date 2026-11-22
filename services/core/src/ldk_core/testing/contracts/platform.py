@@ -150,8 +150,8 @@ class ToolContract:
         principal: Caller to invoke it as (defaults to an ordinary user).
     """
 
-    @pytest.fixture
-    def tool(self) -> Tool:
+    @pytest.fixture(name="tool")
+    def _missing_tool(self) -> Tool:
         """The implementation under test."""
         unimplemented("tool")
 
@@ -234,8 +234,10 @@ class StorageBackendContract:
     def test_delete_reports_whether_it_existed(self, storage: StorageBackend) -> None:
         """True the first time, False after."""
         run(storage.put("k", b"x", content_type="text/plain"))
-        assert run(storage.delete("k")) is True
-        assert run(storage.delete("k")) is False
+        first_delete = run(storage.delete("k"))
+        assert first_delete is True
+        second_delete = run(storage.delete("k"))
+        assert second_delete is False
         assert not run(storage.exists("k"))
 
     @pytest.mark.parametrize("key", ["/etc/passwd", "../escape", "a/../../b", "", "a//b"])

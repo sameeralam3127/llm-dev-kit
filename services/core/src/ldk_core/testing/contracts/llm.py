@@ -27,8 +27,8 @@ class LLMProviderContract:
         model: A model id it can serve, without any routing prefix.
     """
 
-    @pytest.fixture
-    def provider(self) -> LLMProvider:
+    @pytest.fixture(name="provider")
+    def _missing_provider(self) -> LLMProvider:
         """The implementation under test."""
         unimplemented("provider")
 
@@ -87,8 +87,8 @@ class EmbedderContract:
         embedder: The implementation under test.
     """
 
-    @pytest.fixture
-    def embedder(self) -> Embedder:
+    @pytest.fixture(name="embedder")
+    def _missing_embedder(self) -> Embedder:
         """The implementation under test."""
         unimplemented("embedder")
 

@@ -59,15 +59,12 @@ class LLMProvider(Protocol):
     @property
     def name(self) -> str:
         """Registry name and model-id prefix, e.g. ``"ollama"``, ``"openai"``."""
-        ...
 
     async def list_models(self) -> list[str]:
         """Return the model ids this provider can serve right now."""
-        ...
 
     async def complete(self, request: CompletionRequest) -> str:
         """Return the full answer once generation finishes."""
-        ...
 
     def stream(self, request: CompletionRequest) -> AsyncIterator[str]:
         """Yield text deltas as they are generated.
@@ -76,4 +73,3 @@ class LLMProvider(Protocol):
         Errors before the first delta raise immediately. Errors after it raise
         from the iterator, so the caller can keep the partial answer.
         """
-        ...

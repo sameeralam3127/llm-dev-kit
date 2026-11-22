@@ -36,19 +36,15 @@ class JobQueue(Protocol):
 
     async def claim(self, worker_id: str) -> Job | None:
         """Take the next due job, or ``None``. Uses ``FOR UPDATE SKIP LOCKED``."""
-        ...
 
     async def reclaim_expired(self, lease_seconds: float) -> int:
         """Return jobs whose worker vanished to the queue; count them."""
-        ...
 
     async def retry_later(self, job: Job, error: str, run_after: datetime) -> bool:
         """Put the job back for another attempt. ``False`` if the lease was lost."""
-        ...
 
     async def fail(self, job: Job, error: str) -> bool:
         """Give up on the job for good. ``False`` if the lease was lost."""
-        ...
 
 
 class IngestionStore(Protocol):
@@ -56,7 +52,6 @@ class IngestionStore(Protocol):
 
     async def blob_of(self, document_id: UUID) -> Blob | None:
         """The upload a document was created from."""
-        ...
 
     async def replace_chunks(self, job: Job, chunks: list[IndexedChunk], embed_model: str) -> bool:
         """Swap the document's chunks and finish the job, in one transaction.
@@ -64,4 +59,3 @@ class IngestionStore(Protocol):
         Readers see the old chunks or the new ones, never a mix or an empty
         document. ``False`` (and nothing written) if the job's lease was lost.
         """
-        ...

@@ -10,10 +10,7 @@ from core_api.domain.retrieval import ChatMessage, Citation, build_messages, cit
 from core_api.ports.models import Delta, Done, HybridIndex, ModelClient, OnBehalfOf, ProvenanceStore
 from ldk_core.auth import forbidden
 from ldk_core.errors import bad_request
-from ldk_core.observability import get_logger
 from ldk_core.ports import Embedder
-
-_log = get_logger(__name__)
 
 MAX_QUESTION_CHARS = 8_000
 

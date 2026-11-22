@@ -57,15 +57,12 @@ class WorkspaceStore(Protocol):
 
     async def create_workspace(self, *, slug: str, name: str, owner_id: str) -> Workspace:
         """Create a workspace with ``owner_id`` as its owner, atomically."""
-        ...
 
     async def workspaces_of(self, user_id: str) -> list[Workspace]:
         """Every workspace ``user_id`` belongs to."""
-        ...
 
     async def role_of(self, workspace_id: UUID, user_id: str) -> Role | None:
         """``user_id``'s role in the workspace, or ``None`` if not a member."""
-        ...
 
 
 class ApiKeyStore(Protocol):
@@ -83,23 +80,18 @@ class ApiKeyStore(Protocol):
         expires_at: datetime | None,
     ) -> ApiKeyRecord:
         """Store a new key."""
-        ...
 
     async def key_by_prefix(self, prefix: str) -> ApiKeyRecord | None:
         """Find a key by its lookup prefix."""
-        ...
 
     async def keys_of_workspace(self, workspace_id: UUID) -> list[ApiKeyRecord]:
         """Unrevoked keys in a workspace, newest first."""
-        ...
 
     async def revoke_key(self, workspace_id: UUID, key_id: UUID) -> bool:
         """Revoke a key in this workspace; ``False`` if there was none to revoke."""
-        ...
 
     async def touch_key(self, key_id: UUID) -> None:
         """Record that a key was used (throttled by the adapter)."""
-        ...
 
 
 class AuditSink(Protocol):
@@ -107,7 +99,6 @@ class AuditSink(Protocol):
 
     async def record(self, event: AuditEvent) -> None:
         """Append ``event``. Never updates or deletes."""
-        ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -146,8 +137,6 @@ class DocumentStore(Protocol):
         document with this exact content, that document and ``False``, with no
         new job: re-uploading is a no-op.
         """
-        ...
 
     async def documents_of(self, workspace_id: UUID) -> list[DocumentRecord]:
         """A workspace's documents, newest first, with chunk counts."""
-        ...

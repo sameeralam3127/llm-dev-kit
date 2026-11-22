@@ -19,7 +19,8 @@
   "packages": {
     ".": {
       "package-name": "llm-dev-kit",
-      "changelog-path": "CHANGELOG.md",
+      "changelog-path": ".github/CHANGELOG.md",
+      "version-file": ".github/version.txt",
       "extra-files": [
         { "type": "toml", "path": "pyproject.toml", "jsonpath": "$.project.version" },
         { "type": "json", "path": "web/package.json", "jsonpath": "$.version" }

@@ -314,7 +314,7 @@ flowchart LR
 | `keycloak` | Optional single sign-on (profile `sso`). |
 
 The Python services never trust the gateway: each verifies the caller's token
-itself. [ARCHITECTURE.md](ARCHITECTURE.md) has the request flows and the Docker
+itself. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) has the request flows and the Docker
 build strategy.
 
 ### Where it is heading: v3
@@ -463,7 +463,7 @@ from [Conventional Commits](https://www.conventionalcommits.org/) by
   release, `feat:` a minor one, and `feat!:` or a `BREAKING CHANGE:` footer a
   major one. `docs:`, `test:`, `ci:` and `chore:` make no release.
 - **Every merge to `main`** updates one open release PR with the next version
-  and its [CHANGELOG.md](CHANGELOG.md) entry.
+  and its [changelog](.github/CHANGELOG.md) entry.
 - **Merging the release PR** tags `vX.Y.Z`, publishes the GitHub release, and
   pushes the images to `ghcr.io/sameeralam3127/llm-dev-kit-<service>` as
   `X.Y.Z`, `X.Y` and `X`. Pushes to `main` are also published as `latest`.
@@ -504,7 +504,7 @@ Makefile                 the same checks CI runs: make check, make e2e
 **v1.0.0 is the current release** (2026-10-25). It is what `docker compose up`
 runs: chat, grounded answers from your PDFs, accounts, roles, API keys, single
 sign-on and the admin console. Every release is listed in
-[CHANGELOG.md](CHANGELOG.md).
+[the changelog](.github/CHANGELOG.md).
 
 | Release | When | What |
 | --- | --- | --- |
@@ -558,8 +558,8 @@ marked `good first issue` are small and self-contained, and those marked
 release each piece of work belongs to.
 
 Found a security problem? Please report it privately, as
-[SECURITY.md](SECURITY.md) describes, not in a public issue. Everyone taking
-part is expected to follow the [code of conduct](CODE_OF_CONDUCT.md).
+the [security policy](.github/SECURITY.md) describes, not in a public issue. Everyone taking
+part is expected to follow the [code of conduct](.github/CODE_OF_CONDUCT.md).
 
 ## Troubleshooting
 
@@ -583,10 +583,10 @@ More in [docs/setup.md](docs/setup.md#troubleshooting).
 | --- | --- |
 | [docs/setup.md](docs/setup.md) | Install step by step and fix common problems |
 | [docs/usage.md](docs/usage.md) | Add documents, chat, and bring in your team |
-| [CHANGELOG.md](CHANGELOG.md) | See what changed in each release |
-| [SECURITY.md](SECURITY.md) | Report a vulnerability privately |
+| [CHANGELOG.md](.github/CHANGELOG.md) | See what changed in each release |
+| [SECURITY.md](.github/SECURITY.md) | Report a vulnerability privately |
 | [docs/v2/MIGRATION.md](docs/v2/MIGRATION.md) | Upgrade clients to API keys |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | Understand request flows and the Docker build |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Understand request flows and the Docker build |
 | [docs/v2/PLAN.md](docs/v2/PLAN.md) | See how the v1 features were planned and built |
 | [docs/v3/ROADMAP.md](docs/v3/ROADMAP.md) | See where the project is going next |
 | [web/README.md](web/README.md) | Work on the web app |

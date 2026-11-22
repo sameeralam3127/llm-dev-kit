@@ -19,9 +19,12 @@ from fastapi.responses import StreamingResponse
 
 from devkit_common.auth import require
 from ldk_core.auth import CHAT
-from ldk_core.errors import ServiceError, bad_request
+from ldk_core.errors import ErrorCode, ServiceError, bad_request
+from ldk_core.observability import get_logger
 from ldk_core.ports import Principal
 from rag_service.prompts import build_prompt
+
+_log = get_logger(__name__)
 
 router = APIRouter(prefix="/v1", tags=["openai-compat"], dependencies=[Depends(require(CHAT))])
 
@@ -139,13 +142,41 @@ async def chat_completions(
         }
         return f"data: {json.dumps(payload)}\n\n"
 
+    def error_event(code: ErrorCode, message: str) -> str:
+        # The shape OpenAI sends; its SDKs raise on it instead of returning text.
+        payload = {"error": {"message": message, "type": code.value, "code": code.value}}
+        return f"data: {json.dumps(payload)}\n\n"
+
+    # Wait for the first piece before answering: a failure that early (an
+    # unknown model, llm-service down) becomes an ordinary error response,
+    # not a 200 stream an SDK would read as a finished answer.
+    pieces = llm.generate_stream(prompt, model=model, api_key=api_key).__aiter__()
+    try:
+        first: str | None = await anext(pieces)
+    except StopAsyncIteration:
+        first = None
+
     async def sse():
-        yield chunk({"role": "assistant", "content": ""})
         try:
-            async for piece in llm.generate_stream(prompt, model=model, api_key=api_key):
+            yield chunk({"role": "assistant", "content": ""})
+            if first is None:
+                yield chunk({}, "stop")
+                yield "data: [DONE]\n\n"
+                return
+            yield chunk({"content": first})
+            async for piece in pieces:
                 yield chunk({"content": piece})
         except ServiceError as exc:
-            yield chunk({"content": f"\n[error] {exc.message}"})
+            # Headers are sent: report the failure in the stream, and never
+            # follow it with finish_reason "stop" or [DONE].
+            yield error_event(exc.code, exc.message)
+            return
+        except Exception:  # noqa: BLE001 - any failure must end the stream as failed
+            _log.exception("stream failed after it started")
+            yield error_event(ErrorCode.INTERNAL, "The answer stopped unexpectedly")
+            return
+        finally:
+            await pieces.aclose()
         yield chunk({}, "stop")
         yield "data: [DONE]\n\n"
 

@@ -19,17 +19,14 @@ class Tool(Protocol):
     @property
     def name(self) -> str:
         """Unique tool name as clients see it, e.g. ``"rag_search"``."""
-        ...
 
     @property
     def description(self) -> str:
         """What the tool does, written for the model that will call it."""
-        ...
 
     @property
     def input_schema(self) -> Mapping[str, Any]:
         """JSON Schema (draft 2020-12) for ``arguments``."""
-        ...
 
     async def invoke(self, arguments: Mapping[str, Any], *, principal: Principal | None) -> Any:
         """Run the tool with already-validated arguments.
@@ -46,4 +43,3 @@ class Tool(Protocol):
         Raises:
             ldk_core.errors.ServiceError: Any expected failure.
         """
-        ...

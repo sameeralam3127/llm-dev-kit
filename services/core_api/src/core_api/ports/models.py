@@ -42,13 +42,11 @@ class ModelClient(Protocol):
 
     async def models(self) -> list[str]:
         """Models the gateway will serve."""
-        ...
 
     def stream_chat(
         self, messages: Sequence[ChatMessage], *, model: str, caller: OnBehalfOf
     ) -> AsyncIterator[StreamEvent]:
         """Stream an answer: :class:`Delta` events, then one :class:`Done`."""
-        ...
 
 
 class HybridIndex(Protocol):
@@ -58,7 +56,6 @@ class HybridIndex(Protocol):
         self, workspace_id: UUID, *, text: str, vector: Sequence[float], k: int
     ) -> tuple[list[Hit], list[Hit]]:
         """``(semantic, lexical)`` top-``k`` lists, each filtered by workspace in SQL."""
-        ...
 
 
 class ProvenanceStore(Protocol):
@@ -79,4 +76,3 @@ class ProvenanceStore(Protocol):
         request_id: str | None,
     ) -> None:
         """Store the question and the answer, with the chunks the answer used."""
-        ...

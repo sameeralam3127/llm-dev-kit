@@ -44,12 +44,10 @@ class DocumentLoader(Protocol):
     @property
     def name(self) -> str:
         """Registry name, e.g. ``"pdf"``."""
-        ...
 
     @property
     def media_types(self) -> frozenset[str]:
         """MIME types this loader accepts, e.g. ``{"application/pdf"}``."""
-        ...
 
     def load(self, data: bytes, *, filename: str | None = None) -> LoadedDocument:
         """Parse ``data`` into pages.
@@ -58,4 +56,3 @@ class DocumentLoader(Protocol):
             ldk_core.errors.ServiceError: ``invalid_request`` when the file is
                 malformed or has no extractable text.
         """
-        ...

@@ -18,17 +18,14 @@ class Embedder(Protocol):
     @property
     def name(self) -> str:
         """Registry name, e.g. ``"ollama"``."""
-        ...
 
     @property
     def model(self) -> str:
         """The embedding model id, e.g. ``"nomic-embed-text"``."""
-        ...
 
     @property
     def dimension(self) -> int:
         """Length of every vector this embedder returns."""
-        ...
 
     async def embed(self, texts: Sequence[str]) -> list[list[float]]:
         """Embed each text, preserving order: one vector per input.
@@ -37,4 +34,3 @@ class Embedder(Protocol):
             ldk_core.errors.ServiceError: ``upstream_unavailable`` or
                 ``upstream_error``. No partial result is returned.
         """
-        ...

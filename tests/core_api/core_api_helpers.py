@@ -7,6 +7,7 @@ from core_api.ports.models import Delta, Done
 from ldk_core.errors import ServiceError
 
 PEPPER = "pepper-for-tests-only-0123456789abcdef"
+WEB_SERVICE_TOKEN = "web-service-token-for-tests-only-0123456789"
 
 
 def as_user(issuer: Issuer, sub: str) -> dict[str, str]:

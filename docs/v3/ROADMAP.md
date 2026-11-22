@@ -183,9 +183,9 @@ SQLite path keeps working throughout.
 | Sub-step | Builds |
 | --- | --- |
 | f1 | core-api accepts only real user sessions: v2 personal keys and tokens exchanged from them get 401 (#51) |
-| f2 | Acting on a user's behalf: each web user gets a personal workspace in core-api on first use, and the chat provider calls core-api `/v1` with the user's session token and workspace when `CORE_API_URL` is set, and rag-service otherwise |
+| f2 | Acting on a user's behalf: the chat provider calls core-api `/v1` with the user's session token and workspace when `CORE_API_URL` is set, and rag-service otherwise |
 | f3 | Prisma on Postgres: a Postgres variant of the schema in its own `app` schema, chosen at build time, so the `lite` web image uses Postgres and the default image stays on SQLite |
-| f4 | Documents through core-api: the admin documents page uploads to and lists from `/api/v1/documents` in the lite profile |
+| f4 | One shared team workspace, as in v1 (decided November 2026): core-api keeps every web user's role there in step through an internal call only the web app's service token can make (f4a). Then the admin documents page uploads to and lists from `/api/v1/documents` in it (f4b). Personal workspaces wait for Milestone 4 |
 | f5 | Migration: a script that copies users, accounts, chats, messages and API keys from SQLite to Postgres, idempotent and read-only on the SQLite side. v1 keeps only chunks, not the original PDFs, so documents are re-uploaded (or exported as text and re-ingested) |
 
 ### Definition of done

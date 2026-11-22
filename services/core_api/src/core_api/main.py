@@ -10,13 +10,14 @@ from psycopg_pool import AsyncConnectionPool
 
 from core_api.adapters.gateway import GatewayEmbedder, GatewayModelClient
 from core_api.adapters.postgres import PostgresStore
-from core_api.api import api_keys, documents, openai, workspaces
+from core_api.api import api_keys, documents, internal, openai, workspaces
 from core_api.config import Settings
 from core_api.ports.models import ModelClient
 from core_api.services.api_keys import ApiKeyService
 from core_api.services.auth import AccessResolver
 from core_api.services.chat import ChatService
 from core_api.services.documents import DocumentService
+from core_api.services.memberships import TeamMembershipService
 from core_api.services.workspaces import WorkspaceService
 from devkit_common.http import install_service
 from ldk_core.plugins import AUTH, PluginKind, PluginRegistry
@@ -65,6 +66,9 @@ def create_app(
         app.state.workspaces = WorkspaceService(workspaces=store, audit=store)
         app.state.api_keys = ApiKeyService(keys=store, audit=store, pepper=pepper)
         app.state.documents = DocumentService(documents=store, audit=store)
+        app.state.team_members = TeamMembershipService(workspaces=store, audit=store)
+        web_token = settings.web_service_token
+        app.state.web_service_token = web_token.get_secret_value() if web_token else None
         token = settings.model_gateway_token.get_secret_value()
         owned: list[GatewayEmbedder | GatewayModelClient] = []
         if embedder is None:
@@ -107,4 +111,5 @@ def create_app(
     app.include_router(api_keys.router)
     app.include_router(documents.router)
     app.include_router(openai.router)
+    app.include_router(internal.router)
     return app

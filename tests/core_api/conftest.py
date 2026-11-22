@@ -30,7 +30,7 @@ def model_client():
 @pytest.fixture
 def app(db_url, issuer, embedder, model_client):
     """core-api against the migrated test database."""
-    from core_api_helpers import PEPPER
+    from core_api_helpers import PEPPER, WEB_SERVICE_TOKEN
 
     from core_api.config import Settings
     from core_api.main import create_app
@@ -39,6 +39,7 @@ def app(db_url, issuer, embedder, model_client):
         DATABASE_URL=db_url,
         API_KEY_PEPPER=PEPPER,
         MODEL_GATEWAY_TOKEN="svc-token",
+        WEB_SERVICE_TOKEN=WEB_SERVICE_TOKEN,
         LOG_FORMAT="console",
     )
     return create_app(settings, sessions=issuer.provider(), embedder=embedder, models=model_client)

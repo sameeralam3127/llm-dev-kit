@@ -44,6 +44,15 @@ const serverSchema = z.object({
     .optional()
     .transform((value) => value || undefined),
   /**
+   * The web app's credential for core-api's internal calls (keeping the shared
+   * team workspace in step with users' roles). Must equal core-api's
+   * WEB_SERVICE_TOKEN. Needed whenever CORE_API_URL is set.
+   */
+  WEB_SERVICE_TOKEN: z
+    .union([z.string().min(32), z.literal('')])
+    .optional()
+    .transform((value) => value || undefined),
+  /**
    * Only for a backend that is not this repo's rag-service (raw Ollama, a
    * hosted API). Unset, or a `sk-local*` placeholder, means "rag-service":
    * each request then carries the signed-in user's own access token.

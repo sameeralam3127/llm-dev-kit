@@ -1,9 +1,10 @@
 import 'server-only'
 
+import { db } from '@/lib/db'
 import { getEnv } from '@/lib/env'
 import { OpenAICompatibleProvider } from '@/lib/llm/openai-compatible'
-import type { ChatProvider, ProviderModel } from '@/lib/llm/types'
-import { personalWorkspaceId } from '@/server/core-api/workspaces'
+import { type ChatProvider, ProviderError, type ProviderModel } from '@/lib/llm/types'
+import { teamWorkspaceId } from '@/server/core-api/workspaces'
 import { mintAccessToken } from '@/server/identity/tokens'
 
 let provider: ChatProvider | null = null
@@ -35,15 +36,22 @@ export interface BackendOptions {
 /**
  * How to call the model backend on `userId`'s behalf: with their own
  * short-lived access token, so the services see who is asking. core-api also
- * needs the workspace to act in: the user's personal one. A configured
- * third-party key replaces the token.
+ * needs the workspace to act in: the shared team workspace, where the user's
+ * role is kept in step with the web app's. A configured third-party key
+ * replaces the token.
  */
 export async function backendOptions(userId: string): Promise<BackendOptions> {
   const env = getEnv()
   if (env.CORE_API_URL) {
-    const { token } = await mintAccessToken(userId)
-    const baseUrl = env.CORE_API_URL.replace(/\/$/, '')
-    return { authorization: token, workspaceId: await personalWorkspaceId(userId, token, { baseUrl }) }
+    if (!env.WEB_SERVICE_TOKEN) {
+      throw new ProviderError('CORE_API_URL is set but WEB_SERVICE_TOKEN is not', 'upstream_error')
+    }
+    const user = await db.user.findUnique({ where: { id: userId }, select: { role: true } })
+    const workspaceId = await teamWorkspaceId(userId, user?.role ?? 'viewer', {
+      baseUrl: env.CORE_API_URL.replace(/\/$/, ''),
+      serviceToken: env.WEB_SERVICE_TOKEN,
+    })
+    return { authorization: (await mintAccessToken(userId)).token, workspaceId }
   }
   if (env.LLM_API_KEY) return {}
   return { authorization: (await mintAccessToken(userId)).token }

@@ -100,6 +100,44 @@ class PostgresStore:
             row = await cur.fetchone()
             return row[0] if row else None
 
+    async def ensure_workspace(self, *, slug: str, name: str) -> UUID:
+        """Insert-or-read in one statement pair, safe under concurrent first calls."""
+        async with self._pool.connection() as conn:
+            await conn.execute(
+                "INSERT INTO core.workspaces (slug, name) VALUES (%s, %s)"
+                " ON CONFLICT (slug) DO NOTHING",
+                (slug, name),
+            )
+            cur = await conn.execute("SELECT id FROM core.workspaces WHERE slug = %s", (slug,))
+            row = await cur.fetchone()
+            assert row is not None
+            workspace_id: UUID = row[0]
+            return workspace_id
+
+    async def set_role(self, workspace_id: UUID, user_id: str, role: Role | None) -> Role | None:
+        """Upsert or delete the membership, returning the role it replaced."""
+        async with self._pool.connection() as conn, conn.transaction():
+            cur = await conn.execute(
+                "SELECT role FROM core.memberships WHERE workspace_id = %s AND user_id = %s"
+                " FOR UPDATE",
+                (workspace_id, user_id),
+            )
+            row = await cur.fetchone()
+            previous: Role | None = row[0] if row else None
+            if role is None:
+                await conn.execute(
+                    "DELETE FROM core.memberships WHERE workspace_id = %s AND user_id = %s",
+                    (workspace_id, user_id),
+                )
+            else:
+                await conn.execute(
+                    "INSERT INTO core.memberships (workspace_id, user_id, role)"
+                    " VALUES (%s, %s, %s)"
+                    " ON CONFLICT (workspace_id, user_id) DO UPDATE SET role = EXCLUDED.role",
+                    (workspace_id, user_id, role),
+                )
+            return previous
+
     # --------------------------------------------------------------- api keys
 
     async def insert_key(

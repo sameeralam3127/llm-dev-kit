@@ -9,6 +9,10 @@ updates:
       - "/"
       - "/services/*"
       - "/services/plugins/*"
+    # The Python requirements are lower bounds that only exist to keep out
+    # vulnerable versions; raising them every week is noise. Propose a change
+    # only when a new version falls outside the allowed range.
+    versioning-strategy: increase-if-necessary
     ignore:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]

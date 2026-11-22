@@ -1,0 +1,51 @@
+name: Learning task
+description: A small, well-scoped task that teaches one AI engineering concept.
+title: "learn: "
+labels: ["learning opportunity"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Learning tasks are for contributors who want to understand one piece of an
+        AI system by building it. Keep the task small enough to finish in a few
+        sessions, and say exactly where to start.
+  - type: input
+    id: concept
+    attributes:
+      label: What you'll learn
+      description: The concept, in one line.
+      placeholder: How reranking improves retrieval precision
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Why this matters, and where it fits in the system.
+    validations:
+      required: true
+  - type: textarea
+    id: files
+    attributes:
+      label: Files to look at
+      placeholder: |
+        - services/plugins/chunker_fixed/ (an example to copy)
+        - services/core/src/ldk_core/ports/chunker.py (the interface)
+    validations:
+      required: true
+  - type: textarea
+    id: done
+    attributes:
+      label: Acceptance criteria
+      description: How a contributor knows they are done.
+      placeholder: |
+        - [ ] ...
+        - [ ] Tests cover ...
+        - [ ] `make check` passes
+    validations:
+      required: true
+  - type: textarea
+    id: reading
+    attributes:
+      label: Further reading
+      description: Optional links that explain the concept.

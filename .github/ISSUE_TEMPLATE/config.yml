@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and ideas
+    url: https://github.com/sameeralam3127/llm-dev-kit/discussions
+    about: Ask a question, share an idea, or say what you are learning.
+  - name: Report a security vulnerability
+    url: https://github.com/sameeralam3127/llm-dev-kit/security/policy
+    about: Please report security problems privately, never in a public issue.

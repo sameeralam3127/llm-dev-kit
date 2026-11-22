@@ -1,0 +1,61 @@
+name: Bug report
+description: Something does not work as it should.
+title: "fix: "
+labels: ["type: bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. **Security problems do not belong here**: report them
+        privately, as the security policy describes.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Ideally from a fresh `docker compose up`.
+      placeholder: |
+        1. Start the stack with ...
+        2. Sign in as ...
+        3. ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      description: The release (for example 1.1.0) or the commit you ran.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Chat and the web app
+        - Documents and retrieval
+        - Models and inference
+        - API (/v1, /api/rag) or MCP
+        - Sign-in, accounts and roles
+        - Admin console
+        - Docker, Compose and deployment
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Relevant output from `docker compose logs <service>`. Remove any secrets first.
+      render: text
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Operating system, Docker version, and anything unusual in your `.env` (never the secrets).

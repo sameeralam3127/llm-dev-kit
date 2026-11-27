@@ -253,3 +253,10 @@ def test_cloud_output_length_is_capped_too(client, cloud: FakeLiteLLM) -> None:
 def test_prompt_length_is_bounded(client) -> None:
     res = client.post("/generate", json={"prompt": "x" * (main.MAX_PROMPT_CHARS + 1)})
     assert res.status_code == 400
+
+
+def test_embed_refuses_a_batch_above_the_maximum(client) -> None:
+    res = client.post("/embed", json={"texts": ["x"] * (main.MAX_EMBED_TEXTS + 1)})
+    assert res.status_code == 400
+    assert res.json()["error"]["code"] == "invalid_request"
+    assert client.post("/embed", json={"texts": ["x"] * main.MAX_EMBED_TEXTS}).status_code == 200

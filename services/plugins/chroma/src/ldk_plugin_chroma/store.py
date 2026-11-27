@@ -9,6 +9,7 @@ behind the port.
 from __future__ import annotations
 
 import asyncio
+import threading
 from collections.abc import Callable, Sequence
 from typing import Any
 
@@ -39,6 +40,7 @@ class ChromaVectorStore:
         self.port = port
         self.prefix = collection_prefix
         self._client = client
+        self._client_lock = threading.Lock()
 
     async def upsert(self, collection_id: str, chunks: Sequence[ChunkRecord]) -> None:
         """Insert or replace chunks by id."""
@@ -116,10 +118,14 @@ class ChromaVectorStore:
         return f"{self.prefix}{collection_id}"
 
     def _get_client(self) -> Any:
+        # Called from worker threads. Checked again under the lock, so threads
+        # that all find no client still create only one; once it exists, no lock.
         if self._client is None:
-            import chromadb  # heavy; imported only once the store is used
+            with self._client_lock:
+                if self._client is None:
+                    import chromadb  # heavy; imported only once the store is used
 
-            self._client = chromadb.HttpClient(host=self.host, port=self.port)
+                    self._client = chromadb.HttpClient(host=self.host, port=self.port)
         return self._client
 
     def _collection(self, collection_id: str) -> Any:

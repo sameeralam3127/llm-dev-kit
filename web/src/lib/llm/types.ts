@@ -1,5 +1,5 @@
 import { serviceErrorMessage } from '@/lib/service-errors'
-import type { MessageRole, StreamErrorCode } from '@/types/chat'
+import type { MessageRole, MessageSource, StreamErrorCode } from '@/types/chat'
 
 export interface ProviderMessage {
   role: MessageRole
@@ -15,6 +15,8 @@ export interface CompletionRequest {
   authorization?: string
   /** core-api's workspace to act in, sent as X-Workspace-Id. */
   workspaceId?: string
+  /** Called when the backend reports which passages it answered from. */
+  onSources?: (sources: MessageSource[]) => void
 }
 
 export interface ListModelsOptions {

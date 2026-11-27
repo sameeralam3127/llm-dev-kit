@@ -29,7 +29,7 @@ const mocks = vi.hoisted(() => {
     },
   }
   const actions = {
-    send: () => undefined,
+    send: vi.fn(),
     regenerate: () => undefined,
     editMessage: () => undefined,
     stop: () => undefined,
@@ -65,6 +65,10 @@ vi.mock('@/components/chat/composer', () => ({
 
 vi.mock('@/hooks/use-chats', () => ({ useUpdateChat: () => ({ mutate: mocks.mutate }) }))
 
+vi.mock('@/hooks/use-service-status', () => ({
+  useServiceStatus: () => ({ offline: false, refresh: () => undefined }),
+}))
+
 vi.mock('@/hooks/use-chat-stream', () => ({
   useChatStream: (): UseChatStreamResult => {
     const { messages } = React.useSyncExternalStore(mocks.store.subscribe, mocks.store.get)
@@ -81,6 +85,7 @@ vi.mock('@/hooks/use-chat-stream', () => ({
 }))
 
 import { ChatView } from '@/components/chat/chat-view'
+import { PENDING_PROMPT_KEY } from '@/components/chat/new-chat-launcher'
 import { TooltipProvider } from '@/components/ui/tooltip'
 
 function message(id: string, role: 'user' | 'assistant', content: string, position: number) {
@@ -93,6 +98,7 @@ function message(id: string, role: 'user' | 'assistant', content: string, positi
     model: null,
     error: null,
     truncated: false,
+    sources: [],
     editedAt: null,
     createdAt: '2026-01-01T00:00:00.000Z',
     versions: [],
@@ -171,5 +177,32 @@ describe('ChatView while an answer streams', () => {
     expect((mocks.headerProps.at(-1)?.chat as ChatDetail).title).toBe('Halcyon launch date')
     expect(document.title).toBe('Halcyon launch date · LLM Dev Kit')
     mocks.live.chat = undefined
+  })
+
+  it('sends the prompt typed on the landing screen exactly once, even under Strict Mode', async () => {
+    // Strict Mode mounts, unmounts and remounts; the unmount aborts any request
+    // already in flight, which used to swallow the first message.
+    mocks.store.set([])
+    mocks.actions.send.mockClear()
+    sessionStorage.setItem(PENDING_PROMPT_KEY, 'What changed in v2?')
+
+    render(
+      <React.StrictMode>
+        <QueryClientProvider client={new QueryClient()}>
+          <TooltipProvider>
+            <ChatView chat={chat} user={{ name: null, image: null, email: null }} />
+          </TooltipProvider>
+        </QueryClientProvider>
+      </React.StrictMode>,
+    )
+    expect(mocks.actions.send).not.toHaveBeenCalled()
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+
+    expect(mocks.actions.send).toHaveBeenCalledTimes(1)
+    expect(mocks.actions.send).toHaveBeenCalledWith('What changed in v2?', 'llama3.1')
+    expect(sessionStorage.getItem(PENDING_PROMPT_KEY)).toBeNull()
   })
 })

@@ -55,8 +55,11 @@ export function ChatView({ chat, user }: ChatViewProps) {
     setModel(chat.model)
   }, [chat.id, chat.model])
 
-  // A prompt typed on the landing screen before this chat existed. Read once
-  // and cleared immediately so a refresh cannot replay it.
+  // A prompt typed on the landing screen before this chat existed. It is sent
+  // on the next tick and cleared only then: React may mount, unmount and
+  // remount this view straight away (Strict Mode does in development), and the
+  // unmount aborts any request already in flight. Sending inside the effect
+  // lost the prompt that way; a cancelled timer loses nothing.
   const sendRef = React.useRef(send)
   sendRef.current = send
 
@@ -66,12 +69,21 @@ export function ChatView({ chat, user }: ChatViewProps) {
     let pending: string | null = null
     try {
       pending = sessionStorage.getItem(PENDING_PROMPT_KEY)
-      if (pending) sessionStorage.removeItem(PENDING_PROMPT_KEY)
     } catch {
       return
     }
+    if (!pending?.trim()) return
 
-    if (pending?.trim()) sendRef.current(pending, chat.model)
+    const prompt = pending
+    const timer = window.setTimeout(() => {
+      try {
+        sessionStorage.removeItem(PENDING_PROMPT_KEY)
+      } catch {
+        /* storage went away; the prompt is still sent once */
+      }
+      sendRef.current(prompt, chat.model)
+    }, 0)
+    return () => window.clearTimeout(timer)
   }, [chat.id, chat.messages.length, chat.model])
 
   // Every callback below is referentially stable. ChatView re-renders once per

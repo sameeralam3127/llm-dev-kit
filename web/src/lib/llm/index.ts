@@ -82,6 +82,43 @@ export async function getAvailableModels(userId: string): Promise<ProviderModel[
   }
 }
 
+const STATUS_TTL_MS = 15_000
+const STATUS_TIMEOUT_MS = 4_000
+let statusCache: { online: boolean; checkedAt: number } | null = null
+
+/**
+ * Whether the answering backend responds at all, for the chat's status line.
+ * getAvailableModels hides failures behind a fallback, so this asks directly,
+ * with a short timeout and a short cache shared by every user.
+ */
+export async function checkModelHost(
+  userId: string,
+): Promise<{ online: boolean; checkedAt: string }> {
+  const now = Date.now()
+  if (!statusCache || now - statusCache.checkedAt > STATUS_TTL_MS) {
+    let online = false
+    try {
+      await getChatProvider().listModels({
+        ...(await backendOptions(userId)),
+        signal: AbortSignal.timeout(STATUS_TIMEOUT_MS),
+      })
+      online = true
+    } catch {
+      online = false
+    }
+    statusCache = { online, checkedAt: now }
+  }
+  return { online: statusCache.online, checkedAt: new Date(statusCache.checkedAt).toISOString() }
+}
+
+/**
+ * What a real answer just showed about the backend, so the status line
+ * follows it now rather than after the cache expires.
+ */
+export function noteModelHost(online: boolean): void {
+  statusCache = { online, checkedAt: Date.now() }
+}
+
 export function invalidateModelCache(): void {
   modelCache = null
 }

@@ -478,6 +478,19 @@ def test_a_successful_stream_is_unchanged(client) -> None:
     assert frames[-1] == "[DONE]"
 
 
+def test_the_final_stream_chunk_lists_the_retrieved_passages(client) -> None:
+    assert _upload(client, make_pdf(["Sovereign mode keeps every byte local."])).status_code == 200
+    frames = _frames(client.post("/v1/chat/completions", json=STREAM_BODY).text)
+    final = frames[-2]
+    assert final["choices"][0]["finish_reason"] == "stop"
+    citations = final["citations"]
+    assert citations, "a grounded answer names its passages"
+    assert [c["index"] for c in citations] == list(range(1, len(citations) + 1))
+    assert any("Sovereign mode" in c["snippet"] for c in citations)
+    # Only the last chunk carries them; token chunks stay plain OpenAI.
+    assert all("citations" not in f for f in frames[:-2])
+
+
 def test_the_official_openai_sdk_raises_on_both_kinds_of_failure(client, issuer) -> None:
     openai = pytest.importorskip("openai")
     token = issuer.bearer("admin")["Authorization"].removeprefix("Bearer ")

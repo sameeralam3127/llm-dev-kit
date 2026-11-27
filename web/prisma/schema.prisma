@@ -183,6 +183,10 @@ model Message {
   error    String?
   /// Streaming was cut short (user stop / disconnect).
   truncated Boolean @default(false)
+  /// JSON array of the passages an assistant answer drew on, in citation
+  /// order. Text rather than Json so the column is the same on SQLite and
+  /// PostgreSQL; read through toMessageDTO.
+  sources   String?
   editedAt DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

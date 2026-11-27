@@ -135,16 +135,23 @@ async def chat_completions(
     # Retrieval happens here, before any response: an outage is an HTTP error.
     prepared = await pipeline.prepare(query, model, history=history)
 
+    # Not part of OpenAI's format: the passages retrieved for this answer, in
+    # the shape core-api sends, so the web app can show where it came from.
+    citations = [
+        {"index": i, "title": None, "page": None, "snippet": text[:600]}
+        for i, text in enumerate(prepared.sources, start=1)
+    ]
     completion_id = f"chatcmpl-{uuid4().hex}"
     created = int(time.time())
 
-    def chunk(delta: dict, finish_reason: str | None = None) -> str:
+    def chunk(delta: dict, finish_reason: str | None = None, **extra: object) -> str:
         payload = {
             "id": completion_id,
             "object": "chat.completion.chunk",
             "created": created,
             "model": model,
             "choices": [{"index": 0, "delta": delta, "finish_reason": finish_reason}],
+            **extra,
         }
         return f"data: {json.dumps(payload)}\n\n"
 
@@ -166,7 +173,7 @@ async def chat_completions(
         try:
             yield chunk({"role": "assistant", "content": ""})
             if first is None:
-                yield chunk({}, "stop")
+                yield chunk({}, "stop", citations=citations)
                 yield "data: [DONE]\n\n"
                 return
             yield chunk({"content": first})
@@ -183,7 +190,7 @@ async def chat_completions(
             return
         finally:
             await pieces.aclose()
-        yield chunk({}, "stop")
+        yield chunk({}, "stop", citations=citations)
         yield "data: [DONE]\n\n"
 
     return StreamingResponse(sse(), media_type="text/event-stream")

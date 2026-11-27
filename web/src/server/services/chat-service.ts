@@ -16,7 +16,7 @@ import type {
 } from '@/lib/validations/chat'
 import { ApiError, badRequest, notFound } from '@/server/http'
 import { toChatSummaryDTO, toMessageDTO } from '@/server/mappers'
-import type { ChatDetail, ChatMessage, ChatSummary, StreamErrorCode } from '@/types/chat'
+import type { ChatDetail, ChatMessage, ChatSummary, MessageSource, StreamErrorCode } from '@/types/chat'
 
 const messageInclude = {
   versions: { orderBy: { position: 'asc' } },
@@ -372,7 +372,7 @@ async function writeTurn(
 
       await tx.message.update({
         where: { id: target.id },
-        data: { content: '', error: null, truncated: false, model },
+        data: { content: '', error: null, truncated: false, sources: null, model },
       })
 
       userMessageRow = await tx.message.findUniqueOrThrow({
@@ -441,6 +441,7 @@ export async function finalizeAssistantMessage(params: {
   content: string
   model: string
   truncated: boolean
+  sources?: MessageSource[]
   errorCode: StreamErrorCode | null
 }): Promise<void> {
   await db.message.update({
@@ -449,6 +450,7 @@ export async function finalizeAssistantMessage(params: {
       content: params.content,
       model: params.model,
       truncated: params.truncated,
+      sources: params.sources?.length ? JSON.stringify(params.sources) : null,
       error: params.errorCode,
     },
   })

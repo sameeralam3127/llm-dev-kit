@@ -11,6 +11,7 @@ vi.mock('@/lib/auth', () => ({ auth: async () => ({ user: { id: 'user-1' } }) })
 vi.mock('@/lib/db', () => ({ db: {} }))
 vi.mock('@/lib/llm', () => ({
   backendOptions: async () => ({}),
+  noteModelHost: () => undefined,
   getChatProvider: () => new OpenAICompatibleProvider({ baseUrl: 'http://rag.test/v1', timeoutMs: 5000 }),
 }))
 vi.mock('@/server/services/chat-service', () => ({

@@ -1,4 +1,5 @@
 import { parseSSE } from '@/lib/llm/sse'
+import { parseSources } from '@/lib/sources'
 import {
   type ChatProvider,
   type CompletionRequest,
@@ -20,6 +21,8 @@ interface ChatCompletionChunk {
     finish_reason?: string | null
   }>
   error?: unknown
+  /** Not OpenAI: this repo's backends attach the retrieved passages here. */
+  citations?: unknown
 }
 
 interface ModelListResponse {
@@ -96,6 +99,11 @@ export class OpenAICompatibleProvider implements ChatProvider {
 
       if (chunk?.error) {
         throw new ProviderError()
+      }
+
+      if (chunk?.citations !== undefined && request.onSources) {
+        const sources = parseSources(chunk.citations)
+        if (sources.length > 0) request.onSources(sources)
       }
 
       const text = chunk?.choices?.[0]?.delta?.content

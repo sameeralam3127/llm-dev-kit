@@ -1,3 +1,4 @@
+import asyncio
 import json
 from collections.abc import AsyncIterator
 from typing import Any
@@ -8,6 +9,14 @@ from devkit_common.http import error_detail
 from ldk_core.auth import auth_headers
 from ldk_core.errors import ErrorCode, ServiceError, code_for_status
 from ldk_core.observability import outgoing_headers
+
+EMBED_BATCH_SIZE = 64
+"""Chunks per /embed request. A document never travels as one request, which
+would have to finish inside a single timeout."""
+
+EMBED_CONCURRENCY = 4
+"""Batches in flight at once, so a long document neither waits on one batch at
+a time nor floods llm-service."""
 
 
 class LLMServiceClient:
@@ -45,7 +54,18 @@ class LLMServiceClient:
         return embeddings[0] if embeddings else None
 
     async def embed_many(self, texts: list[str]) -> list[list[float]]:
-        return await self._embed(texts, strict=True)
+        """Embed ``texts`` in order, in bounded batches; any failed batch fails all."""
+        batches = [texts[i : i + EMBED_BATCH_SIZE] for i in range(0, len(texts), EMBED_BATCH_SIZE)]
+        if len(batches) <= 1:
+            return await self._embed(texts, strict=True)
+        limit = asyncio.Semaphore(EMBED_CONCURRENCY)
+
+        async def one(batch: list[str]) -> list[list[float]]:
+            async with limit:
+                return await self._embed(batch, strict=True)
+
+        results = await asyncio.gather(*(one(batch) for batch in batches))
+        return [vector for result in results for vector in result]
 
     async def _embed(self, texts: list[str], *, strict: bool) -> list[list[float]]:
         try:

@@ -6,12 +6,12 @@ import time
 import httpx
 import jwt
 import pytest
-from identity import AUDIENCE, ISSUER, Issuer, public_jwk, sign
+from identity import AUDIENCE, ISSUER, JWKS_URL, TOKEN_URL, Issuer, public_jwk, sign
 
 from ldk_core.auth import ANONYMOUS, Authenticator, require_scope
 from ldk_core.errors import ErrorCode, ServiceError
 from ldk_core.plugins import AUTH, PluginKind, PluginRegistry
-from ldk_plugin_auth import OidcAuthProvider, local_plugin, oidc_plugin
+from ldk_plugin_auth import LocalAuthProvider, OidcAuthProvider, local_plugin, oidc_plugin
 
 
 def run(coro):
@@ -286,3 +286,82 @@ def test_both_plugins_build_from_validated_config() -> None:
     assert registry.get(AUTH, "local").name == "local"
     assert registry.get(AUTH, "oidc").name == "oidc"
     run(registry.aclose())
+
+
+# ------------------------------------------------ concurrent first use (single flight)
+
+
+class GatedTransport(httpx.AsyncBaseTransport):
+    """The issuer's endpoints, holding every request until ``gate`` opens.
+
+    The plain mock answers without ever yielding, so concurrent callers would
+    never overlap. Holding requests makes them overlap for certain.
+    """
+
+    def __init__(self, issuer: Issuer) -> None:
+        self.gate = asyncio.Event()
+        self.requests = 0
+        self._inner = httpx.MockTransport(issuer.handle)
+
+    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+        await self.gate.wait()
+        self.requests += 1
+        return await self._inner.handle_async_request(request)
+
+
+def gated_provider(issuer: Issuer) -> tuple[LocalAuthProvider, GatedTransport]:
+    transport = GatedTransport(issuer)
+    provider = LocalAuthProvider(
+        jwks_url=JWKS_URL,
+        token_url=TOKEN_URL,
+        issuer=ISSUER,
+        audience=AUDIENCE,
+        transport=transport,
+    )
+    return provider, transport
+
+
+async def all_at_once(provider: LocalAuthProvider, transport: GatedTransport, credential: str):
+    calls = [asyncio.create_task(provider.authenticate(credential)) for _ in range(50)]
+    for _ in range(20):  # let every call reach the fetch (or the shared wait for it)
+        await asyncio.sleep(0)
+    transport.gate.set()
+    return await asyncio.gather(*calls, return_exceptions=True)
+
+
+def test_fifty_concurrent_first_verifications_fetch_the_keys_once(issuer: Issuer) -> None:
+    provider, transport = gated_provider(issuer)
+    results = run(all_at_once(provider, transport, issuer.token(sub="alice")))
+    assert all(r.subject == "alice" for r in results)
+    assert issuer.jwks_fetches == 1
+
+
+def test_fifty_concurrent_first_uses_of_an_api_key_exchange_it_once(issuer: Issuer) -> None:
+    issuer.api_keys["sk-ldk-concurrent1"] = "user"
+    provider, transport = gated_provider(issuer)
+    results = run(all_at_once(provider, transport, "sk-ldk-concurrent1"))
+    assert all(r.kind == "api_key" for r in results)
+    assert issuer.exchanges == 1
+    assert issuer.jwks_fetches == 1
+
+
+def test_a_failed_shared_fetch_fails_its_callers_once_then_the_next_call_retries(
+    issuer: Issuer,
+) -> None:
+    provider, transport = gated_provider(issuer)
+    token = issuer.token(sub="alice")
+    issuer.down = True
+
+    async def scenario():
+        failed = await all_at_once(provider, transport, token)
+        issuer.down = False
+        recovered = await provider.authenticate(token)
+        return failed, recovered
+
+    failed, recovered = run(scenario())
+    assert all(
+        isinstance(r, ServiceError) and r.code is ErrorCode.UPSTREAM_UNAVAILABLE for r in failed
+    )
+    assert recovered.subject == "alice"
+    # One shared attempt failed for all fifty callers, then one retry succeeded.
+    assert transport.requests == 2

@@ -36,7 +36,6 @@ class RateLimiter(Protocol):
     @property
     def name(self) -> str:
         """Registry name, e.g. ``"redis"``, ``"memory"``."""
-        ...
 
     async def hit(self, bucket: str, key: str, *, cost: int = 1) -> RateLimitDecision:
         """Spend ``cost`` tokens from ``bucket`` for ``key`` if available.
@@ -49,4 +48,3 @@ class RateLimiter(Protocol):
         A refused hit consumes nothing. If the backing store is down the
         limiter fails open and logs it, rather than taking the product down.
         """
-        ...

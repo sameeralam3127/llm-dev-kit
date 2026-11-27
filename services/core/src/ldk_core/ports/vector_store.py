@@ -73,26 +73,20 @@ class VectorStore(Protocol):
     @property
     def name(self) -> str:
         """Registry name, e.g. ``"pgvector"``."""
-        ...
 
     async def upsert(self, collection_id: str, chunks: Sequence[ChunkRecord]) -> None:
         """Insert or replace ``chunks`` in ``collection_id``, all or nothing."""
-        ...
 
     async def search(
         self, embedding: Sequence[float], *, scope: SearchScope, top_k: int
     ) -> list[SearchResult]:
         """Return up to ``top_k`` chunks within ``scope``, most similar first."""
-        ...
 
     async def delete_document(self, collection_id: str, document_id: str) -> int:
         """Remove every chunk of one document; return how many were removed."""
-        ...
 
     async def clear(self, collection_id: str) -> None:
         """Remove every chunk in ``collection_id``."""
-        ...
 
     async def count(self, collection_id: str | None = None) -> int:
         """Count chunks in one collection, or across all when ``None``."""
-        ...

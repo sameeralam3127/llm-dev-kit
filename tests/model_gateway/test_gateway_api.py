@@ -157,7 +157,7 @@ def test_embed_refuses_bad_batches(gateway, ollama, db_url) -> None:
             res = c.post("/embed", json=body, headers=as_worker())
             assert res.status_code == 400, (body, res.text)
         assert c.post("/embed", json={"texts": ["x"] * 4}, headers=as_worker()).status_code == 200
-    assert [p for p in model_calls(ollama)] == ["/api/embeddings"] * 4
+    assert [p for p in model_calls(ollama)] == ["/api/embed"]
     assert len(audit_rows(db_url)) == 1
 
 

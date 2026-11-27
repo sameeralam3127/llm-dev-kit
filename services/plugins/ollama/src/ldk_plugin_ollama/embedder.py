@@ -20,6 +20,9 @@ KNOWN_DIMENSIONS = MappingProxyType(
 )
 """Vector length of common Ollama embedding models, by name without tag."""
 
+BATCH_SIZE = 64
+"""Texts per request to Ollama's batch endpoint, ``/api/embed``."""
+
 
 class OllamaEmbedder:
     """Embeddings from one Ollama model.
@@ -63,36 +66,42 @@ class OllamaEmbedder:
         )
 
     async def embed(self, texts: Sequence[str]) -> list[list[float]]:
-        """Embed each text in order (Ollama takes one text per request)."""
+        """Embed each text, in order, in batches of :data:`BATCH_SIZE`.
+
+        One request per batch to ``/api/embed``: a long document used to be
+        one sequential request per chunk.
+        """
         vectors: list[list[float]] = []
-        for text in texts:
-            try:
-                res = await self._client.post(
-                    "/api/embeddings", json={"model": self.model, "prompt": text}
-                )
-            except httpx.HTTPError as exc:
-                raise ServiceError(
-                    ErrorCode.UPSTREAM_UNAVAILABLE, f"Ollama unreachable: {exc}"
-                ) from exc
-            if res.is_error:
-                raise ServiceError(
-                    ErrorCode.UPSTREAM_ERROR,
-                    f"Ollama embedding error {res.status_code}: {res.text[:200]}",
-                )
-            embedding = res.json().get("embedding")
-            if not embedding:
-                raise ServiceError(
-                    ErrorCode.UPSTREAM_ERROR,
-                    f"Ollama returned an empty embedding for model '{self.model}'",
-                )
+        for start in range(0, len(texts), BATCH_SIZE):
+            vectors.extend(await self._embed_batch(list(texts[start : start + BATCH_SIZE])))
+        return vectors
+
+    async def _embed_batch(self, batch: list[str]) -> list[list[float]]:
+        try:
+            res = await self._client.post("/api/embed", json={"model": self.model, "input": batch})
+        except httpx.HTTPError as exc:
+            raise ServiceError(
+                ErrorCode.UPSTREAM_UNAVAILABLE, f"Ollama unreachable: {exc}"
+            ) from exc
+        if res.is_error:
+            raise ServiceError(
+                ErrorCode.UPSTREAM_ERROR,
+                f"Ollama embedding error {res.status_code}: {res.text[:200]}",
+            )
+        embeddings = res.json().get("embeddings") or []
+        if len(embeddings) != len(batch):
+            raise ServiceError(
+                ErrorCode.UPSTREAM_ERROR,
+                f"Ollama returned {len(embeddings)} embeddings for {len(batch)} texts",
+            )
+        for embedding in embeddings:
             if len(embedding) != self.dimension:
                 raise ServiceError(
                     ErrorCode.UPSTREAM_ERROR,
                     f"Ollama model '{self.model}' returned {len(embedding)} dimensions, "
                     f"expected {self.dimension}",
                 )
-            vectors.append([float(x) for x in embedding])
-        return vectors
+        return [[float(x) for x in embedding] for embedding in embeddings]
 
     async def aclose(self) -> None:
         """Close the HTTP connection pool."""

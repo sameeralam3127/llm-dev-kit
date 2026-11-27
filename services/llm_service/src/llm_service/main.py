@@ -93,8 +93,12 @@ class GenerateRequest(BaseModel):
     max_tokens: int | None = Field(default=None, ge=1, le=MAX_OUTPUT_TOKENS)
 
 
+MAX_EMBED_TEXTS = 256
+"""The most texts one /embed request may carry; callers send larger sets in batches."""
+
+
 class EmbedRequest(BaseModel):
-    texts: list[str] = Field(min_length=1)
+    texts: list[str] = Field(min_length=1, max_length=MAX_EMBED_TEXTS)
     model: str | None = None
 
 

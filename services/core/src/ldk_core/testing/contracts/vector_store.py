@@ -37,8 +37,8 @@ class VectorStoreContract:
             ``"b"`` (grant them in the fixture if the store checks grants).
     """
 
-    @pytest.fixture
-    def store(self) -> VectorStore:
+    @pytest.fixture(name="store")
+    def _missing_store(self) -> VectorStore:
         """The implementation under test, empty."""
         unimplemented("store")
 

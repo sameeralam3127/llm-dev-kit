@@ -55,7 +55,6 @@ class AuthProvider(Protocol):
     @property
     def name(self) -> str:
         """Registry name, e.g. ``"local"``, ``"oidc"``."""
-        ...
 
     def accepts(self, credential: str) -> bool:
         """Cheaply decide whether this provider should try ``credential``.
@@ -63,7 +62,6 @@ class AuthProvider(Protocol):
         Lets several providers coexist: an API-key provider claims
         ``sk-ldk-...``, a JWT provider claims three dot-separated segments.
         """
-        ...
 
     async def authenticate(self, credential: str) -> Principal:
         """Verify ``credential`` and return the caller.
@@ -72,4 +70,3 @@ class AuthProvider(Protocol):
             ldk_core.errors.ServiceError: ``unauthorized`` for any invalid,
                 expired or revoked credential, with no detail about which.
         """
-        ...

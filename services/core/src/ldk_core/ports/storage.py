@@ -39,11 +39,9 @@ class StorageBackend(Protocol):
     @property
     def name(self) -> str:
         """Registry name, e.g. ``"fs"``, ``"s3"``."""
-        ...
 
     async def put(self, key: str, data: bytes, *, content_type: str) -> StoredObject:
         """Store ``data`` at ``key``, replacing anything there."""
-        ...
 
     async def get(self, key: str) -> bytes:
         """Return the content at ``key``.
@@ -51,12 +49,9 @@ class StorageBackend(Protocol):
         Raises:
             ldk_core.errors.ServiceError: ``not_found`` if absent.
         """
-        ...
 
     async def delete(self, key: str) -> bool:
         """Remove ``key``; return whether it existed."""
-        ...
 
     async def exists(self, key: str) -> bool:
         """Return whether ``key`` holds content."""
-        ...

@@ -12,6 +12,10 @@ const MAX_ACTIVE_KEYS = 20
 /** lastUsedAt is written at most this often per key. */
 const TOUCH_AFTER_MS = 60_000
 
+/**
+ * Digest a server-generated token with 32 random bytes for indexed lookup.
+ * The local Python auth plugin uses the same digest to verify these keys.
+ */
 export function hashApiKey(key: string): string {
   return createHash('sha256').update(key).digest('hex')
 }

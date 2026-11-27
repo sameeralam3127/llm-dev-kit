@@ -2,7 +2,7 @@
 
 # LLM Dev Kit
 
-**A private AI workspace for your team. Chat with your documents on your own hardware.**
+**A private, local-first AI workspace, built security-first, to learn the whole AI stack piece by piece.**
 
 Ask questions in plain language and get answers grounded in your own PDFs,
 from models that run on your machine. Bring in your team with accounts, roles
@@ -15,8 +15,14 @@ OpenAI-compatible API and MCP.
 ![Ollama](https://img.shields.io/badge/Ollama-local%20models-black)
 ![Docker Compose](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
 ![OpenAI compatible](https://img.shields.io/badge/API-OpenAI%20compatible-412991)
+<br>
+[![GitHub stars](https://img.shields.io/github/stars/sameeralam3127/llm-dev-kit?style=flat&logo=github)](https://github.com/sameeralam3127/llm-dev-kit/stargazers)
+[![Open issues](https://img.shields.io/github/issues/sameeralam3127/llm-dev-kit)](https://github.com/sameeralam3127/llm-dev-kit/issues)
+[![Good first issues](https://img.shields.io/github/issues/sameeralam3127/llm-dev-kit/good%20first%20issue?label=good%20first%20issues&color=7057ff)](https://github.com/sameeralam3127/llm-dev-kit/labels/good%20first%20issue)
+[![PRs welcome](https://img.shields.io/badge/PRs-welcome-16a34a.svg)](.github/CONTRIBUTING.md)
+[![Last commit](https://img.shields.io/github/last-commit/sameeralam3127/llm-dev-kit)](https://github.com/sameeralam3127/llm-dev-kit/commits/main)
 
-[Quick start](#quick-start) · [Tour](#a-quick-tour) · [Features](#features) · [Use it from code](#use-it-from-code) · [Architecture](#how-it-works) · [Docs](#documentation)
+[Quick start](#quick-start) · [Tour](#a-quick-tour) · [Contribute](#contributing--learn-with-us) · [The AI stack](#the-ai-stack-piece-by-piece) · [Features](#features) · [Use it from code](#use-it-from-code) · [Architecture](#how-it-works) · [Docs](#documentation)
 
 <br>
 
@@ -29,13 +35,28 @@ OpenAI-compatible API and MCP.
 
 ---
 
+## Why this exists
+
+I'm building LLM Dev Kit to learn every layer of a real AI system, one piece at
+a time, in public: local inference, embeddings, chunking, vector search,
+retrieval-augmented generation, an API, MCP, authentication and operations.
+Each piece is built the way production software should be: services that
+check every caller, typed interfaces with contract tests, and releases that
+only ship after the whole stack passes CI.
+
+It is not trying to replace the chat tools you already know. It is a working
+system you can read end to end, and a place to learn how the parts of an AI
+stack fit together. If that is what you want too, come and build it with me.
+
+— Sameer Alam
+
 ## Why LLM Dev Kit
 
 - **Private by default.** Chat and embeddings run on [Ollama](https://ollama.com)
   on your own machine. Nothing leaves it unless you choose a cloud model.
 - **Answers you can check.** Upload PDFs and every answer is grounded in the
-  passages it retrieves from them. When the documents do not cover a
-  question, the assistant says so rather than inventing an answer.
+  passages it retrieves from them. The model is told to answer only from those
+  passages, and to say so when they do not cover the question.
 - **Ready for a team.** Accounts, roles (admin, user, viewer), personal API
   keys, optional Keycloak single sign-on, and an admin console for people,
   keys, documents and service health.
@@ -43,6 +64,21 @@ OpenAI-compatible API and MCP.
   SDK and with LangChain. An MCP server plugs into Claude Desktop and other
   agents. Model providers, the vector store, loaders and chunkers are plugins
   you can swap.
+
+## How it's different
+
+- **MIT licensed and fully rebrandable.** Use it, change it and ship it under
+  your own name. There is no paid tier and nothing is held back.
+- **Security is part of the design.** Services verify a short-lived signed
+  token on every call instead of trusting the gateway. API keys are stored as
+  hashes and shown once. Only the gateway is published, on `127.0.0.1` by
+  default, and the first admin needs a one-time setup code.
+- **Grounded answers you can inspect.** `/api/rag/chat` returns the passages
+  an answer was built from, so you can check it, and cached answers are
+  dropped whenever the documents change.
+- **Swappable at every layer.** Model providers, embedders, the vector store,
+  loaders, chunkers, authentication and MCP tools are plugins behind typed
+  interfaces, and every interface ships a contract test suite.
 
 ## Quick start
 
@@ -145,6 +181,61 @@ Admins get a console of their own at `/admin`, separate from the chat.
   </tr>
 </table>
 
+## Contributing — learn with us
+
+LLM Dev Kit is built in the open, and help of every size is welcome:
+
+- **New to AI engineering?** You are exactly who this is for. Issues labelled
+  [`good first issue`](https://github.com/sameeralam3127/llm-dev-kit/labels/good%20first%20issue)
+  are small and self-contained, and say which files to read and how you know
+  you are done.
+- **Want to learn one concept well?** Issues labelled
+  [`learning opportunity`](https://github.com/sameeralam3127/llm-dev-kit/labels/learning%20opportunity)
+  each teach a specific idea, such as a new document loader or retrieval
+  evaluation.
+- **Most wanted:** tests, documentation, new loaders and plugins, and the
+  planned rows in the table below.
+
+Read [CONTRIBUTING.md](.github/CONTRIBUTING.md) to set up, run the checks and
+open a pull request, and comment on an issue to have it assigned to you.
+Found a security problem? Please report it privately, as the
+[security policy](.github/SECURITY.md) describes, not in a public issue.
+Everyone taking part follows the [code of conduct](.github/CODE_OF_CONDUCT.md).
+
+## The AI stack, piece by piece
+
+Each layer of the system, where it lives, and how far along it is.
+✅ built · 🚧 in progress (on the `v3` branch) · 🧭 planned
+
+| Layer | Where it lives | Status |
+| --- | --- | :---: |
+| Local inference | Ollama, through [`services/plugins/ollama`](services/plugins/ollama) | ✅ |
+| Model routing | [`services/llm_service`](services/llm_service): local models, plus cloud models through LiteLLM | ✅ |
+| Embeddings | [`services/plugins/ollama`](services/plugins/ollama) (`nomic-embed-text` by default) | ✅ |
+| Document loading | [`services/plugins/loader_pdf`](services/plugins/loader_pdf): PDF text, with page, text and time limits | ✅ |
+| Chunking | [`services/plugins/chunker_fixed`](services/plugins/chunker_fixed): overlapping fixed-size windows | ✅ |
+| Vector store | [`services/plugins/chroma`](services/plugins/chroma) | ✅ |
+| Retrieval-augmented generation | [`services/rag_service`](services/rag_service): retrieve, build a grounded prompt, answer with sources | ✅ |
+| Answer caching | [`services/rag_service`](services/rag_service): Redis, dropped whenever the documents change | ✅ |
+| OpenAI-compatible API | `/v1` in [`services/rag_service`](services/rag_service) | ✅ |
+| MCP | [`services/mcp_service`](services/mcp_service), with tools in [`services/plugins/tools`](services/plugins/tools) | ✅ |
+| Authentication and roles | [`web/src/server/identity`](web/src/server/identity) issues tokens; [`services/plugins/auth`](services/plugins/auth) verifies them | ✅ |
+| Observability | [`services/core`](services/core) (`ldk_core.observability`): structured logs and one request id across services | ✅ |
+| Postgres and pgvector, workspaces | [`services/core_api`](services/core_api) | 🚧 |
+| Hybrid search (vector and full text, fused) | [`services/core_api`](services/core_api) | 🚧 |
+| Background ingestion queue | [`services/ingest_worker`](services/ingest_worker) | 🚧 |
+| Model gateway and sovereign mode | [`services/model_gateway`](services/model_gateway): the only path to a model, with an audit trail | 🚧 |
+| Reranking | — | 🧭 [issue](https://github.com/sameeralam3127/llm-dev-kit/issues/158) |
+| Evaluation of retrieval and citations | — | 🧭 [issue](https://github.com/sameeralam3127/llm-dev-kit/issues/80) |
+| LLM tracing | — | 🧭 [issue](https://github.com/sameeralam3127/llm-dev-kit/issues/16) |
+| Guardrails and prompt-injection defence | — | 🧭 [issue](https://github.com/sameeralam3127/llm-dev-kit/issues/49) |
+| Secure MCP tool permissions | — | 🧭 [issue](https://github.com/sameeralam3127/llm-dev-kit/issues/103) |
+| Layout-aware parsing and OCR | — | 🧭 [issue](https://github.com/sameeralam3127/llm-dev-kit/issues/69) |
+| Alternative serving (vLLM, llama.cpp) | — | 🧭 [issue](https://github.com/sameeralam3127/llm-dev-kit/issues/67) |
+| Structured output | — | 🧭 |
+| Agents | — | 🧭 |
+| Fine-tuning | — | 🧭 |
+
 ## Features
 
 ### Chat
@@ -189,6 +280,11 @@ Admins get a console of their own at `/admin`, separate from the chat.
   an account is refused, not silently linked.
 - **Short-lived credentials.** The services verify 5-minute signed tokens
   themselves, so the gateway is never trusted blindly.
+- **Safe first run.** The first admin needs a one-time setup code from the web
+  log, so a stranger who reaches a new instance first cannot claim it.
+- **Hardened by default.** Password sign-in and API key checks are rate
+  limited, pages carry a strict Content-Security-Policy, uploads have page,
+  text and time limits, and model options are bounded for every caller.
 
 ### Operations
 
@@ -310,7 +406,7 @@ flowchart LR
 | `keycloak` | Optional single sign-on (profile `sso`). |
 
 The Python services never trust the gateway: each verifies the caller's token
-itself. [ARCHITECTURE.md](ARCHITECTURE.md) has the request flows and the Docker
+itself. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) has the request flows and the Docker
 build strategy.
 
 ### Where it is heading: v3
@@ -459,7 +555,7 @@ from [Conventional Commits](https://www.conventionalcommits.org/) by
   release, `feat:` a minor one, and `feat!:` or a `BREAKING CHANGE:` footer a
   major one. `docs:`, `test:`, `ci:` and `chore:` make no release.
 - **Every merge to `main`** updates one open release PR with the next version
-  and its [CHANGELOG.md](CHANGELOG.md) entry.
+  and its [changelog](.github/CHANGELOG.md) entry.
 - **Merging the release PR** tags `vX.Y.Z`, publishes the GitHub release, and
   pushes the images to `ghcr.io/sameeralam3127/llm-dev-kit-<service>` as
   `X.Y.Z`, `X.Y` and `X`. Pushes to `main` are also published as `latest`.
@@ -500,7 +596,7 @@ Makefile                 the same checks CI runs: make check, make e2e
 **v1.0.0 is the current release** (2026-10-25). It is what `docker compose up`
 runs: chat, grounded answers from your PDFs, accounts, roles, API keys, single
 sign-on and the admin console. Every release is listed in
-[CHANGELOG.md](CHANGELOG.md).
+[the changelog](.github/CHANGELOG.md).
 
 | Release | When | What |
 | --- | --- | --- |
@@ -514,16 +610,15 @@ sign-on and the admin console. Every release is listed in
 | ✅ | Core | Interfaces, plugin registry, contract tests, CI gate |
 | ✅ | Authentication | Tokens, API keys, roles, SSO. Breaking for `/v1`: see [MIGRATION.md](docs/v2/MIGRATION.md) |
 | ✅ | Admin console | Overview, users, API keys, documents, health and settings |
-| 🚧 | v3 secure core | Postgres schema, workspace API keys, ingestion queue, hybrid search and model-gateway are built and tested; the web app moves onto them next |
+| 🚧 | v3 secure core | Postgres schema, workspace API keys, ingestion queue, hybrid search and model-gateway are built and tested; the web app is moving onto them (Postgres, chat through core-api and a shared team workspace are done on the `v3` branch) |
 | ⏳ | Sovereign mode end to end | Already enforced in model-gateway; reaches Compose with v3 |
-| ⏳ | Per-user documents | Workspaces on pgvector with citations, in v3 |
+| ⏳ | Per-user documents | Personal workspaces, after v3; v3 keeps one shared team workspace, as today |
 | ⏳ | Distribution | Multi-arch images, Helm chart, any-cloud hosting, after v3 ships |
 
 **Good to know today:**
 
-- Documents are shared by every user until workspaces arrive with v3.
-- Sending several messages to the same chat at once can fail with an error
-  and lose a message. One message at a time works.
+- Documents are shared by every user. v3 keeps it that way, in one team
+  workspace; personal workspaces come later.
 - Models whose names end in `-cloud` run on ollama.com, not on your machine;
   the admin console lists them separately.
 - The v3 services (`core_api`, `ingest_worker`, `model_gateway`) are in the
@@ -533,29 +628,9 @@ sign-on and the admin console. Every release is listed in
 
 **Next:** 1.1.0 closes the open security issues for today's stack. Then v3
 Milestone 1 ("secure core") moves the web app onto Postgres and core-api and
-brings model-gateway into Compose. Steps (a) to (e) are done on the `v3` branch.
+brings model-gateway into Compose. Steps (a) to (e) are done on the `v3` branch,
+and step (f), moving the web app across, is under way.
 Milestones and decisions are in [docs/v3/ROADMAP.md](docs/v3/ROADMAP.md).
-
-## Contributing
-
-Contributions are welcome. Start with an issue, keep the change focused, and
-run the checks for the area you touched before opening a pull request. Use a
-[Conventional Commit](https://www.conventionalcommits.org/) title; it controls
-the release notes and versioning.
-
-Before beginning, leave a short comment on the issue describing your approach
-so work does not overlap. Do not include real credentials, keys, or `.env`
-files in a pull request.
-
-Find something to work on in the
-[issue tracker](https://github.com/sameeralam3127/llm-dev-kit/issues). Issues
-marked `good first issue` are small and self-contained, and those marked
-`help wanted` are open for anyone. The [roadmap](docs/v3/ROADMAP.md) says which
-release each piece of work belongs to.
-
-Found a security problem? Please report it privately, as
-[SECURITY.md](SECURITY.md) describes, not in a public issue. Everyone taking
-part is expected to follow the [code of conduct](CODE_OF_CONDUCT.md).
 
 ## Troubleshooting
 
@@ -565,6 +640,10 @@ part is expected to follow the [code of conduct](CODE_OF_CONDUCT.md).
 | "No local models" in the model picker | Check `ollama list`, and that `.env` has no `OLLAMA_HOST=http://localhost:11434` line |
 | `401` from the API | Send `Authorization: Bearer sk-ldk-…`; a revoked key stops working within a minute |
 | `403` from the API | Your role cannot do that: only `user` and `admin` add documents |
+| Your new account is not the admin | Sign up with the setup code from `docker compose logs web` in the "Setup code" field; an existing account can sign up again with its password and the code |
+| "Too many sign-in attempts" | Wait a few minutes: 10 attempts a minute per address, 5 failed attempts per email every 15 minutes |
+| A PDF upload is refused with a limit | It has more than 2,000 pages, 4 million characters, takes over 60 seconds to read, or makes more than 10,000 chunks; split it into parts |
+| llm-service or rag-service will not start, naming `ALLOW_LEGACY_ANONYMOUS` | That setting makes anonymous callers admins, so it is refused unless `GATEWAY_BIND` is `127.0.0.1`. Give clients API keys and turn it off |
 | Nothing at `localhost:8080` | `docker compose ps`; if services show `Exited`, run `docker compose up -d` |
 
 More in [docs/setup.md](docs/setup.md#troubleshooting).
@@ -575,10 +654,11 @@ More in [docs/setup.md](docs/setup.md#troubleshooting).
 | --- | --- |
 | [docs/setup.md](docs/setup.md) | Install step by step and fix common problems |
 | [docs/usage.md](docs/usage.md) | Add documents, chat, and bring in your team |
-| [CHANGELOG.md](CHANGELOG.md) | See what changed in each release |
-| [SECURITY.md](SECURITY.md) | Report a vulnerability privately |
+| [CHANGELOG.md](.github/CHANGELOG.md) | See what changed in each release |
+| [SECURITY.md](.github/SECURITY.md) | Report a vulnerability privately |
+| [CONTRIBUTING.md](.github/CONTRIBUTING.md) | Set up, run the checks and open a pull request |
 | [docs/v2/MIGRATION.md](docs/v2/MIGRATION.md) | Upgrade clients to API keys |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | Understand request flows and the Docker build |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Understand request flows and the Docker build |
 | [docs/v2/PLAN.md](docs/v2/PLAN.md) | See how the v1 features were planned and built |
 | [docs/v3/ROADMAP.md](docs/v3/ROADMAP.md) | See where the project is going next |
 | [web/README.md](web/README.md) | Work on the web app |

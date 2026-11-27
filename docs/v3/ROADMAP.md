@@ -17,7 +17,7 @@
 
 Versions follow [Semantic Versioning](https://semver.org) strictly, and the
 commits decide them: release-please reads the Conventional Commits since the
-last release (see [CHANGELOG.md](../../CHANGELOG.md)).
+last release (see [CHANGELOG.md](../../.github/CHANGELOG.md)).
 
 - **The security release** is 1.1.0 because it adds behaviour as well as fixes
   (for example, the first-admin setup code for #60 is a new setting, a `feat:`).
@@ -37,7 +37,7 @@ its emphasis in four ways.
    verified set of problems in it, and it comes before more v3 scope.
 2. **One system of record is the right target.** Postgres with pgvector,
    workspace-scoped retrieval and a mandatory model gateway remove the largest
-   structural limits (see "Known limits" in [ARCHITECTURE.md](../../ARCHITECTURE.md)).
+   structural limits (see "Known limits" in [ARCHITECTURE.md](../ARCHITECTURE.md)).
    Nothing in the review argues for a different architecture.
 3. **Cutover: opt-in first, then the default (decided November 2026).** v1
    stays the default `docker compose up` while v3 runs beside it as

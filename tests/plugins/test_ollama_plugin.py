@@ -9,6 +9,7 @@ from ldk_core.plugins import EMBEDDER, LLM, ManifestError, PluginKind, PluginReg
 from ldk_core.ports import ChatMessage, CompletionRequest
 from ldk_core.testing.contracts import EmbedderContract, LLMProviderContract
 from ldk_plugin_ollama import OllamaEmbedder, OllamaProvider, embedder_plugin, llm_plugin
+from ldk_plugin_ollama.embedder import BATCH_SIZE
 
 HOST = "http://ollama.test:11434"
 
@@ -162,3 +163,37 @@ def test_plugins_build_through_the_registry() -> None:
     with pytest.raises(ManifestError, match="host"):
         registry.configure(PluginKind.LLM, "ollama", {"hots": HOST})
     asyncio.run(registry.aclose())
+
+
+# ------------------------------------------------------------------ batching
+# One request per batch of texts, not one per text: a 1,000-chunk document
+# used to be 1,000 sequential calls to Ollama.
+
+
+def test_embedder_sends_batches_with_a_short_final_one(fake: FakeOllama) -> None:
+    texts = [f"chunk {i}" for i in range(2 * BATCH_SIZE + 22)]
+    embedder = OllamaEmbedder(HOST, transport=fake.transport())
+
+    vectors = asyncio.run(embedder.embed(texts))
+
+    batches = [body["input"] for path, body in fake.requests if path == "/api/embed"]
+    assert [len(b) for b in batches] == [BATCH_SIZE, BATCH_SIZE, 22]
+    assert [t for b in batches for t in b] == texts
+    assert vectors == [fake.vector("nomic-embed-text", t) for t in texts]
+
+
+def test_embedder_fails_on_an_error_in_a_later_batch(fake: FakeOllama) -> None:
+    fake.fail_embed_call = 2
+    embedder = OllamaEmbedder(HOST, transport=fake.transport())
+    with pytest.raises(ServiceError, match="Ollama embedding error 500") as caught:
+        asyncio.run(embedder.embed([f"t{i}" for i in range(BATCH_SIZE + 1)]))
+    assert caught.value.code is ErrorCode.UPSTREAM_ERROR
+
+
+def test_embedder_refuses_a_batch_answer_of_the_wrong_size() -> None:
+    def short(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"embeddings": [[0.0] * 768]})
+
+    embedder = OllamaEmbedder(HOST, transport=httpx.MockTransport(short))
+    with pytest.raises(ServiceError, match="1 embeddings for 2 texts"):
+        asyncio.run(embedder.embed(["a", "b"]))

@@ -48,6 +48,12 @@ RUN useradd --system --uid 1001 --create-home nextjs
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
+# Standalone's server.js binds to $HOSTNAME, and Docker sets that to the
+# container ID by default, so the server would listen there instead of on a
+# reachable address -- the healthcheck (and nginx's upstream) probe
+# 127.0.0.1 from inside the container, so both would fail to connect while
+# the app was in fact running.
+ENV HOSTNAME="0.0.0.0"
 
 # Next's build-time tracing (`output: 'standalone'`) copies only the files the
 # server actually requires, not the whole node_modules: ~900 MB down to the

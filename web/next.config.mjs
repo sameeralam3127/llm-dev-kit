@@ -2,6 +2,15 @@
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // Runtime copies only .next/standalone, not the whole node_modules.
+  output: 'standalone',
+  // next/image is never used (model output links to arbitrary hosts, which
+  // it cannot optimise anyway; see components/markdown/markdown.tsx), but
+  // Next still traces its optimizer and sharp's native binaries into the
+  // standalone output unless told not to.
+  outputFileTracingExcludes: {
+    '*': ['node_modules/sharp/**', 'node_modules/@img/**'],
+  },
   experimental: {
     // Keep heavy markdown/highlight deps out of the client bundle where possible.
     optimizePackageImports: ['lucide-react', 'date-fns'],

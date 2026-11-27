@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import time
 from collections.abc import Awaitable, Callable
 from typing import Any
@@ -45,7 +46,8 @@ class KeySet:
     Keys are cached for ``max_age`` seconds. A token signed with an unknown
     key id triggers a refetch, at most once per ``min_interval`` seconds, so
     key rotation is picked up without letting forged key ids hammer the
-    issuer.
+    issuer. Callers that need a refresh while one is running share it, so a
+    cold start or a rotation fetches once, not once per concurrent request.
 
     Args:
         url: Returns the JWKS URL; called on each fetch, so it can be resolved
@@ -67,6 +69,7 @@ class KeySet:
         self._min_interval = min_interval
         self._keys: dict[str | None, jwt.PyJWK] = {}
         self._fetched_at = float("-inf")
+        self._refreshing: asyncio.Task[None] | None = None
 
     async def key(self, kid: str | None) -> jwt.PyJWK:
         """Return the signing key ``kid``.
@@ -79,11 +82,28 @@ class KeySet:
         stale = now - self._fetched_at > self._max_age
         missing = kid not in self._keys
         if stale or (missing and now - self._fetched_at > self._min_interval):
-            await self._refresh()
+            await self._refresh_once()
         key = self._keys.get(kid)
         if key is None:
             raise unauthorized()
         return key
+
+    async def _refresh_once(self) -> None:
+        """Join the refresh in flight, or start one; its failure is shared too.
+
+        The fetch runs as its own task, so a caller that is cancelled does not
+        cancel it for the others. Once it finishes the slot is free again, so
+        the next caller after a failure retries.
+        """
+        if self._refreshing is None:
+            self._refreshing = asyncio.create_task(self._refresh_and_release())
+        await asyncio.shield(self._refreshing)
+
+    async def _refresh_and_release(self) -> None:
+        try:
+            await self._refresh()
+        finally:
+            self._refreshing = None
 
     async def _refresh(self) -> None:
         url = await self._url()

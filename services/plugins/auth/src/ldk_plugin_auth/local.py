@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import time
 from typing import Any
@@ -63,6 +64,7 @@ class LocalAuthProvider:
 
         self._keys = KeySet(jwks, self._client)
         self._exchanged: dict[str, tuple[float, Principal]] = {}
+        self._exchanging: dict[str, asyncio.Task[Principal]] = {}
 
     def accepts(self, credential: str) -> bool:
         """Claim API keys and tokens this web app issued."""
@@ -84,11 +86,26 @@ class LocalAuthProvider:
 
     async def _from_api_key(self, key: str) -> Principal:
         digest = hashlib.sha256(key.encode()).hexdigest()
-        now = time.monotonic()
         cached = self._exchanged.get(digest)
-        if cached and cached[0] > now:
+        if cached and cached[0] > time.monotonic():
             return cached[1]
+        # Concurrent first uses of one key share a single exchange, success or
+        # failure, keyed by the key's hash; it runs as its own task so one
+        # cancelled caller does not cancel it for the rest.
+        task = self._exchanging.get(digest)
+        if task is None:
+            task = asyncio.create_task(self._exchange_and_release(key, digest))
+            self._exchanging[digest] = task
+        return await asyncio.shield(task)
 
+    async def _exchange_and_release(self, key: str, digest: str) -> Principal:
+        try:
+            return await self._exchange(key, digest)
+        finally:
+            self._exchanging.pop(digest, None)
+
+    async def _exchange(self, key: str, digest: str) -> Principal:
+        now = time.monotonic()
         try:
             res = await self._client.post(
                 self._token_url,

@@ -7,6 +7,7 @@ optionally LDK_TEST_CHROMA_PORT). CI runs one as a service container; locally
 
 import asyncio
 import os
+import threading
 import time
 import uuid
 
@@ -111,3 +112,36 @@ def test_none_metadata_values_are_dropped() -> None:
 
     record = ChunkRecord("c", "d", "t", [0.0], page=None, metadata={"filename": None, "k": 1})
     assert _metadata(record) == {"k": 1, "document_id": "d"}
+
+
+def test_concurrent_first_use_creates_one_client(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Worker threads that all find no client must not each create one."""
+    import chromadb
+
+    created: list[object] = []
+    created_lock = threading.Lock()
+
+    def slow_client(**_: object) -> object:
+        time.sleep(0.05)  # keep the window open so the threads overlap
+        client = object()
+        with created_lock:
+            created.append(client)
+        return client
+
+    monkeypatch.setattr(chromadb, "HttpClient", slow_client)
+    store = ChromaVectorStore("chroma.test")
+    start = threading.Barrier(8)
+    seen: list[object] = []
+
+    def use() -> None:
+        start.wait()
+        seen.append(store._get_client())
+
+    threads = [threading.Thread(target=use) for _ in range(8)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    assert len(created) == 1
+    assert all(client is created[0] for client in seen)

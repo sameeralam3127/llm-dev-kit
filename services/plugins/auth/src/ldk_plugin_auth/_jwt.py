@@ -113,7 +113,7 @@ class KeySet:
             data = res.json()
             keys = jwt.PyJWKSet.from_dict(data).keys
         except (httpx.HTTPError, ValueError, jwt.PyJWTError) as exc:
-            _log.warning("could not fetch signing keys", url=url, error=str(exc))
+            _log.warning("could not fetch signing keys", exception_type=type(exc).__name__)
             raise ServiceError(
                 ErrorCode.UPSTREAM_UNAVAILABLE, "Identity service unavailable"
             ) from exc
@@ -143,11 +143,11 @@ async def verify(
     try:
         header = jwt.get_unverified_header(token)
     except jwt.PyJWTError as exc:
-        _log.debug("rejected token", reason=str(exc))
+        _log.debug("rejected token", exception_type=type(exc).__name__)
         raise unauthorized() from exc
     algorithm = header.get("alg")
     if algorithm not in ASYMMETRIC_ALGORITHMS:
-        _log.debug("rejected token", reason=f"algorithm {algorithm!r} not allowed")
+        _log.debug("rejected token", reason="algorithm not allowed")
         raise unauthorized()
 
     key = await keys.key(header.get("kid"))
@@ -162,6 +162,6 @@ async def verify(
             options={"require": ["exp", "iat", "iss", "aud", "sub"]},
         )
     except jwt.PyJWTError as exc:
-        _log.debug("rejected token", reason=str(exc))
+        _log.debug("rejected token", exception_type=type(exc).__name__)
         raise unauthorized() from exc
     return claims

@@ -152,13 +152,13 @@ export function RegisterForm({ callbackUrl }: RegisterFormProps) {
         <Input
           id="setupCode"
           name="setupCode"
+          type="password"
           autoComplete="off"
           spellCheck={false}
           aria-describedby="setup-code-hint"
         />
         <p id="setup-code-hint" className="text-xs text-muted-foreground">
-          Only for the first admin of a new install. Copy it from the web log;
-          leave it empty otherwise.
+          Enter the setup code issued for your email when setting up the first administrator.
         </p>
       </div>
 

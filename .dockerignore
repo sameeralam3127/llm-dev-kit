@@ -8,7 +8,9 @@ build
 *.pyc
 .venv
 venv
-.env
+# Keep dotenv files out of the build context at every directory depth.
+**/*.env
+**/*.env.*
 .DS_Store
 README.md
 docs

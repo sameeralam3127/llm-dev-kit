@@ -44,7 +44,7 @@ export async function backendOptions(userId: string): Promise<BackendOptions> {
   const env = getEnv()
   if (env.CORE_API_URL) {
     if (!env.WEB_SERVICE_TOKEN) {
-      throw new ProviderError('CORE_API_URL is set but WEB_SERVICE_TOKEN is not', 'upstream_error')
+      throw new ProviderError()
     }
     const user = await db.user.findUnique({ where: { id: userId }, select: { role: true } })
     const workspaceId = await teamWorkspaceId(userId, user?.role ?? 'viewer', {

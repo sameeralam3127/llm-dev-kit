@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import logging
 import multiprocessing
 import time
 from collections.abc import Callable, Mapping
@@ -82,7 +83,7 @@ def _extract(data: bytes, max_pages: int, max_chars: int, max_seconds: float) ->
         reader = PdfReader(io.BytesIO(data), strict=False)
         count = len(reader.pages)
     except Exception as exc:  # pypdf raises many types on malformed input
-        raise _unreadable(exc) from exc
+        raise _unreadable() from exc
     if count > max_pages:
         raise ServiceError(
             ErrorCode.INVALID_REQUEST,
@@ -95,7 +96,7 @@ def _extract(data: bytes, max_pages: int, max_chars: int, max_seconds: float) ->
         try:
             text = page.extract_text() or ""
         except Exception as exc:
-            raise _unreadable(exc) from exc
+            raise _unreadable() from exc
         total += len(text)
         if total > max_chars:
             raise ServiceError(
@@ -108,8 +109,8 @@ def _extract(data: bytes, max_pages: int, max_chars: int, max_seconds: float) ->
     return texts
 
 
-def _unreadable(exc: Exception) -> ServiceError:
-    return ServiceError(ErrorCode.INVALID_REQUEST, f"Could not read PDF: {str(exc)[:200]}")
+def _unreadable() -> ServiceError:
+    return ServiceError(ErrorCode.INVALID_REQUEST, "Could not read PDF")
 
 
 def _too_slow(seconds: float) -> ServiceError:
@@ -119,12 +120,17 @@ def _too_slow(seconds: float) -> ServiceError:
 
 
 def _child(conn: Any, target: Callable[..., Any], args: tuple[Any, ...]) -> None:
+    # Spawned parsers have their own logging configuration. pypdf diagnostics
+    # can interpolate data from the document into a warning.
+    parser_log = logging.getLogger("pypdf")
+    parser_log.addHandler(logging.NullHandler())
+    parser_log.propagate = False
     try:
         conn.send(("ok", target(*args)))
     except ServiceError as exc:
         conn.send(("error", exc.code.value, exc.message))
-    except Exception as exc:  # noqa: BLE001 - reported to the parent, not raised here
-        conn.send(("error", ErrorCode.INVALID_REQUEST.value, _unreadable(exc).message))
+    except Exception:  # noqa: BLE001 - reported to the parent, not raised here
+        conn.send(("error", ErrorCode.INVALID_REQUEST.value, _unreadable().message))
     finally:
         conn.close()
 

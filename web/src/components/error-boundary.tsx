@@ -35,7 +35,7 @@ export class ErrorBoundary extends React.Component<
 
   override componentDidCatch(error: Error, info: React.ErrorInfo) {
     this.props.onError?.(error, info)
-    console.error('[ErrorBoundary]', error, info.componentStack)
+    console.error('[ErrorBoundary] render failed')
   }
 
   private reset = () => {
@@ -58,7 +58,7 @@ export class ErrorBoundary extends React.Component<
           <div className="min-w-0 flex-1">
             <h2 className="text-sm font-semibold">Something broke here</h2>
             <p className="mt-1 break-words text-sm text-muted-foreground">
-              {error.message || 'An unexpected error occurred.'}
+              An unexpected error occurred.
             </p>
             <Button
               variant="outline"

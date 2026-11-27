@@ -1,3 +1,4 @@
+import { serviceErrorMessage } from '@/lib/service-errors'
 import type { MessageRole, StreamErrorCode } from '@/types/chat'
 
 export interface ProviderMessage {
@@ -43,8 +44,8 @@ export class ProviderError extends Error {
   readonly code: StreamErrorCode
   readonly status: number
 
-  constructor(message: string, code: StreamErrorCode = 'upstream_error', status = 502) {
-    super(message)
+  constructor(code: StreamErrorCode = 'upstream_error', status = 502) {
+    super(serviceErrorMessage(code))
     this.name = 'ProviderError'
     this.code = code
     this.status = status

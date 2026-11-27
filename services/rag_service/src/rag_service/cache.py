@@ -112,4 +112,4 @@ class ChatCache:
 
 
 def _warn(operation: str, exc: Exception) -> None:
-    logger.warning("cache unavailable", operation=operation, error=f"{type(exc).__name__}: {exc}")
+    logger.warning("cache unavailable", operation=operation, exception_type=type(exc).__name__)

@@ -4,6 +4,9 @@ import asyncio
 import hashlib
 import itertools
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, Mock
+from uuid import uuid4
 
 import psycopg
 import pytest
@@ -12,6 +15,9 @@ from pdfs import make_pdf, make_shared_stream_pdf
 from psycopg_pool import AsyncConnectionPool
 
 from core_api.adapters.postgres import PostgresStore
+from core_api.api.documents import DocumentOut
+from core_api.ports.jobs import Job, JobQueue
+from core_api.ports.stores import DocumentRecord
 from ingest_worker import pipeline
 from ingest_worker.pipeline import process_next
 from ldk_core.errors import ErrorCode, ServiceError
@@ -23,6 +29,47 @@ LONG_TEXT = " ".join(f"Sentence {i} about the BLUEFIN-42 launch on 14 March." fo
 
 
 UNAVAILABLE = ServiceError(ErrorCode.UPSTREAM_UNAVAILABLE, "model-gateway unreachable")
+
+
+def test_job_failure_persists_and_logs_only_the_error_code(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    queue = AsyncMock(spec=JobQueue)
+    queue.fail.return_value = True
+    logger = Mock()
+    monkeypatch.setattr(pipeline, "_log", logger)
+    job = Job(
+        id=1,
+        document_id=uuid4(),
+        workspace_id=uuid4(),
+        attempts=1,
+        max_attempts=1,
+        locked_by="worker",
+    )
+    upstream_error = ServiceError(ErrorCode.UPSTREAM_UNAVAILABLE, "synthetic-job-detail")
+    assert asyncio.run(pipeline._settle_failure(queue, job, upstream_error, lambda: 0)) == "failed"
+    queue.fail.assert_awaited_once_with(job, "upstream_unavailable")
+    logger.warning.assert_called_once_with(
+        "job failed", job=job.id, attempts=job.attempts, code="upstream_unavailable"
+    )
+
+
+def test_failed_document_never_returns_a_legacy_error_string() -> None:
+    now = datetime.now(UTC)
+    record = DocumentRecord(
+        id=uuid4(),
+        workspace_id=uuid4(),
+        source_type="upload",
+        source_uri="example.pdf",
+        title="Example",
+        status="failed",
+        chunk_count=0,
+        created_by="test-user",
+        created_at=now,
+        updated_at=now,
+        last_error="synthetic-legacy-detail",
+    )
+    assert DocumentOut.of(record).last_error == "Document processing failed"
 
 
 @asynccontextmanager
@@ -131,7 +178,7 @@ def test_a_failing_job_retries_with_backoff_then_lands_in_failed(client, issuer,
                FROM core.ingestion_jobs""",
         )
         assert (state, attempts) == ("queued", attempt)
-        assert "model-gateway unreachable" in error
+        assert error == "upstream_unavailable"
         delays.append(float(wait))
         # Not due yet, so nothing is claimed...
         assert asyncio.run(work(db_url, embedder)) is None
@@ -146,14 +193,14 @@ def test_a_failing_job_retries_with_backoff_then_lands_in_failed(client, issuer,
         db_url, "SELECT state, attempts, last_error FROM core.ingestion_jobs"
     )
     assert (state, attempts) == ("failed", 5)
-    assert error
+    assert error == "upstream_unavailable"
     assert sql(db_url, "SELECT status FROM core.documents WHERE id = %s", doc["id"]) == [
         ("failed",)
     ]
     listed = client.get(
         "/api/v1/documents", headers={**as_user(issuer, "alice"), "X-Workspace-Id": ws}
     )
-    assert "model-gateway unreachable" in listed.json()["data"][0]["last_error"]
+    assert listed.json()["data"][0]["last_error"] == "The model gateway was unavailable"
 
 
 # ------------------------------------------------------------ robustness
@@ -303,7 +350,7 @@ def test_a_pdf_over_a_parsing_limit_fails_at_once_without_retries(client, issuer
         db_url, "SELECT state, attempts, last_error FROM core.ingestion_jobs"
     )
     assert (state, attempts) == ("failed", 1)
-    assert "characters" in error
+    assert error == "invalid_request"
 
 
 def test_a_document_over_the_chunk_cap_fails_at_once(

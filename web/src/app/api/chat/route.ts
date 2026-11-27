@@ -1,5 +1,6 @@
 import { type BackendOptions, backendOptions, getChatProvider } from '@/lib/llm'
 import { ProviderError } from '@/lib/llm/types'
+import { serviceErrorMessage } from '@/lib/service-errors'
 import { sendMessageSchema } from '@/lib/validations/chat'
 import { ApiError, jsonError, parseBody, requireUser, toApiError } from '@/server/http'
 import { RATE_LIMITS, rateLimit } from '@/server/rate-limit'
@@ -74,7 +75,7 @@ export async function POST(request: Request) {
         assistantMessageId: prepared.assistantMessageId,
       })
 
-      let failure: { message: string; code: StreamErrorCode } | null = null
+      let failure: StreamErrorCode | null = null
 
       try {
         for await (const delta of provider.streamCompletion({
@@ -88,15 +89,7 @@ export async function POST(request: Request) {
         }
       } catch (error) {
         if (!request.signal.aborted) {
-          const apiError = toApiError(
-            error instanceof ProviderError
-              ? error
-              : new ApiError('upstream_error', 'The model stopped unexpectedly'),
-          )
-          failure = {
-            message: apiError.message,
-            code: apiError.code as StreamErrorCode,
-          }
+          failure = error instanceof ProviderError ? error.code : 'upstream_error'
         }
       }
 
@@ -111,14 +104,14 @@ export async function POST(request: Request) {
           model: prepared.model,
           truncated,
           // A stopped generation is a user decision, not an error to flag.
-          error: failure && !cancelled ? failure.message : null,
+          errorCode: cancelled ? null : failure,
         })
-      } catch (error) {
-        console.error('[chat] failed to persist assistant message', error)
+      } catch {
+        console.error('[chat] failed to persist assistant message')
       }
 
       if (failure && !cancelled) {
-        safeEnqueue({ type: 'error', message: failure.message, code: failure.code })
+        safeEnqueue({ type: 'error', message: serviceErrorMessage(failure), code: failure })
       } else {
         safeEnqueue({ type: 'done', content: accumulated, truncated })
       }

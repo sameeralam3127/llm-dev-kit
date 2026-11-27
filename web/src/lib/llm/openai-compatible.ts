@@ -19,7 +19,7 @@ interface ChatCompletionChunk {
     delta?: { content?: string | null }
     finish_reason?: string | null
   }>
-  error?: { message?: string }
+  error?: unknown
 }
 
 interface ModelListResponse {
@@ -80,7 +80,7 @@ export class OpenAICompatibleProvider implements ChatProvider {
     })
 
     if (!response.body) {
-      throw new ProviderError('Upstream returned an empty stream', 'upstream_error')
+      throw new ProviderError()
     }
 
     for await (const { data } of parseSSE(response.body)) {
@@ -94,11 +94,11 @@ export class OpenAICompatibleProvider implements ChatProvider {
         continue
       }
 
-      if (chunk.error?.message) {
-        throw new ProviderError(chunk.error.message, 'upstream_error')
+      if (chunk?.error) {
+        throw new ProviderError()
       }
 
-      const text = chunk.choices?.[0]?.delta?.content
+      const text = chunk?.choices?.[0]?.delta?.content
       if (typeof text === 'string' && text.length > 0) {
         yield text
       }
@@ -106,7 +106,7 @@ export class OpenAICompatibleProvider implements ChatProvider {
 
     // OpenAI-compatible servers end a finished answer with [DONE]. Without it
     // the answer was cut off, and must not be stored as complete.
-    throw new ProviderError('The model stream ended before it finished', 'upstream_error')
+    throw new ProviderError()
   }
 
   private async request(
@@ -142,52 +142,20 @@ export class OpenAICompatibleProvider implements ChatProvider {
       // Distinguish "the caller hung up" from "the model host is down": only the
       // latter is worth reporting to the user as a failure.
       if (init.signal?.aborted) {
-        throw new ProviderError('Request cancelled', 'internal', 499)
+        throw new ProviderError('internal', 499)
       }
       if (error instanceof DOMException && error.name === 'TimeoutError') {
-        throw new ProviderError(
-          `Model did not respond within ${Math.round(this.config.timeoutMs / 1000)}s`,
-          'timeout',
-          504,
-        )
+        throw new ProviderError('timeout', 504)
       }
-      throw new ProviderError(
-        `Cannot reach the model service at ${this.config.baseUrl}`,
-        'upstream_unavailable',
-        503,
-      )
+      throw new ProviderError('upstream_unavailable', 503)
     }
 
     if (!response.ok) {
-      const detail = await safeErrorText(response)
-      throw new ProviderError(
-        detail || `Model service responded with ${response.status}`,
-        response.status === 429 ? 'rate_limited' : 'upstream_error',
-        response.status === 429 ? 429 : 502,
-      )
+      // The response body can contain request content or internal provider details.
+      await response.body?.cancel().catch(() => undefined)
+      throw response.status === 429 ? new ProviderError('rate_limited', 429) : new ProviderError()
     }
 
     return response
-  }
-}
-
-async function safeErrorText(response: Response): Promise<string> {
-  try {
-    const text = (await response.text()).slice(0, 500)
-    try {
-      const parsed = JSON.parse(text) as {
-        detail?: string | { msg?: string }
-        error?: { message?: string } | string
-      }
-      if (typeof parsed.detail === 'string') return parsed.detail
-      if (typeof parsed.detail?.msg === 'string') return parsed.detail.msg
-      if (typeof parsed.error === 'string') return parsed.error
-      if (typeof parsed.error?.message === 'string') return parsed.error.message
-    } catch {
-      /* not JSON — fall through to the raw text */
-    }
-    return text
-  } catch {
-    return ''
   }
 }

@@ -104,10 +104,17 @@ echo "AUTH_SECRET=$(openssl rand -base64 32)" >> .env
 docker compose up --build
 ```
 
-**3. Open <http://localhost:8080> and create the admin account.** On first start
-the web container prints a setup code (`docker compose logs web`). Sign up with
-it in the "Setup code" field and that account becomes the admin. Accounts made
-without it are plain users.
+**3. Open <http://localhost:8080> and create the admin account.** Once the web
+app is ready, run this from a trusted interactive terminal with the email you
+will use to sign up.
+
+```bash
+docker compose exec web node prisma/issue-admin-setup.mjs admin@example.com
+```
+
+Enter the code in the **Setup code** field with that email. It expires after 15
+minutes and can be used once. Running the command again replaces the pending
+code. Accounts created without a code are plain users.
 
 **4. Add a document and ask about it.** As the admin, open the account menu
 (bottom left) → **Admin** → **Documents** and drop a PDF onto the page. From a
@@ -280,8 +287,8 @@ Each layer of the system, where it lives, and how far along it is.
   an account is refused, not silently linked.
 - **Short-lived credentials.** The services verify 5-minute signed tokens
   themselves, so the gateway is never trusted blindly.
-- **Safe first run.** The first admin needs a one-time setup code from the web
-  log, so a stranger who reaches a new instance first cannot claim it.
+- **Safe first run.** An operator issues a one-time, email-bound setup code from a
+  trusted interactive terminal. The first administrator uses it during sign-up.
 - **Hardened by default.** Password sign-in and API key checks are rate
   limited, pages carry a strict Content-Security-Policy, uploads have page,
   text and time limits, and model options are bounded for every caller.
@@ -640,7 +647,7 @@ Milestones and decisions are in [docs/v3/ROADMAP.md](docs/v3/ROADMAP.md).
 | "No local models" in the model picker | Check `ollama list`, and that `.env` has no `OLLAMA_HOST=http://localhost:11434` line |
 | `401` from the API | Send `Authorization: Bearer sk-ldk-…`; a revoked key stops working within a minute |
 | `403` from the API | Your role cannot do that: only `user` and `admin` add documents |
-| Your new account is not the admin | Sign up with the setup code from `docker compose logs web` in the "Setup code" field; an existing account can sign up again with its password and the code |
+| Your new account is not the admin | Run the interactive setup command for that email, then sign up again with the account password and the issued code |
 | "Too many sign-in attempts" | Wait a few minutes: 10 attempts a minute per address, 5 failed attempts per email every 15 minutes |
 | A PDF upload is refused with a limit | It has more than 2,000 pages, 4 million characters, takes over 60 seconds to read, or makes more than 10,000 chunks; split it into parts |
 | llm-service or rag-service will not start, naming `ALLOW_LEGACY_ANONYMOUS` | That setting makes anonymous callers admins, so it is refused unless `GATEWAY_BIND` is `127.0.0.1`. Give clients API keys and turn it off |

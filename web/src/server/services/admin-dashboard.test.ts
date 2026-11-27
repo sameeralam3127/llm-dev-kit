@@ -189,18 +189,18 @@ describe('documents', () => {
     expect((calls[0]!.init.body as FormData).get('file')).toBeInstanceOf(File)
   })
 
-  it("pass the rag-service's own error through", async () => {
+  it('uses an app-owned message for a known RAG error code', async () => {
     stubRag({
       '/ingest/pdf': () =>
         Response.json(
-          { error: { code: 'invalid_request', message: 'The PDF has no text layer' } },
+          { error: { code: 'invalid_request', message: 'Synthetic parser diagnostic' } },
           { status: 400 },
         ),
     })
     const file = new File(['x'], 'scan.pdf', { type: 'application/pdf' })
     await expect(uploadDocument(ADMIN, file)).rejects.toMatchObject({
       code: 'invalid_request',
-      message: 'The PDF has no text layer',
+      message: 'The service could not process the request',
     })
   })
 
@@ -233,8 +233,9 @@ describe('documents', () => {
       uploadDocument(ADMIN, new File(['x'], 'scan.pdf', { type: 'application/pdf' })),
     ).rejects.toMatchObject({ code: 'invalid_request' })
 
-    expect(state.jobs[0]).toMatchObject({ status: 'failed', error: 'No text layer' })
+    expect(state.jobs[0]).toMatchObject({ status: 'failed', error: 'invalid_request' })
     expect(actions()).toEqual(['document.upload_failed'])
+    expect(state.audit[0]?.data['detail']).toBe('{"bytes":1,"errorCode":"invalid_request"}')
   })
 
   it('audit clearing the index and the cache, and nothing when the clear fails', async () => {
@@ -289,6 +290,22 @@ describe('listIngestionJobs', () => {
       old: 'interrupted',
       new: 'running',
     })
+  })
+
+  it('replaces legacy failure text when returning an older job', async () => {
+    state.jobs = [{
+      id: 'old-failure',
+      filename: 'scan.pdf',
+      sizeBytes: 21,
+      status: 'failed',
+      startedAt: new Date(),
+      finishedAt: new Date(),
+      chunks: null,
+      error: 'Synthetic older ingestion diagnostic',
+      uploadedBy: ADMIN.email,
+    }]
+    const jobs = await listIngestionJobs()
+    expect(jobs[0]?.error).toBe('The upstream service could not complete the request')
   })
 })
 

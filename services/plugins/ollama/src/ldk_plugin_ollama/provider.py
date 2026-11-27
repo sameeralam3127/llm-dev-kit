@@ -50,7 +50,7 @@ class OllamaProvider:
             res = await self._client.get("/api/tags")
             res.raise_for_status()
         except httpx.HTTPError as exc:
-            raise _unreachable(exc) from exc
+            raise _unreachable() from exc
         return [m["name"] for m in res.json().get("models", [])]
 
     async def complete(self, request: CompletionRequest) -> str:
@@ -59,15 +59,13 @@ class OllamaProvider:
         try:
             res = await self._client.post(path, json=payload)
         except httpx.HTTPError as exc:
-            raise _unreachable(exc) from exc
+            raise _unreachable() from exc
         if res.is_error:
-            raise _upstream(res.status_code, res.text)
+            raise _upstream(res.status_code)
         data = res.json()
         text = _text(data)
         if text is None:
-            raise ServiceError(
-                ErrorCode.UPSTREAM_ERROR, f"Ollama returned no response: {str(data)[:200]}"
-            )
+            raise ServiceError(ErrorCode.UPSTREAM_ERROR, "Ollama returned no response")
         return text
 
     async def stream(self, request: CompletionRequest) -> AsyncIterator[str]:
@@ -76,22 +74,19 @@ class OllamaProvider:
         try:
             async with self._client.stream("POST", path, json=payload) as res:
                 if res.status_code >= 400:
-                    body = (await res.aread()).decode(errors="replace")
-                    raise _upstream(res.status_code, body)
+                    raise _upstream(res.status_code)
                 async for line in res.aiter_lines():
                     if not line:
                         continue
                     data = json.loads(line)
                     if data.get("error"):
-                        raise ServiceError(
-                            ErrorCode.UPSTREAM_ERROR, f"Ollama error: {data['error']}"
-                        )
+                        raise ServiceError(ErrorCode.UPSTREAM_ERROR, "Ollama stream failed")
                     if text := _text(data):
                         yield text
                     if data.get("done"):
                         return
         except httpx.HTTPError as exc:
-            raise _unreachable(exc) from exc
+            raise _unreachable() from exc
 
     async def aclose(self) -> None:
         """Close the HTTP connection pool."""
@@ -133,11 +128,11 @@ def _text(data: dict[str, Any]) -> str | None:
     return None
 
 
-def _unreachable(exc: httpx.HTTPError) -> ServiceError:
-    return ServiceError(ErrorCode.UPSTREAM_UNAVAILABLE, f"Ollama unreachable: {exc}")
+def _unreachable() -> ServiceError:
+    return ServiceError(ErrorCode.UPSTREAM_UNAVAILABLE, "Ollama unreachable")
 
 
-def _upstream(status: int, body: str) -> ServiceError:
+def _upstream(status: int) -> ServiceError:
     # Always 502: Ollama answering with an error (unknown model included) is
     # an upstream failure from the caller's point of view.
-    return ServiceError(ErrorCode.UPSTREAM_ERROR, f"Ollama error {status}: {body[:200]}")
+    return ServiceError(ErrorCode.UPSTREAM_ERROR, f"Ollama request failed (HTTP {status})")

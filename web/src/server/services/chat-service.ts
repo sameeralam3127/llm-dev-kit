@@ -16,7 +16,7 @@ import type {
 } from '@/lib/validations/chat'
 import { ApiError, badRequest, notFound } from '@/server/http'
 import { toChatSummaryDTO, toMessageDTO } from '@/server/mappers'
-import type { ChatDetail, ChatMessage, ChatSummary } from '@/types/chat'
+import type { ChatDetail, ChatMessage, ChatSummary, StreamErrorCode } from '@/types/chat'
 
 const messageInclude = {
   versions: { orderBy: { position: 'asc' } },
@@ -441,7 +441,7 @@ export async function finalizeAssistantMessage(params: {
   content: string
   model: string
   truncated: boolean
-  error?: string | null
+  errorCode: StreamErrorCode | null
 }): Promise<void> {
   await db.message.update({
     where: { id: params.messageId },
@@ -449,7 +449,7 @@ export async function finalizeAssistantMessage(params: {
       content: params.content,
       model: params.model,
       truncated: params.truncated,
-      error: params.error ?? null,
+      error: params.errorCode,
     },
   })
   await touchChat(params.chatId)

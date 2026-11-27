@@ -7,6 +7,7 @@ every backend. Local Ollama has its own plugin (it also serves embeddings).
 
 from __future__ import annotations
 
+import logging
 import os
 from collections.abc import AsyncIterator
 from types import MappingProxyType
@@ -25,6 +26,10 @@ from ldk_core.ports import CompletionRequest
 # Don't fail a request because one provider rejects an optional param.
 litellm.drop_params = True
 litellm.suppress_debug_info = True
+# SDK diagnostics can include provider requests and responses. The application
+# reports the provider and its failure category at our own boundary.
+for _logger_name in ("LiteLLM", "LiteLLM Router", "LiteLLM Proxy", "LiteLLM Proxy.stdout"):
+    logging.getLogger(_logger_name).disabled = True
 # Sovereignty: LiteLLM must not phone home (D5 telemetry kill list).
 litellm.telemetry = False
 
@@ -123,4 +128,4 @@ class LiteLLMProvider:
         """Map a LiteLLM exception to a ServiceError by its HTTP status."""
         status = getattr(exc, "status_code", None)
         code = code_for_status(status) if isinstance(status, int) else ErrorCode.UPSTREAM_ERROR
-        return ServiceError(code, f"{self.name} error: {str(exc)[:300]}")
+        return ServiceError(code, f"{self.name} request failed")

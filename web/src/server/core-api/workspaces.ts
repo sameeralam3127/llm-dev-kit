@@ -48,17 +48,19 @@ export async function teamWorkspaceId(
       },
     )
   } catch {
-    throw new ProviderError('The document service is unreachable', 'upstream_error')
+    throw new ProviderError()
   }
   if (!response.ok) {
-    throw new ProviderError(`The document service answered ${response.status}`, 'upstream_error')
+    await response.body?.cancel().catch(() => undefined)
+    throw new ProviderError()
   }
-  const { data } = (await response.json()) as { data?: { workspace_id?: unknown } }
-  if (typeof data?.workspace_id !== 'string') {
-    throw new ProviderError('The document service gave an unexpected answer', 'upstream_error')
+  const body = (await response.json().catch(() => null)) as { data?: { workspace_id?: unknown } } | null
+  const workspaceId = body?.data?.workspace_id
+  if (typeof workspaceId !== 'string') {
+    throw new ProviderError()
   }
-  remembered.set(key, data.workspace_id)
-  return data.workspace_id
+  remembered.set(key, workspaceId)
+  return workspaceId
 }
 
 /** For tests. */

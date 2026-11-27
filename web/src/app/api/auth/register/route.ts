@@ -38,27 +38,20 @@ export const POST = withErrorHandling(async (request: Request) => {
   if (existing) {
     // An account made before the first admin existed is promoted by its own
     // password together with the setup code.
-    const proven =
-      setupCode !== undefined &&
-      existing.passwordHash !== null &&
-      (await verifyPassword(password, existing.passwordHash))
-    const promoted = proven
-      ? await db.$transaction(async (tx) => {
-          await ensureRolesStarted(tx)
-          if (!(await claimFirstAdmin(setupCode, tx))) return null
-          return tx.user.update({
-            where: { id: existing.id },
-            data: { role: 'admin' },
-            select: PUBLIC_USER,
-          })
+    if (setupCode && existing.passwordHash && (await verifyPassword(password, existing.passwordHash))) {
+      const promoted = await db.$transaction(async (tx) => {
+        await ensureRolesStarted(tx)
+        if (!(await claimFirstAdmin(setupCode, email, tx))) return null
+        return tx.user.update({
+          where: { id: existing.id },
+          data: { role: 'admin' },
+          select: PUBLIC_USER,
         })
-      : null
-    if (!promoted) {
-      // The address is already discoverable via the sign-in form, so a clear
-      // message here costs nothing and saves a confusing dead end.
-      throw new ApiError('conflict', 'An account with that email already exists')
+      })
+      if (promoted) return NextResponse.json({ data: promoted })
     }
-    return NextResponse.json({ data: promoted })
+    if (setupCode) throw new ApiError('forbidden', 'Could not use that setup code for this account')
+    throw new ApiError('conflict', 'An account with that email already exists')
   }
 
   const passwordHash = await hashPassword(password)
@@ -66,9 +59,11 @@ export const POST = withErrorHandling(async (request: Request) => {
   // account, so a sign-up that fails spends nothing.
   const user = await db.$transaction(async (tx) => {
     await ensureRolesStarted(tx)
-    const admin = await claimFirstAdmin(setupCode, tx)
+    if (setupCode && !(await claimFirstAdmin(setupCode, email, tx))) {
+      throw new ApiError('forbidden', 'Could not use that setup code for this account')
+    }
     return tx.user.create({
-      data: { name, email, passwordHash, role: admin ? 'admin' : 'user' },
+      data: { name, email, passwordHash, role: setupCode ? 'admin' : 'user' },
       select: PUBLIC_USER,
     })
   })

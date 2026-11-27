@@ -7,18 +7,9 @@ import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { asRole, type Role } from '@/lib/roles'
 import { ProviderError } from '@/lib/llm/types'
+import { type ServiceErrorCode, serviceErrorMessage } from '@/lib/service-errors'
 
-export type ApiErrorCode =
-  | 'unauthorized'
-  | 'forbidden'
-  | 'not_found'
-  | 'invalid_request'
-  | 'conflict'
-  | 'rate_limited'
-  | 'upstream_unavailable'
-  | 'upstream_error'
-  | 'timeout'
-  | 'internal'
+export type ApiErrorCode = ServiceErrorCode
 
 const STATUS_BY_CODE: Record<ApiErrorCode, number> = {
   unauthorized: 401,
@@ -87,11 +78,11 @@ export function toApiError(error: unknown): ApiError {
   }
 
   if (error instanceof ProviderError) {
-    return new ApiError(error.code as ApiErrorCode, error.message)
+    return new ApiError(error.code, serviceErrorMessage(error.code))
   }
 
   if (process.env.NODE_ENV !== 'production') {
-    console.error('[api] unhandled error', error)
+    console.error('[api] unhandled error')
   }
 
   return new ApiError('internal', 'Something went wrong on our end')

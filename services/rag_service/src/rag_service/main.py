@@ -78,7 +78,7 @@ async def _bump_cache_revision(request: Request) -> None:
     try:
         await request.app.state.cache.bump_revision()
     except Exception as exc:  # noqa: BLE001 - never fail an upload over the cache
-        logger.warning("cache revision bump failed", error=f"{type(exc).__name__}: {exc}")
+        logger.warning("cache revision bump failed", exception_type=type(exc).__name__)
 
 
 @app.get("/health")

@@ -2,7 +2,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { OpenAICompatibleProvider } from './openai-compatible'
-import { ProviderError } from './types'
+
+const ERROR_CANARY = 'synthetic-provider-diagnostic'
 
 const chunk = (content: string) =>
   `data: ${JSON.stringify({ choices: [{ delta: { content }, finish_reason: null }] })}\n\n`
@@ -17,8 +18,8 @@ function serve(...frames: string[]) {
   vi.stubGlobal('fetch', vi.fn(async () => new Response(body, { status: 200 })))
 }
 
-async function collect() {
-  const provider = new OpenAICompatibleProvider({ baseUrl: 'http://rag.test/v1', timeoutMs: 5000 })
+async function collect(baseUrl = 'http://rag.test/v1') {
+  const provider = new OpenAICompatibleProvider({ baseUrl, timeoutMs: 5000 })
   const parts: string[] = []
   for await (const part of provider.streamCompletion({
     model: 'llama3.1',
@@ -37,14 +38,43 @@ describe('OpenAI-compatible streams', () => {
     await expect(collect()).resolves.toBe('grounded answer')
   })
 
-  it('fail on an error event, so the answer is stored as failed', async () => {
-    serve(chunk('grounded '), `data: ${JSON.stringify({ error: { message: 'model crashed' } })}\n\n`)
-    await expect(collect()).rejects.toThrow(new ProviderError('model crashed', 'upstream_error'))
+  it('fail on an error event with an app-owned message', async () => {
+    serve(chunk('grounded '), `data: ${JSON.stringify({ error: { message: ERROR_CANARY } })}\n\n`)
+    await expect(collect()).rejects.toMatchObject({
+      code: 'upstream_error',
+      message: 'The upstream service could not complete the request',
+    })
   })
 
   it('fail when the stream stops before [DONE], instead of keeping half an answer', async () => {
     serve(chunk('grounded '))
-    await expect(collect()).rejects.toThrow(/ended before/)
+    await expect(collect()).rejects.toMatchObject({ code: 'upstream_error' })
+  })
+})
+
+describe('upstream model request failures', () => {
+  it.each([
+    [500, 'upstream_error', 502, 'The upstream service could not complete the request'],
+    [429, 'rate_limited', 429, 'The service is receiving too many requests. Try again shortly.'],
+  ])('maps HTTP %i by status without reading its body', async (status, code, publicStatus, message) => {
+    const response = Response.json({ error: { message: ERROR_CANARY } }, { status })
+    const text = vi.spyOn(response, 'text')
+    const json = vi.spyOn(response, 'json')
+    vi.stubGlobal('fetch', vi.fn(async () => response))
+
+    await expect(collect()).rejects.toMatchObject({ code, status: publicStatus, message })
+    expect(text).not.toHaveBeenCalled()
+    expect(json).not.toHaveBeenCalled()
+  })
+
+  it('omits configured URLs and transport diagnostics when the service is down', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      throw new Error(ERROR_CANARY)
+    }))
+    await expect(collect('http://internal-model.test/v1')).rejects.toMatchObject({
+      code: 'upstream_unavailable',
+      message: 'The upstream service is unreachable',
+    })
   })
 })
 

@@ -1,8 +1,9 @@
 node_modules
 .next
 .git
-.env
-.env.local
+# Next.js reads mode-specific dotenv files during the build.
+**/*.env
+**/*.env.*
 *.db
 *.db-journal
 prisma/dev.db*

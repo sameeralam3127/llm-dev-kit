@@ -10,6 +10,7 @@ from typing import Literal
 
 from core_api.domain.ingestion import IndexedChunk, backoff_seconds, batched, is_permanent
 from core_api.ports.jobs import IngestionStore, Job, JobQueue
+from ldk_core.errors import to_service_error
 from ldk_core.observability import correlation_scope, get_logger
 from ldk_core.ports import Chunker, DocumentLoader, Embedder
 from ldk_core.ports.chunker import MAX_CHUNKS_PER_DOCUMENT, check_chunk_count
@@ -79,14 +80,14 @@ async def _index(
 async def _settle_failure(
     queue: JobQueue, job: Job, exc: BaseException, rand: Callable[[], float]
 ) -> Outcome:
-    error = f"{type(exc).__name__}: {exc}"[:2000]
+    code = to_service_error(exc).code.value
     if is_permanent(exc) or job.attempts >= job.max_attempts:
-        settled = await queue.fail(job, error)
-        _log.warning("job failed", job=job.id, attempts=job.attempts, error=error)
+        settled = await queue.fail(job, code)
+        _log.warning("job failed", job=job.id, attempts=job.attempts, code=code)
         return "failed" if settled else "lease_lost"
     delay = backoff_seconds(job.attempts, rand)
-    settled = await queue.retry_later(job, error, datetime.now(UTC) + timedelta(seconds=delay))
+    settled = await queue.retry_later(job, code, datetime.now(UTC) + timedelta(seconds=delay))
     _log.info(
-        "job will retry", job=job.id, attempts=job.attempts, in_seconds=round(delay, 1), error=error
+        "job will retry", job=job.id, attempts=job.attempts, in_seconds=round(delay, 1), code=code
     )
     return "retrying" if settled else "lease_lost"

@@ -112,7 +112,7 @@ class LocalAuthProvider:
                 headers={"Authorization": f"Bearer {key}", **outgoing_headers()},
             )
         except httpx.HTTPError as exc:
-            _log.warning("API key exchange failed", error=str(exc))
+            _log.warning("API key exchange failed", exception_type=type(exc).__name__)
             raise ServiceError(
                 ErrorCode.UPSTREAM_UNAVAILABLE, "Identity service unavailable"
             ) from exc

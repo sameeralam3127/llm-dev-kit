@@ -103,18 +103,14 @@ class OidcAuthProvider:
             res.raise_for_status()
             document = res.json()
         except (httpx.HTTPError, ValueError) as exc:
-            _log.warning("OIDC discovery failed", url=self._discovery_url, error=str(exc))
+            _log.warning("OIDC discovery failed", exception_type=type(exc).__name__)
             raise ServiceError(
                 ErrorCode.UPSTREAM_UNAVAILABLE, "Identity provider unavailable"
             ) from exc
         if document.get("issuer") != self.issuer:
             # A mismatch means the configuration is wrong; verifying against
             # these keys would accept tokens from somewhere else.
-            _log.warning(
-                "OIDC discovery issuer mismatch",
-                expected=self.issuer,
-                got=document.get("issuer"),
-            )
+            _log.warning("OIDC discovery issuer mismatch")
             raise ServiceError(ErrorCode.UPSTREAM_UNAVAILABLE, "Identity provider misconfigured")
         jwks_uri = document.get("jwks_uri")
         if not isinstance(jwks_uri, str):

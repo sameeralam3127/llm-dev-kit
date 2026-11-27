@@ -11,8 +11,6 @@
 Imports FastAPI, so only the HTTP services use it (not mcp-service).
 """
 
-from typing import Any
-
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -48,7 +46,7 @@ def envelope(error: ServiceError, status: int | None = None) -> JSONResponse:
 async def _service_error(_: Request, exc: Exception) -> JSONResponse:
     assert isinstance(exc, ServiceError)
     if exc.status >= 500:
-        _log.warning("request failed", code=exc.code.value, error=exc.message)
+        _log.warning("request failed", code=exc.code.value)
     return envelope(exc)
 
 
@@ -95,25 +93,10 @@ class _UnhandledErrorMiddleware:
 
         try:
             await self.app(scope, receive, tracking_send)
-        except Exception:
-            _log.exception("unhandled error", path=scope.get("path"))
+        except Exception:  # noqa: BLE001 - async HTTP boundary
+            _log.exception("unhandled error")
             if started:
-                raise  # Too late to send a response; let the server close it.
+                # The server must close a response whose headers have been sent.
+                raise RuntimeError("Response stream failed") from None
             response = envelope(ServiceError(ErrorCode.INTERNAL, "Something went wrong on our end"))
             await response(scope, receive, send)
-
-
-def error_detail(body: Any) -> str | None:
-    """Pull a human-readable message out of an error body from any service.
-
-    Understands the envelope and FastAPI's legacy ``{"detail": ...}``, so a
-    client keeps working against a service that has not been upgraded.
-    """
-    if not isinstance(body, dict):
-        return None
-    error = body.get("error")
-    if isinstance(error, dict) and isinstance(error.get("message"), str):
-        return error["message"]
-    if isinstance(body.get("detail"), str):
-        return body["detail"]
-    return None

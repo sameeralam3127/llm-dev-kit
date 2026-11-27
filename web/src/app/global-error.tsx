@@ -6,7 +6,6 @@
  * is inline on purpose.
  */
 export default function GlobalError({
-  error,
   reset,
 }: {
   error: Error & { digest?: string }
@@ -32,7 +31,7 @@ export default function GlobalError({
             The application failed to load
           </h1>
           <p style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: '#5a6069' }}>
-            {error.message || 'An unexpected error occurred.'}
+            An unexpected error occurred.
           </p>
           <button
             type="button"

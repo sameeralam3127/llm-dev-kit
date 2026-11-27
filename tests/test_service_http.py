@@ -6,7 +6,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 from pydantic import BaseModel
 
-from devkit_common.http import error_detail, install_service
+from devkit_common.http import install_service
 from ldk_core.config import CoreSettings
 from ldk_core.errors import ErrorCode, ServiceError
 
@@ -102,22 +102,10 @@ def test_unhandled_errors_are_generic_and_logged_with_the_request_id(client, cap
     (logged,) = [line for line in lines if line["event"] == "unhandled error"]
     assert logged["correlation_id"] == "req-500"
     assert logged["service"] == "test-service"
-    assert "hunter2" in logged["exception"]  # the log keeps what the client must not see
+    assert logged["exception_type"] == "RuntimeError"
+    assert "hunter2" not in json.dumps(lines)
 
 
 def test_every_response_has_a_request_id(client) -> None:
     assert client.post("/items", json={"name": "x", "count": 1}).headers["x-request-id"]
     assert client.get("/missing").headers["x-request-id"]
-
-
-@pytest.mark.parametrize(
-    ("body", "expected"),
-    [
-        ({"error": {"code": "x", "message": "envelope"}}, "envelope"),
-        ({"detail": "legacy"}, "legacy"),
-        ({"detail": [{"msg": "list"}]}, None),
-        (["not", "a", "dict"], None),
-    ],
-)
-def test_error_detail_reads_both_shapes(body, expected) -> None:
-    assert error_detail(body) == expected

@@ -486,3 +486,129 @@ def test_the_official_openai_sdk_raises_on_both_kinds_of_failure(client, issuer)
     with pytest.raises(openai.APIError, match="model not found"):
         for _ in sdk.chat.completions.create(**ask):
             pass
+
+
+# ------------------------------------------------------- /v1 shares the pipeline
+# /v1, /chat and /chat/stream run one pipeline (rag_service.chat.RagPipeline):
+# one prompt builder and one answer cache, keyed by the question as the model
+# sees it (history included), the model and the document-set revision.
+
+
+class MemoryCache(NoCache):
+    """An answer cache with real keys and revisions, held in a dict."""
+
+    def __init__(self, *_: object) -> None:
+        super().__init__()
+        self.rev = 0
+        self.answers: dict[tuple[str, str | None, int], str] = {}
+
+    async def revision(self):
+        return self.rev
+
+    async def bump_revision(self):
+        await super().bump_revision()
+        self.rev += 1
+
+    async def get(self, prompt, model=None, *, revision=None):
+        rev = self.rev if revision is None else revision
+        return self.answers.get((prompt.strip(), model, rev))
+
+    async def set(self, prompt, model, value, *, revision=None):
+        rev = self.rev if revision is None else revision
+        self.answers[(prompt.strip(), model, rev)] = value
+
+
+@pytest.fixture
+def cached_client(monkeypatch: pytest.MonkeyPatch, store: MemoryVectorStore, issuer: Issuer):
+    _patch(monkeypatch, store, issuer)
+    monkeypatch.setattr(main, "ChatCache", MemoryCache)
+    with TestClient(main.app, headers=issuer.bearer("admin")) as client:
+        yield client
+
+
+def _ask(client, question: str = "What does sovereign mode do?", **body):
+    payload = {"messages": [{"role": "user", "content": question}], **body}
+    return client.post("/v1/chat/completions", json=payload)
+
+
+def _generations(client) -> int:
+    return len(client.app.state.llm.prompts)
+
+
+def test_v1_answers_a_repeated_question_from_the_cache(cached_client) -> None:
+    _upload(cached_client, make_pdf(["Sovereign mode keeps every byte local."]))
+    first = _ask(cached_client).json()
+    second = _ask(cached_client).json()
+    assert _generations(cached_client) == 1
+    assert first["choices"][0]["message"] == second["choices"][0]["message"]
+    assert second["choices"][0]["message"]["content"] == "grounded answer"
+    assert second["choices"][0]["finish_reason"] == "stop"
+
+
+def test_v1_and_api_chat_share_one_prompt_and_one_cache(cached_client) -> None:
+    _upload(cached_client, make_pdf(["Sovereign mode keeps every byte local."]))
+    chat = cached_client.post(
+        "/chat", json={"message": "What does sovereign mode do?", "model": "llama3.1"}
+    ).json()
+    assert chat["cached"] is False
+    v1 = _ask(cached_client, model="llama3.1").json()
+    assert _generations(cached_client) == 1
+    assert v1["choices"][0]["message"]["content"] == chat["response"]
+
+
+def test_a_streamed_v1_answer_is_cached_once_it_completes_and_replays_as_a_stream(
+    cached_client,
+) -> None:
+    first = _frames(_ask(cached_client, stream=True).text)
+    replay = _frames(_ask(cached_client, stream=True).text)
+    assert _generations(cached_client) == 1
+    assert first[-1] == replay[-1] == "[DONE]"
+    assert [f["choices"][0] for f in replay[:-1]] == [
+        {"index": 0, "delta": {"role": "assistant", "content": ""}, "finish_reason": None},
+        {"index": 0, "delta": {"content": "grounded answer"}, "finish_reason": None},
+        {"index": 0, "delta": {}, "finish_reason": "stop"},
+    ]
+
+
+def test_ingesting_a_document_drops_cached_v1_answers(cached_client) -> None:
+    _ask(cached_client)
+    _upload(cached_client, make_pdf(["A new fact arrives."]))
+    _ask(cached_client)
+    assert _generations(cached_client) == 2
+
+
+def test_a_failed_v1_answer_is_never_cached(cached_client) -> None:
+    llm = cached_client.app.state.llm
+    llm.stream_error = ServiceError(ErrorCode.UPSTREAM_ERROR, "model crashed")
+    llm.stream_error_after = 1
+    assert "[DONE]" not in _ask(cached_client, stream=True).text
+    llm.stream_error = None
+    _ask(cached_client, stream=True)
+    assert _generations(cached_client) == 2
+    _ask(cached_client)
+    assert _generations(cached_client) == 2
+
+
+def test_the_cache_key_separates_models_and_conversations(cached_client) -> None:
+    _ask(cached_client, model="llama3.1")
+    _ask(cached_client, model="openai/gpt-4o")
+    history = [
+        {"role": "user", "content": "Earlier question"},
+        {"role": "assistant", "content": "Earlier answer"},
+        {"role": "user", "content": "What does sovereign mode do?"},
+    ]
+    cached_client.post("/v1/chat/completions", json={"messages": history, "model": "llama3.1"})
+    assert _generations(cached_client) == 3
+    assert (
+        "Current question: What does sovereign mode do?" in cached_client.app.state.llm.prompts[-1]
+    )
+
+
+def test_a_cache_hit_still_needs_a_credential(cached_client) -> None:
+    _ask(cached_client)
+    res = cached_client.post(
+        "/v1/chat/completions",
+        json={"messages": [{"role": "user", "content": "What does sovereign mode do?"}]},
+        headers={"Authorization": ""},
+    )
+    assert res.status_code == 401

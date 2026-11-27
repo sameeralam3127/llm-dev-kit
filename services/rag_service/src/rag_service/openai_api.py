@@ -1,6 +1,12 @@
 """OpenAI-compatible endpoints so any OpenAI client (SDKs, LangChain, curl)
 can use the RAG pipeline as a model backend.
 
+This module only translates: OpenAI's request in, OpenAI's response or SSE
+stream out. Retrieval, the prompt, the answer cache and the model call are
+``rag_service.chat.RagPipeline``, shared with /chat and /chat/stream, so a
+repeated question is answered from the cache here too, and a streamed answer
+is cached once it completes. A cached answer streams as one content chunk.
+
 Every model exposed here answers with retrieval-augmented context. The Bearer
 token says who is calling: a personal API key (``sk-ldk-...``) or an access
 token from the web app. Calls without one get 401.
@@ -22,7 +28,7 @@ from ldk_core.auth import CHAT
 from ldk_core.errors import ErrorCode, ServiceError, bad_request
 from ldk_core.observability import get_logger
 from ldk_core.ports import Principal
-from rag_service.prompts import build_prompt
+from rag_service.chat import RagPipeline
 
 _log = get_logger(__name__)
 
@@ -116,18 +122,18 @@ async def chat_completions(
     if not query.strip():
         raise bad_request("No user message provided")
 
-    llm = request.app.state.llm
-    retriever = request.app.state.retriever
-
-    embedding = await llm.embed_one(query)
-    docs = await retriever.retrieve(embedding) if embedding else []
-
-    question = query if not history else f"{history}\n\nCurrent question: {query}"
-    prompt = build_prompt(question, "\n\n".join(docs) if docs else None)
+    pipeline = RagPipeline(
+        llm=request.app.state.llm,
+        cache=request.app.state.cache,
+        retriever=request.app.state.retriever,
+    )
 
     if not stream:
-        result = await llm.generate(prompt, model=model, api_key=api_key)
-        return _completion_body(result.get("model", model), result.get("response", ""))
+        answer = await pipeline.answer(query, model, api_key=api_key, history=history)
+        return _completion_body(answer.model or model, answer.text)
+
+    # Retrieval happens here, before any response: an outage is an HTTP error.
+    prepared = await pipeline.prepare(query, model, history=history)
 
     completion_id = f"chatcmpl-{uuid4().hex}"
     created = int(time.time())
@@ -150,7 +156,7 @@ async def chat_completions(
     # Wait for the first piece before answering: a failure that early (an
     # unknown model, llm-service down) becomes an ordinary error response,
     # not a 200 stream an SDK would read as a finished answer.
-    pieces = llm.generate_stream(prompt, model=model, api_key=api_key).__aiter__()
+    pieces = pipeline.stream(prepared, model, api_key=api_key)
     try:
         first: str | None = await anext(pieces)
     except StopAsyncIteration:

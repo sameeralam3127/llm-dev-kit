@@ -6,6 +6,17 @@ release, `feat:` a minor one, and a breaking change a major one. Entries are
 written by [release-please](https://github.com/googleapis/release-please) from
 the [Conventional Commits](https://www.conventionalcommits.org) on `main`.
 
+## [1.1.1](https://github.com/sameeralam3127/llm-dev-kit/compare/v1.1.0...v1.1.1) (2026-11-27)
+
+
+### Bug fixes
+
+* **deps:** bump the web-minor-and-patch group in /web with 2 updates ([#162](https://github.com/sameeralam3127/llm-dev-kit/issues/162)) ([7e854e1](https://github.com/sameeralam3127/llm-dev-kit/commit/7e854e113c67a26286d45342f6813322cf12e0ff))
+* **rag:** embed documents in bounded batches, and cap /embed ([#167](https://github.com/sameeralam3127/llm-dev-kit/issues/167)) ([ea7ee8a](https://github.com/sameeralam3127/llm-dev-kit/commit/ea7ee8ac05eaa0b88047454a460ef7758043cfa6))
+* **rag:** run /v1 through the shared RAG pipeline and its answer cache ([#166](https://github.com/sameeralam3127/llm-dev-kit/issues/166)) ([5030c4c](https://github.com/sameeralam3127/llm-dev-kit/commit/5030c4c05f56eacc03a034b78236c0bc8f584ee3))
+* single-flight the JWKS refresh, API key exchange and Chroma client creation ([#165](https://github.com/sameeralam3127/llm-dev-kit/issues/165)) ([7181d07](https://github.com/sameeralam3127/llm-dev-kit/commit/7181d07160eb127dd81e2e07997b903bc034efa7))
+* **web:** build a standalone image instead of copying all of node_modules ([#169](https://github.com/sameeralam3127/llm-dev-kit/issues/169)) ([57ad119](https://github.com/sameeralam3127/llm-dev-kit/commit/57ad1194cd3cb738c382f3d1270b2f13c22dd6a6))
+
 ## [1.1.0](https://github.com/sameeralam3127/llm-dev-kit/compare/v1.0.0...v1.1.0) (2026-11-22)
 
 

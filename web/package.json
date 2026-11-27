@@ -15,6 +15,7 @@
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
+    "admin:setup": "node --env-file-if-exists=.env prisma/issue-admin-setup.mjs",
     "postinstall": "prisma generate",
     "test": "vitest run",
     "bench": "vitest run --mode bench --reporter=verbose"

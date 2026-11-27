@@ -73,9 +73,7 @@ class GatewayEmbedder:
                 headers={"Authorization": f"Bearer {self._token}", **outgoing_headers()},
             )
         except httpx.HTTPError as exc:
-            raise ServiceError(
-                ErrorCode.UPSTREAM_UNAVAILABLE, f"model-gateway unreachable: {exc}"
-            ) from exc
+            raise ServiceError(ErrorCode.UPSTREAM_UNAVAILABLE, "model-gateway unreachable") from exc
         if res.is_error:
             raise ServiceError(
                 code_for_status(res.status_code), f"model-gateway returned {res.status_code}"
@@ -120,9 +118,7 @@ class GatewayModelClient:
         try:
             res = await self._client.get("/models", headers=self._headers())
         except httpx.HTTPError as exc:
-            raise ServiceError(
-                ErrorCode.UPSTREAM_UNAVAILABLE, f"model-gateway unreachable: {exc}"
-            ) from exc
+            raise ServiceError(ErrorCode.UPSTREAM_UNAVAILABLE, "model-gateway unreachable") from exc
         if res.is_error:
             raise ServiceError(
                 code_for_status(res.status_code), "model-gateway refused the request"
@@ -144,9 +140,9 @@ class GatewayModelClient:
                 "POST", "/chat", json=body, headers=self._headers(caller)
             ) as res:
                 if res.is_error:
-                    await res.aread()
                     raise ServiceError(
-                        code_for_status(res.status_code), _error_message(res.text, res.status_code)
+                        code_for_status(res.status_code),
+                        f"model-gateway request failed (HTTP {res.status_code})",
                     )
                 async for line in res.aiter_lines():
                     if not line.startswith("data:"):
@@ -154,9 +150,13 @@ class GatewayModelClient:
                     event = json.loads(line[5:].strip())
                     if "error" in event:
                         error = event["error"]
+                        raw_code = error.get("code") if isinstance(error, dict) else None
+                        try:
+                            code = ErrorCode(raw_code) if isinstance(raw_code, str) else None
+                        except ValueError:
+                            code = None
                         raise ServiceError(
-                            ErrorCode(error.get("code", "upstream_error")),
-                            error.get("message", "model-gateway failed"),
+                            code or ErrorCode.UPSTREAM_ERROR, "model-gateway stream failed"
                         )
                     if event.get("done"):
                         usage = event.get("usage") or {}
@@ -169,17 +169,8 @@ class GatewayModelClient:
                     if text := event.get("delta"):
                         yield Delta(text)
         except httpx.HTTPError as exc:
-            raise ServiceError(
-                ErrorCode.UPSTREAM_UNAVAILABLE, f"model-gateway unreachable: {exc}"
-            ) from exc
+            raise ServiceError(ErrorCode.UPSTREAM_UNAVAILABLE, "model-gateway unreachable") from exc
 
     async def aclose(self) -> None:
         """Close the HTTP client."""
         await self._client.aclose()
-
-
-def _error_message(body: str, status: int) -> str:
-    try:
-        return str(json.loads(body)["error"]["message"])
-    except (ValueError, KeyError, TypeError):
-        return f"model-gateway returned {status}"

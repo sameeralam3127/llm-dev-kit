@@ -48,12 +48,12 @@ class _HttpTool:
                 res = await client.request(method, path, **kwargs)
             except httpx.HTTPError as exc:
                 raise ServiceError(
-                    ErrorCode.UPSTREAM_UNAVAILABLE, f"{self.base_url} unreachable: {exc}"
+                    ErrorCode.UPSTREAM_UNAVAILABLE, "Tool backend unavailable"
                 ) from exc
         if res.is_error:
             raise ServiceError(
                 code_for_status(res.status_code),
-                f"{self.base_url}{path} returned {res.status_code}: {res.text[:200]}",
+                f"Tool backend request failed (HTTP {res.status_code})",
             )
         return res.json()
 

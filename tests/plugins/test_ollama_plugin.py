@@ -105,15 +105,15 @@ def test_unreachable_host_is_upstream_unavailable() -> None:
         asyncio.run(provider.list_models())
     assert info.value.code is ErrorCode.UPSTREAM_UNAVAILABLE
     assert info.value.status == 503
-    assert info.value.message.startswith("Ollama unreachable:")
+    assert info.value.message == "Ollama unreachable"
 
 
-def test_unknown_model_is_a_502_with_ollamas_message(fake: FakeOllama) -> None:
+def test_unknown_model_is_a_502_with_a_safe_message(fake: FakeOllama) -> None:
     provider = OllamaProvider(HOST, transport=fake.transport())
     with pytest.raises(ServiceError) as info:
         asyncio.run(provider.complete(CompletionRequest("nope", [ChatMessage("user", "hi")])))
     assert info.value.status == 502
-    assert "model 'nope' not found" in info.value.message
+    assert info.value.message == "Ollama request failed (HTTP 404)"
 
 
 def test_an_error_line_mid_stream_raises() -> None:
@@ -128,7 +128,7 @@ def test_an_error_line_mid_stream_raises() -> None:
             out.append(delta)
         return out
 
-    with pytest.raises(ServiceError, match="oom"):
+    with pytest.raises(ServiceError, match=r"^Ollama stream failed$"):
         asyncio.run(collect())
 
 
@@ -185,7 +185,7 @@ def test_embedder_sends_batches_with_a_short_final_one(fake: FakeOllama) -> None
 def test_embedder_fails_on_an_error_in_a_later_batch(fake: FakeOllama) -> None:
     fake.fail_embed_call = 2
     embedder = OllamaEmbedder(HOST, transport=fake.transport())
-    with pytest.raises(ServiceError, match="Ollama embedding error 500") as caught:
+    with pytest.raises(ServiceError, match=r"Ollama embedding failed \(HTTP 500\)") as caught:
         asyncio.run(embedder.embed([f"t{i}" for i in range(BATCH_SIZE + 1)]))
     assert caught.value.code is ErrorCode.UPSTREAM_ERROR
 

@@ -164,7 +164,7 @@ def test_invalid_arguments_unknown_tools_and_outages_are_tool_errors(services: S
     missing, unknown, down = asyncio.run(_session_run(services, calls))
     assert missing.isError and "message" in missing.content[0].text
     assert unknown.isError and "nope" in unknown.content[0].text
-    assert down.isError and "unreachable" in down.content[0].text
+    assert down.isError and down.content[0].text == "Tool backend unavailable"
 
 
 def test_real_build_registry_configures_both_tools(monkeypatch: pytest.MonkeyPatch) -> None:

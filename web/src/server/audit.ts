@@ -4,6 +4,7 @@ import type { Prisma } from '@prisma/client'
 
 import { db } from '@/lib/db'
 import { isPostgres } from '@/lib/db-kind'
+import { isServiceErrorCode } from '@/lib/service-errors'
 import type { AuditEventDTO } from '@/types/admin'
 
 /** Who is acting. Snapshotted into the entry, so it survives account changes. */
@@ -81,17 +82,27 @@ export async function listAuditEvents(params: {
       actorEmail: row.actorEmail,
       action: row.action,
       target: row.target,
-      detail: parseDetail(row.detail),
+      detail: parseDetail(row.action, row.detail),
     })),
     nextBefore: rows.length > limit ? (page.at(-1)?.id ?? null) : null,
   }
 }
 
-function parseDetail(text: string | null): Record<string, unknown> | null {
+function parseDetail(action: string, text: string | null): Record<string, unknown> | null {
   if (!text) return null
   try {
     const parsed: unknown = JSON.parse(text)
-    return parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : null
+    if (!parsed || typeof parsed !== 'object') return null
+
+    const detail = parsed as Record<string, unknown>
+    if (action === 'document.upload_failed') {
+      // Older audit rows can contain raw exceptions. Expose only known fields.
+      return {
+        ...(typeof detail['bytes'] === 'number' ? { bytes: detail['bytes'] } : {}),
+        errorCode: isServiceErrorCode(detail['errorCode']) ? detail['errorCode'] : 'upstream_error',
+      }
+    }
+    return detail
   } catch {
     return null
   }

@@ -8,6 +8,7 @@ import type {
 } from '@prisma/client'
 
 import { FOLDER_COLORS, type FolderColorId } from '@/lib/constants'
+import { serviceErrorMessage } from '@/lib/service-errors'
 import type {
   ChatMessage,
   ChatSummary,
@@ -51,7 +52,7 @@ export function toMessageDTO(
     content: row.content,
     position: row.position,
     model: row.model,
-    error: row.error,
+    error: row.error === null ? null : serviceErrorMessage(row.error),
     truncated: row.truncated,
     editedAt: row.editedAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),

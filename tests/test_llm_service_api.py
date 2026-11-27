@@ -113,7 +113,7 @@ def test_generate_cloud_without_any_key_is_a_401_envelope(client) -> None:
 def test_unknown_local_model_is_a_502_envelope(client) -> None:
     res = client.post("/generate", json={"prompt": "hi", "model": "mistral"})
     assert res.status_code == 502
-    assert "model 'mistral' not found" in res.json()["error"]["message"]
+    assert res.json()["error"]["message"] == "Ollama request failed (HTTP 404)"
 
 
 def test_stream_ndjson_protocol_is_unchanged(client) -> None:
@@ -126,7 +126,7 @@ def test_stream_ndjson_protocol_is_unchanged(client) -> None:
 def test_stream_errors_are_reported_inline(client) -> None:
     events = _ndjson(client.post("/generate/stream", json={"prompt": "hi", "model": "nope"}))
     assert len(events) == 1
-    assert "model 'nope' not found" in events[0]["error"]
+    assert events[0]["error"] == "Ollama request failed (HTTP 404)"
 
 
 def test_embed(client) -> None:

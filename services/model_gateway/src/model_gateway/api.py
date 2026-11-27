@@ -115,7 +115,7 @@ async def chat(
         except Exception as exc:  # noqa: BLE001 - reported in-band; the status is already sent
             error = to_service_error(exc)
             if error is not exc:
-                _log.exception("chat stream failed", model=body.model)
+                _log.exception("chat stream failed")
             yield _sse({"error": {"code": error.code.value, "message": error.message}})
             return
         # Providers stream text only; token counts are not known here yet.

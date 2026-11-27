@@ -64,14 +64,40 @@ def test_no_correlation_id_outside_a_request(capsys) -> None:
     assert "correlation_id" not in line
 
 
-def test_exceptions_are_rendered(capsys) -> None:
+def test_exceptions_log_the_type_without_messages_or_causes(capsys) -> None:
     configure_logging(service="s", fmt="json")
     try:
-        raise ValueError("boom")
+        try:
+            raise RuntimeError("synthetic-cause-detail")
+        except RuntimeError as exc:
+            raise ValueError("synthetic-failure-detail") from exc
     except ValueError:
         get_logger().exception("failed")
     (line,) = _lines(capsys)
-    assert "ValueError: boom" in line["exception"]
+    assert line["exception_type"] == "ValueError"
+    assert "synthetic-" not in json.dumps(line)
+
+
+def test_dependency_and_access_logs_omit_wire_data(capsys) -> None:
+    configure_logging(service="s", fmt="json")
+    logging.getLogger("httpx").warning("URL https://example.test/?key=synthetic-secret")
+    logging.getLogger("pypdf._reader").warning("synthetic-document")
+    logging.getLogger("uvicorn.access").info(
+        '%s - "%s %s HTTP/%s" %d',
+        "test-client",
+        "GET",
+        "/?key=synthetic-secret",
+        "1.1",
+        200,
+    )
+    lines = _lines(capsys)
+    assert [line["event"] for line in lines] == [
+        "Dependency diagnostic",
+        "Dependency diagnostic",
+        "HTTP request",
+    ]
+    assert lines[-1]["status"] == 200
+    assert "synthetic-" not in json.dumps(lines)
 
 
 def test_console_format_is_human_readable(capsys) -> None:

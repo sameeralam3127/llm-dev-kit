@@ -85,15 +85,15 @@ def test_missing_key_is_unauthorized_with_guidance(fake: FakeLiteLLM) -> None:
     ],
 )
 def test_upstream_errors_map_by_status(fake: FakeLiteLLM, status, code) -> None:
-    fake.fail_with = UpstreamError("quota exceeded", status)
+    fake.fail_with = UpstreamError("quota exceeded for synthetic-provider-key", status)
     with pytest.raises(ServiceError) as info:
         asyncio.run(LiteLLMProvider("openai", "k").complete(_ask()))
     assert info.value.code is code
-    assert info.value.message == "openai error: quota exceeded"
+    assert info.value.message == "openai request failed"
 
 
 def test_stream_errors_are_service_errors(fake: FakeLiteLLM) -> None:
-    fake.fail_with = UpstreamError("overloaded", 529)
+    fake.fail_with = UpstreamError("overloaded for synthetic-provider-key", 529)
 
     async def collect() -> list[str]:
         return [d async for d in LiteLLMProvider("anthropic", "k").stream(_ask())]
@@ -101,6 +101,7 @@ def test_stream_errors_are_service_errors(fake: FakeLiteLLM) -> None:
     with pytest.raises(ServiceError) as info:
         asyncio.run(collect())
     assert info.value.code is ErrorCode.UPSTREAM_ERROR
+    assert info.value.message == "anthropic request failed"
 
 
 def test_telemetry_is_off() -> None:

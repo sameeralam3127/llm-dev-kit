@@ -138,9 +138,7 @@ class ChromaVectorStore:
         except ServiceError:
             raise
         except Exception as exc:  # chromadb raises many unrelated types
-            raise ServiceError(
-                ErrorCode.UPSTREAM_UNAVAILABLE, f"Chroma unavailable: {str(exc)[:200]}"
-            ) from exc
+            raise ServiceError(ErrorCode.UPSTREAM_UNAVAILABLE, "Chroma unavailable") from exc
 
 
 def _metadata(chunk: ChunkRecord) -> dict[str, Any]:

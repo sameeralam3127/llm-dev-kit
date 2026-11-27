@@ -80,13 +80,11 @@ class OllamaEmbedder:
         try:
             res = await self._client.post("/api/embed", json={"model": self.model, "input": batch})
         except httpx.HTTPError as exc:
-            raise ServiceError(
-                ErrorCode.UPSTREAM_UNAVAILABLE, f"Ollama unreachable: {exc}"
-            ) from exc
+            raise ServiceError(ErrorCode.UPSTREAM_UNAVAILABLE, "Ollama unreachable") from exc
         if res.is_error:
             raise ServiceError(
                 ErrorCode.UPSTREAM_ERROR,
-                f"Ollama embedding error {res.status_code}: {res.text[:200]}",
+                f"Ollama embedding failed (HTTP {res.status_code})",
             )
         embeddings = res.json().get("embeddings") or []
         if len(embeddings) != len(batch):

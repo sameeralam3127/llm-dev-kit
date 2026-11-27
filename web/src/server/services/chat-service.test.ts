@@ -52,7 +52,7 @@ const mocks = vi.hoisted(() => {
       content: currentAnswer,
       position: 1,
       model: 'test-model',
-      error: null,
+      error: null as string | null,
       truncated: false,
       editedAt: null,
       createdAt,
@@ -94,7 +94,7 @@ const mocks = vi.hoisted(() => {
     },
   )
 
-  return { calls, chat: { findFirst, findUnique } }
+  return { calls, messages, chat: { findFirst, findUnique } }
 })
 
 vi.mock('@/lib/db', () => ({ db: { chat: mocks.chat } }))
@@ -121,9 +121,17 @@ beforeEach(() => {
   vi.clearAllMocks()
   mocks.calls.shared.length = 0
   mocks.calls.private.length = 0
+  mocks.messages[1]!.error = null
 })
 
 describe('getSharedChat', () => {
+  it('replaces legacy stored upstream error text before sharing a message', async () => {
+    mocks.messages[1]!.error = 'Synthetic older provider diagnostic'
+
+    const chat = await getSharedChat('share-1')
+    expect(chat?.messages[1]?.error).toBe('The upstream service could not complete the request')
+  })
+
   it('omits archived message versions from the shared payload and rendered messages', async () => {
     const chat = await getSharedChat('share-1')
 

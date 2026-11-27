@@ -236,7 +236,7 @@ def test_core_api_clients_speak_the_gateway_protocol(gateway, db_url) -> None:
     assert events[-1] == Done(model="llama3.1", tokens_in=None, tokens_out=None)
     assert [len(v) for v in vectors] == [768, 768, 768]
     assert refused.code is ErrorCode.FORBIDDEN
-    assert "Sovereign mode" in refused.message
+    assert refused.message == "model-gateway request failed (HTTP 403)"
     # An unknown local model is an upstream failure, reported in-band.
     assert missing.code is ErrorCode.UPSTREAM_ERROR
 

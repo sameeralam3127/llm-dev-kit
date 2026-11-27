@@ -4,10 +4,11 @@ import { oauthProvidersEnabled } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { getEnv } from '@/lib/env'
 import { asRole, type Role } from '@/lib/roles'
+import { isServiceErrorCode, serviceErrorMessage } from '@/lib/service-errors'
 import { type Actor, recordAudit } from '@/server/audit'
 import { RATE_LIMITS } from '@/server/rate-limit'
 import { plural } from '@/lib/utils'
-import { ApiError, type ApiErrorCode, notFound } from '@/server/http'
+import { ApiError, notFound } from '@/server/http'
 import { mintAccessToken } from '@/server/identity/tokens'
 import type {
   ActivityDay,
@@ -379,28 +380,16 @@ async function asAdmin(
   }
 }
 
-const KNOWN_CODES = new Set<string>([
-  'unauthorized',
-  'forbidden',
-  'not_found',
-  'invalid_request',
-  'conflict',
-  'rate_limited',
-  'upstream_unavailable',
-  'upstream_error',
-  'timeout',
-])
-
-/** The rag-service's own error, in the same envelope, or a generic one. */
+/** Preserve known failure codes without forwarding upstream text. */
 async function upstreamError(res: Response): Promise<ApiError> {
   const body = (await res.json().catch(() => null)) as {
-    error?: { code?: string; message?: string }
+    error?: { code?: unknown }
   } | null
-  const code = body?.error?.code
-  return new ApiError(
-    code && KNOWN_CODES.has(code) ? (code as ApiErrorCode) : 'upstream_error',
-    body?.error?.message ?? `The RAG service responded ${res.status}`,
-  )
+  const upstreamCode = body?.error?.code
+  const code = isServiceErrorCode(upstreamCode) && upstreamCode !== 'internal'
+    ? upstreamCode
+    : 'upstream_error'
+  return new ApiError(code, serviceErrorMessage(code))
 }
 
 async function ragJson(adminId: string, path: string, init?: RequestInit & { timeoutMs?: number }) {
@@ -484,15 +473,15 @@ export async function uploadDocument(actor: Actor, file: File): Promise<UploadRe
     })
     return { filename: file.name, chunks, cacheCleared }
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Upload failed'
+    const errorCode = error instanceof ApiError ? error.code : 'internal'
     await db.ingestionJob.update({
       where: { id: job.id },
-      data: { status: 'failed', error: message.slice(0, 500), finishedAt: new Date() },
+      data: { status: 'failed', error: errorCode, finishedAt: new Date() },
     })
     await recordAudit(actor, {
       action: 'document.upload_failed',
       target: file.name,
-      detail: { bytes: file.size, error: message.slice(0, 200) },
+      detail: { bytes: file.size, errorCode },
     })
     throw error
   }
@@ -514,7 +503,7 @@ export async function listIngestionJobs(limit = 20): Promise<IngestionJobDTO[]> 
         ? 'interrupted'
         : (row.status as IngestionJobDTO['status']),
     chunks: row.chunks,
-    error: row.error,
+    error: row.error === null ? null : serviceErrorMessage(row.error),
     startedAt: row.startedAt.toISOString(),
     finishedAt: row.finishedAt?.toISOString() ?? null,
     uploadedBy: row.uploadedBy,

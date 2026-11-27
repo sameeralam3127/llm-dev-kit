@@ -95,7 +95,7 @@ class ModelGateway:
             try:
                 found.extend(await local.list_models())
             except ServiceError as exc:
-                _log.warning("local models unavailable", error=exc.message)
+                _log.warning("local models unavailable", code=exc.code.value)
         for name in self._cloud():
             found.extend(f"{name}/{m}" for m in await self._llms[name].list_models())
         return [m for m in found if not (self.sovereign and route(m, self._cloud()).egress)]
@@ -180,14 +180,16 @@ class ModelGateway:
                 )
             )
         except Exception as exc:  # noqa: BLE001 - the refusal stands either way
-            _log.error("could not audit a refused model call", model=model, error=str(exc))
+            _log.error("could not audit a refused model call", exception_type=type(exc).__name__)
 
     async def _record(self, event: AuditEvent) -> None:
         try:
             await self._audit.record(event)
         except Exception as exc:
             _log.error(
-                "audit write failed; model call refused", action=event.action, error=str(exc)
+                "audit write failed; model call refused",
+                action=event.action,
+                exception_type=type(exc).__name__,
             )
             raise ServiceError(
                 ErrorCode.UPSTREAM_UNAVAILABLE,

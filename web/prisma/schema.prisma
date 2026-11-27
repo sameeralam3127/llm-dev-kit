@@ -116,11 +116,12 @@ model SigningKey {
 }
 
 /// The one-time code that makes the first admin (server/identity/admin.ts).
-/// `hash` is null while no code is pending. A row existing at all marks a
-/// database that has been through roles.
+/// The digest binds the code to an email. A null expiry rejects older codes
+/// that were issued before this field existed.
 model SetupCode {
   id        String   @id
   hash      String?
+  expiresAt DateTime?
   createdAt DateTime @default(now())
 }
 

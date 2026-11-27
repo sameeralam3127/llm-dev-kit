@@ -1,4 +1,5 @@
 import { plural } from '@/lib/utils'
+import { serviceErrorMessage } from '@/lib/service-errors'
 import type { AuditEventDTO, IngestionStatus } from '@/types/admin'
 
 /** `1.5 MB`, `812 B`: sizes the way people read them. */
@@ -58,7 +59,7 @@ export function describeAudit(event: Pick<AuditEventDTO, 'action' | 'detail'>): 
     case 'document.uploaded':
       return `${plural(num(d['chunks']), 'chunk')}, ${formatBytes(num(d['bytes']))}`
     case 'document.upload_failed':
-      return text(d['error'])
+      return serviceErrorMessage(d['errorCode'])
     case 'document.index_cleared':
       return typeof d['cacheCleared'] === 'number'
         ? `${plural(d['cacheCleared'], 'cached answer')} dropped too`

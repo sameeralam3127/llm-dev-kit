@@ -214,11 +214,14 @@ This app is the identity service the rest of the stack trusts
 (`server/identity/`):
 
 - **Roles.** `User.role` is `admin`, `user` or `viewer` (`lib/roles.ts`, which
-  must match `ldk_core.auth`). While no admin exists, startup
-  (`instrumentation.ts`) issues a one-time setup code and stores only its hash
-  in `SetupCode`; a sign-up that presents it becomes the admin and spends it.
-  Nothing is promoted by account age, except once, for databases that predate
-  `SetupCode`.
+  must match `ldk_core.auth`). With the configured web app running, issue a code
+  in a trusted interactive terminal using `npm run admin:setup -- admin@example.com`.
+  Sign up with that email and the code. If the account already exists, use its current password.
+  The database stores an email-bound digest that expires after 15 minutes. The
+  sign-up transaction spends the code when it grants the role. Issuing a new code
+  replaces the pending one. On upgrade, apply the schema and replace any older
+  web replicas. Previously logged setup codes are invalid on the upgraded app.
+  Upgrading a database that predates roles still promotes its earliest account once.
 - **Access tokens.** Every call to rag-service carries a 5-minute RS256 token
   for the signed-in user (`sub`, `roles`, `scope`, `iss`, `aud`), minted from
   the role in the database, so a demotion bites within one token lifetime.
@@ -242,6 +245,7 @@ This app is the identity service the rest of the stack trusts
 | `npm test` | Vitest (jsdom): Markdown splitting, render counts, streaming behaviour |
 | `npm run bench` | Streaming render cost, old vs new Markdown (not run in CI) |
 | `npm run db:push` | Apply the schema without a migration |
+| `npm run admin:setup -- <email>` | Issue the first administrator's one-time code from an interactive terminal |
 | `npm run db:migrate` | Create and apply a migration |
 | `npm run db:seed` | Demo account and example chat |
 | `npm run db:studio` | Prisma Studio |

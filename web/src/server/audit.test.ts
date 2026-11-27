@@ -92,6 +92,22 @@ describe('listAuditEvents', () => {
     state.rows.push({ id: 'bad0000000', at: new Date(), actorId: null, actorEmail: null, action: 'x.y', target: null, detail: '{oops' })
     expect((await listAuditEvents({})).events[0]!.detail).toBeNull()
   })
+
+  it('exposes only the byte count and a safe code for older failed uploads', async () => {
+    state.rows.push({
+      id: 'legacy-upload',
+      at: new Date(),
+      actorId: null,
+      actorEmail: null,
+      action: 'document.upload_failed',
+      target: 'scan.pdf',
+      detail: JSON.stringify({ bytes: 21, error: 'Synthetic older audit diagnostic' }),
+    })
+    expect((await listAuditEvents({})).events[0]?.detail).toEqual({
+      bytes: 21,
+      errorCode: 'upstream_error',
+    })
+  })
 })
 
 describe('ensureAuditTriggers', () => {

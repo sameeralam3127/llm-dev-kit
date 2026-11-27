@@ -77,7 +77,7 @@ def discover(
             obj = ep.load()
         except Exception as exc:  # noqa: BLE001 - a plugin's import may raise anything
             result.failures.append(
-                DiscoveryFailure(declared, dist, f"import failed: {type(exc).__name__}: {exc}")
+                DiscoveryFailure(declared, dist, f"import failed: {type(exc).__name__}")
             )
             continue
         if not isinstance(obj, Plugin):

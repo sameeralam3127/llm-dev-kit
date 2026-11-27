@@ -210,7 +210,12 @@ class PluginRegistry:
             try:
                 await close()
             except Exception as exc:  # noqa: BLE001 - shutdown must reach every plugin
-                _log.warning("plugin close failed", kind=kind.value, name=name, error=str(exc))
+                _log.warning(
+                    "plugin close failed",
+                    kind=kind.value,
+                    name=name,
+                    exception_type=type(exc).__name__,
+                )
 
     def _build(self, spec: PortSpec[Any], plugin: Plugin) -> object:
         """Instantiate ``plugin`` and check the result against its port."""

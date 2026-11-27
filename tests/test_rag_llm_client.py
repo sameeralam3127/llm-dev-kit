@@ -4,8 +4,10 @@ import asyncio
 import json
 
 import httpx
+import pytest
 
 from ldk_core.auth import credential_scope
+from ldk_core.errors import ErrorCode, ServiceError
 from ldk_core.observability import correlation_scope
 from rag_service.llm_client import LLMServiceClient
 
@@ -65,6 +67,32 @@ def test_every_call_to_llm_service_carries_the_callers_credential() -> None:
     assert seen == ["Bearer token-of-the-caller", "Bearer token-of-the-caller", None]
 
 
+def test_http_and_stream_failures_omit_backend_details() -> None:
+    detail = {"message": "synthetic-provider-detail", "Authorization": "synthetic-key"}
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/stream"):
+            return httpx.Response(200, text=json.dumps({"error": detail}) + "\n")
+        return httpx.Response(401, json={"error": detail})
+
+    async def check() -> None:
+        client = LLMServiceClient("http://llm.test", 5, transport=httpx.MockTransport(handle))
+        try:
+            with pytest.raises(ServiceError) as request_error:
+                await client.generate("prompt")
+            assert request_error.value.code is ErrorCode.UNAUTHORIZED
+            assert request_error.value.message == "LLM service request failed (HTTP 401)"
+            with pytest.raises(ServiceError) as stream_error:
+                async for _ in client.generate_stream("prompt"):
+                    pass
+            assert stream_error.value.code is ErrorCode.UPSTREAM_ERROR
+            assert stream_error.value.message == "LLM service stream failed"
+        finally:
+            await client.close()
+
+    asyncio.run(check())
+
+
 # ------------------------------------------------------------------ batching
 # A document's chunks go to llm-service in bounded batches, never as one
 # request that has to finish inside a single timeout.
@@ -95,9 +123,6 @@ def test_embed_many_sends_bounded_batches_and_keeps_the_order() -> None:
 
 
 def test_embed_many_fails_when_any_batch_fails() -> None:
-    import pytest
-
-    from ldk_core.errors import ServiceError
     from rag_service.llm_client import EMBED_BATCH_SIZE
 
     calls: list[list[str]] = []

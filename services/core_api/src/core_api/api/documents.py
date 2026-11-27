@@ -11,10 +11,18 @@ from pydantic import BaseModel
 from core_api.api.deps import CurrentWorkspaceDep, RequestIdDep, authenticated
 from core_api.ports.stores import DocumentRecord
 from core_api.services.documents import MAX_UPLOAD_BYTES, DocumentService
+from ldk_core.errors import ErrorCode
 
 router = APIRouter(
     prefix="/api/v1/documents", tags=["documents"], dependencies=[Depends(authenticated)]
 )
+
+_INGESTION_ERRORS = {
+    ErrorCode.INVALID_REQUEST.value: "The document is invalid or exceeds ingestion limits",
+    ErrorCode.UPSTREAM_UNAVAILABLE.value: "The model gateway was unavailable",
+    ErrorCode.UPSTREAM_ERROR.value: "The model gateway could not process the document",
+    ErrorCode.TIMEOUT.value: "Document processing timed out",
+}
 
 
 class DocumentOut(BaseModel):
@@ -32,13 +40,20 @@ class DocumentOut(BaseModel):
     @classmethod
     def of(cls, d: DocumentRecord) -> DocumentOut:
         """Serialise a document."""
+        # Older workers persisted raw exception messages. Only recognized
+        # categories map to specific public text.
+        error = (
+            _INGESTION_ERRORS.get(d.last_error or "", "Document processing failed")
+            if d.status == "failed"
+            else None
+        )
         return cls(
             id=d.id,
             workspace_id=d.workspace_id,
             title=d.title,
             status=d.status,
             chunk_count=d.chunk_count,
-            last_error=d.last_error if d.status == "failed" else None,
+            last_error=error,
             created_at=d.created_at,
             updated_at=d.updated_at,
         )

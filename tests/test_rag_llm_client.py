@@ -63,3 +63,50 @@ def test_every_call_to_llm_service_carries_the_callers_credential() -> None:
 
     asyncio.run(calls())
     assert seen == ["Bearer token-of-the-caller", "Bearer token-of-the-caller", None]
+
+
+# ------------------------------------------------------------------ batching
+# A document's chunks go to llm-service in bounded batches, never as one
+# request that has to finish inside a single timeout.
+
+
+def _embedding_client(calls: list[list[str]], fail_call: int | None = None) -> LLMServiceClient:
+    def handle(request: httpx.Request) -> httpx.Response:
+        texts = json.loads(request.content)["texts"]
+        calls.append(texts)
+        if len(calls) == fail_call:
+            return httpx.Response(
+                503, json={"error": {"code": "upstream_unavailable", "message": "busy"}}
+            )
+        return httpx.Response(200, json={"embeddings": [[float(len(t))] for t in texts]})
+
+    return LLMServiceClient("http://llm.test", 5, transport=httpx.MockTransport(handle))
+
+
+def test_embed_many_sends_bounded_batches_and_keeps_the_order() -> None:
+    from rag_service.llm_client import EMBED_BATCH_SIZE
+
+    calls: list[list[str]] = []
+    texts = ["x" * (i % 7 + 1) for i in range(2 * EMBED_BATCH_SIZE + 5)]
+    vectors = asyncio.run(_embedding_client(calls).embed_many(texts))
+
+    assert sorted(len(c) for c in calls) == sorted([EMBED_BATCH_SIZE, EMBED_BATCH_SIZE, 5])
+    assert vectors == [[float(len(t))] for t in texts]
+
+
+def test_embed_many_fails_when_any_batch_fails() -> None:
+    import pytest
+
+    from ldk_core.errors import ServiceError
+    from rag_service.llm_client import EMBED_BATCH_SIZE
+
+    calls: list[list[str]] = []
+    client = _embedding_client(calls, fail_call=2)
+    with pytest.raises(ServiceError, match="Embedding failed"):
+        asyncio.run(client.embed_many(["t"] * (EMBED_BATCH_SIZE * 3)))
+
+
+def test_a_small_document_is_still_one_call() -> None:
+    calls: list[list[str]] = []
+    asyncio.run(_embedding_client(calls).embed_many(["a", "b", "c"]))
+    assert calls == [["a", "b", "c"]]

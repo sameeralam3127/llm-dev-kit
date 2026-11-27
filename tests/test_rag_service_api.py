@@ -612,3 +612,13 @@ def test_a_cache_hit_still_needs_a_credential(cached_client) -> None:
         headers={"Authorization": ""},
     )
     assert res.status_code == 401
+
+
+def test_a_failed_embedding_stores_nothing_and_keeps_cached_answers(
+    client, store: MemoryVectorStore
+) -> None:
+    client.app.state.llm.embed_error = ServiceError(ErrorCode.UPSTREAM_ERROR, "batch 3 failed")
+    res = _upload(client, make_pdf(["word " * 2000]))
+    assert res.status_code == 502
+    assert not store._collections.get("documents")
+    assert client.app.state.cache.bumps == 0

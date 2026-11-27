@@ -3,6 +3,7 @@ import type {
   ChatSummary,
   Folder,
   ModelInfo,
+  ServiceStatus,
 } from '@/types/chat'
 import type { Role } from '@/lib/roles'
 import type {
@@ -145,6 +146,12 @@ export const api = {
     },
   },
 
+  status: {
+    get(signal?: AbortSignal): Promise<ServiceStatus> {
+      return request('/api/status', { signal })
+    },
+  },
+
   models: {
     list(signal?: AbortSignal): Promise<ModelInfo[]> {
       return request('/api/models', { signal })
@@ -251,6 +258,7 @@ export const queryKeys = {
   chat: (chatId: string) => ['chat', chatId] as const,
   folders: () => ['folders'] as const,
   models: () => ['models'] as const,
+  status: () => ['status'] as const,
   apiKeys: () => ['api-keys'] as const,
   adminUsers: () => ['admin', 'users'] as const,
   adminHealth: () => ['admin', 'health'] as const,

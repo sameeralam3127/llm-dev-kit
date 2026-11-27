@@ -15,6 +15,7 @@ import { useRouter } from 'next/navigation'
 import * as React from 'react'
 
 import { ModelPicker } from '@/components/chat/model-picker'
+import { ServiceStatusNotice } from '@/components/chat/service-status'
 import { ShareDialog } from '@/components/chat/share-dialog'
 import {
   AlertDialog,
@@ -131,6 +132,7 @@ export const ChatHeader = React.memo(function ChatHeader({
       )}
 
       <div className="flex shrink-0 items-center gap-1">
+        <ServiceStatusNotice />
         <ModelPicker value={model} onChange={onModelChange} disabled={isBusy} />
 
         <Button

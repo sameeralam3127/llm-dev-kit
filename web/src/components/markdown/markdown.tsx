@@ -5,6 +5,7 @@ import { memo, useMemo } from 'react'
 import ReactMarkdown, { type Components, type Options } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
+import { citationNumber, CitationMarker, remarkCitations } from '@/components/markdown/citations'
 import { CodeBlock } from '@/components/markdown/code-block'
 import { useHighlighter } from '@/hooks/use-highlighter'
 import { hasCodeBlock, splitMarkdownBlocks } from '@/lib/markdown-blocks'
@@ -14,7 +15,7 @@ type RehypePlugins = NonNullable<Options['rehypePlugins']>
 
 // Module-level so every block gets the same array identities; a fresh array
 // per render would make react-markdown rebuild its processor each time.
-const REMARK_PLUGINS: NonNullable<Options['remarkPlugins']> = [remarkGfm]
+const REMARK_PLUGINS: NonNullable<Options['remarkPlugins']> = [remarkGfm, remarkCitations]
 const NO_REHYPE_PLUGINS: RehypePlugins = []
 const highlightPlugins = new WeakMap<object, RehypePlugins>()
 
@@ -65,6 +66,9 @@ const components: Components = {
   },
 
   a({ href, children, ...props }) {
+    const cited = citationNumber(href)
+    if (cited !== null) return <CitationMarker n={cited} />
+
     const safeHref = href ? sanitizeUrl(href) : ''
     if (!safeHref) return <span>{children}</span>
 

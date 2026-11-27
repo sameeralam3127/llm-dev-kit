@@ -46,6 +46,7 @@ function emptyMessage(
     model: null,
     error: null,
     truncated: false,
+    sources: [],
     editedAt: null,
     createdAt: new Date().toISOString(),
     versions: [],
@@ -110,6 +111,28 @@ export function useChatStream({
       setMessages(optimistic)
 
       let assistantId: string | null = null
+
+      const revertOptimistic = () => {
+        const persisted = queryClient.getQueryData<ChatDetail>(queryKeys.chat(chatId))
+        setMessages(persisted?.messages ?? [])
+      }
+
+      // A failure before the server created the turn has no message to hang an
+      // error card on: put the list back as the server has it and say so once.
+      // After that, the error lives on the answer itself, where Retry is.
+      const fail = (message: string) => {
+        const failedId = assistantId
+        if (failedId) {
+          setMessages((prev) =>
+            prev.map((entry) => (entry.id === failedId ? { ...entry, error: message } : entry)),
+          )
+        } else {
+          revertOptimistic()
+          toast.error('Message not sent', { description: message })
+        }
+        setError(new Error(message))
+      }
+
       let pending = ''
       let frame: number | null = null
 
@@ -158,6 +181,16 @@ export function useChatStream({
               break
             }
 
+            case 'sources': {
+              const sourcedId = assistantId
+              setMessages((prev) =>
+                prev.map((message) =>
+                  message.id === sourcedId ? { ...message, sources: event.sources } : message,
+                ),
+              )
+              break
+            }
+
             case 'delta': {
               pending += event.text
               scheduleFlush()
@@ -181,27 +214,19 @@ export function useChatStream({
             case 'error': {
               if (frame !== null) cancelAnimationFrame(frame)
               flush()
-              const failedId = assistantId
-              setMessages((prev) =>
-                prev.map((message) =>
-                  message.id === failedId
-                    ? { ...message, error: event.message }
-                    : message,
-                ),
-              )
-              setError(new Error(event.message))
-              toast.error('Generation failed', { description: event.message })
+              fail(event.message)
               break
             }
           }
         }
       } catch (caught) {
         if (frame !== null) cancelAnimationFrame(frame)
-        if (!isAbortError(caught)) {
-          const failure =
-            caught instanceof Error ? caught : new Error('Something went wrong')
-          setError(failure)
-          toast.error('Generation failed', { description: failure.message })
+        if (isAbortError(caught)) {
+          // Stopped before the server took the turn: nothing was saved, so an
+          // empty answer bubble would only be a dead end.
+          if (!assistantId) revertOptimistic()
+        } else {
+          fail(caught instanceof Error ? caught.message : 'Something went wrong')
         }
       } finally {
         if (frame !== null) cancelAnimationFrame(frame)
@@ -213,6 +238,9 @@ export function useChatStream({
         // the sidebar, whose titles and ordering just changed.
         void queryClient.invalidateQueries({ queryKey: queryKeys.chat(chatId) })
         void queryClient.invalidateQueries({ queryKey: ['chats'] })
+        // The server notes what this turn showed about the backend; let the
+        // status line catch up now rather than on its next poll.
+        void queryClient.invalidateQueries({ queryKey: queryKeys.status() })
       }
     },
     [chatId, queryClient],

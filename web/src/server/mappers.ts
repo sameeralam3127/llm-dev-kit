@@ -9,6 +9,7 @@ import type {
 
 import { FOLDER_COLORS, type FolderColorId } from '@/lib/constants'
 import { serviceErrorMessage } from '@/lib/service-errors'
+import { parseStoredSources } from '@/lib/sources'
 import type {
   ChatMessage,
   ChatSummary,
@@ -54,6 +55,7 @@ export function toMessageDTO(
     model: row.model,
     error: row.error === null ? null : serviceErrorMessage(row.error),
     truncated: row.truncated,
+    sources: parseStoredSources(row.sources),
     editedAt: row.editedAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
     versions: (row.versions ?? []).map(toMessageVersionDTO),

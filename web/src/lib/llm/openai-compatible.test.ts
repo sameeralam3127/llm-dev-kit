@@ -33,6 +33,28 @@ async function collect(baseUrl = 'http://rag.test/v1') {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('OpenAI-compatible streams', () => {
+  it('report the passages a final chunk cites, without adding them to the text', async () => {
+    const citations = [{ index: 1, title: 'Policy.pdf', page: 2, snippet: 'Remote work is allowed.' }]
+    serve(
+      chunk('Yes [1].'),
+      `data: ${JSON.stringify({ choices: [{ delta: {}, finish_reason: 'stop' }], citations })}\n\n`,
+      'data: [DONE]\n\n',
+    )
+    const onSources = vi.fn()
+    const provider = new OpenAICompatibleProvider({ baseUrl: 'http://rag.test/v1', timeoutMs: 5000 })
+    const parts: string[] = []
+    for await (const part of provider.streamCompletion({
+      model: 'llama3.1',
+      messages: [{ role: 'user', content: 'hi' }],
+      onSources,
+    })) {
+      parts.push(part)
+    }
+    expect(parts.join('')).toBe('Yes [1].')
+    expect(onSources).toHaveBeenCalledOnce()
+    expect(onSources).toHaveBeenCalledWith(citations)
+  })
+
   it('return the answer when the stream finishes with [DONE]', async () => {
     serve(chunk('grounded '), chunk('answer'), 'data: [DONE]\n\n')
     await expect(collect()).resolves.toBe('grounded answer')

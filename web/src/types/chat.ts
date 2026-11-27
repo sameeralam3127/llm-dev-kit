@@ -12,10 +12,20 @@ export interface ChatMessage {
   model: string | null
   error: string | null
   truncated: boolean
+  /** Passages the answer drew on, numbered as the answer cites them. */
+  sources: MessageSource[]
   editedAt: string | null
   createdAt: string
   /** Archived previous answers, oldest first. Assistant messages only. */
   versions: MessageVersion[]
+}
+
+/** One retrieved passage. `index` is the number the answer cites as [n]. */
+export interface MessageSource {
+  index: number
+  title: string | null
+  page: number | null
+  snippet: string
 }
 
 export interface MessageVersion {
@@ -54,6 +64,12 @@ export interface Folder {
   chatCount: number
 }
 
+/** What a signed-in user can know about the backend, for the status line. */
+export interface ServiceStatus {
+  modelHost: 'online' | 'offline'
+  checkedAt: string
+}
+
 export interface ModelInfo {
   id: string
   label: string
@@ -73,6 +89,7 @@ export type StreamEvent =
       assistantMessageId: string
     }
   | { type: 'delta'; text: string }
+  | { type: 'sources'; sources: MessageSource[] }
   | { type: 'done'; content: string; truncated: boolean }
   | { type: 'error'; message: string; code: StreamErrorCode }
 

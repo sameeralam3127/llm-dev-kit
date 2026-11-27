@@ -122,7 +122,7 @@ export const Composer = React.memo(function Composer({
         </div>
 
         <div className="mt-1.5 flex items-center justify-between px-1">
-          <p id="composer-hint" className="text-xs text-muted-foreground">
+          <p id="composer-hint" className="text-xs text-muted-foreground [@media(hover:none)]:invisible">
             <kbd className="font-sans font-medium">Enter</kbd> to send ·{' '}
             <kbd className="font-sans font-medium">Shift</kbd> +{' '}
             <kbd className="font-sans font-medium">Enter</kbd> for a new line

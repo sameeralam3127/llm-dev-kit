@@ -1,4 +1,4 @@
-import { type BackendOptions, backendOptions, getChatProvider } from '@/lib/llm'
+import { type BackendOptions, backendOptions, getChatProvider, noteModelHost } from '@/lib/llm'
 import { ProviderError } from '@/lib/llm/types'
 import { serviceErrorMessage } from '@/lib/service-errors'
 import { sendMessageSchema } from '@/lib/validations/chat'
@@ -8,7 +8,7 @@ import {
   finalizeAssistantMessage,
   prepareTurn,
 } from '@/server/services/chat-service'
-import type { StreamErrorCode, StreamEvent } from '@/types/chat'
+import type { MessageSource, StreamErrorCode, StreamEvent } from '@/types/chat'
 
 export const runtime = 'nodejs'
 // Token generation is inherently uncacheable and must not be pre-rendered.
@@ -76,12 +76,17 @@ export async function POST(request: Request) {
       })
 
       let failure: StreamErrorCode | null = null
+      let sources: MessageSource[] = []
 
       try {
         for await (const delta of provider.streamCompletion({
           model: prepared.model,
           messages: prepared.providerMessages,
           signal: upstream.signal,
+          onSources: (received) => {
+            sources = received
+            safeEnqueue({ type: 'sources', sources: received })
+          },
           ...backend,
         })) {
           accumulated += delta
@@ -96,6 +101,9 @@ export async function POST(request: Request) {
       const cancelled = request.signal.aborted || upstream.signal.aborted
       const truncated = cancelled || Boolean(failure)
 
+      if (!failure && !cancelled) noteModelHost(true)
+      else if (failure === 'upstream_unavailable' || failure === 'timeout') noteModelHost(false)
+
       try {
         await finalizeAssistantMessage({
           messageId: prepared.assistantMessageId,
@@ -103,6 +111,7 @@ export async function POST(request: Request) {
           content: accumulated,
           model: prepared.model,
           truncated,
+          sources,
           // A stopped generation is a user decision, not an error to flag.
           errorCode: cancelled ? null : failure,
         })

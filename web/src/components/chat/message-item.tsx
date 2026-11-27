@@ -13,7 +13,9 @@ import * as React from 'react'
 
 import { BrandMark } from '@/components/brand/brand-mark'
 import { MessageEditor } from '@/components/chat/message-editor'
+import { MessageSources } from '@/components/chat/message-sources'
 import { VersionSwitcher } from '@/components/chat/version-switcher'
+import { CitationProvider } from '@/components/markdown/citations'
 import { Markdown } from '@/components/markdown/markdown'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
@@ -25,7 +27,9 @@ import {
 } from '@/components/ui/tooltip'
 import { useCopy } from '@/hooks/use-copy'
 import { cn, initialsOf } from '@/lib/utils'
-import type { ChatMessage } from '@/types/chat'
+import type { ChatMessage, MessageSource } from '@/types/chat'
+
+const NO_SOURCES: MessageSource[] = []
 
 interface MessageItemProps {
   message: ChatMessage
@@ -71,6 +75,29 @@ export const MessageItem = React.memo(function MessageItem({
   const displayed = allVersions[Math.min(versionIndex, allVersions.length - 1)] ?? ''
   const isViewingOlder = versionIndex !== allVersions.length - 1
 
+  // Sources belong to the current answer; archived versions did not keep theirs.
+  const sources = isViewingOlder ? NO_SOURCES : message.sources
+  const sourceIdPrefix = `message-${message.id}-source`
+  const [sourcesOpen, setSourcesOpen] = React.useState(false)
+  const [activeSource, setActiveSource] = React.useState<number | null>(null)
+  const highlightTimer = React.useRef<number | undefined>(undefined)
+
+  React.useEffect(() => () => window.clearTimeout(highlightTimer.current), [])
+
+  const citations = React.useMemo(
+    () => ({
+      available: new Set(sources.map((source) => source.index)),
+      idFor: (n: number) => `${sourceIdPrefix}-${n}`,
+      onActivate: (n: number) => {
+        setSourcesOpen(true)
+        setActiveSource(n)
+        window.clearTimeout(highlightTimer.current)
+        highlightTimer.current = window.setTimeout(() => setActiveSource(null), 1600)
+      },
+    }),
+    [sources, sourceIdPrefix],
+  )
+
   const copyLink = () => {
     const url = new URL(window.location.href)
     url.hash = `message-${message.id}`
@@ -96,7 +123,9 @@ export const MessageItem = React.memo(function MessageItem({
     )
   }
 
-  const actionRow = !readOnly && !isStreaming && (
+  // A failed, empty answer has nothing to copy or link to, and its card
+  // already offers Retry; the row would only repeat it.
+  const actionRow = !readOnly && !isStreaming && !(message.error && !displayed) && (
     <div
       className={cn(
         'mt-2 flex items-center gap-0.5 transition-opacity',
@@ -144,15 +173,6 @@ export const MessageItem = React.memo(function MessageItem({
         </ActionButton>
       )}
 
-      {!isUser && onDelete && message.error && (
-        <ActionButton
-          label="Remove this response"
-          disabled={isBusy}
-          onClick={() => onDelete(message.id)}
-        >
-          <Trash2 />
-        </ActionButton>
-      )}
     </div>
   )
 
@@ -210,26 +230,35 @@ export const MessageItem = React.memo(function MessageItem({
         </header>
 
         {displayed ? (
-          <Markdown
-            content={displayed}
-            streaming={isStreaming}
-            className={cn(isStreaming && 'streaming-caret')}
-          />
+          <CitationProvider value={citations}>
+            <Markdown
+              content={displayed}
+              streaming={isStreaming}
+              className={cn(isStreaming && 'streaming-caret')}
+            />
+          </CitationProvider>
         ) : (
           isStreaming && <ThinkingIndicator />
         )}
 
+        {sources.length > 0 && (
+          <MessageSources
+            sources={sources}
+            idPrefix={sourceIdPrefix}
+            open={sourcesOpen}
+            onOpenChange={setSourcesOpen}
+            active={activeSource}
+          />
+        )}
+
         {message.error && (
-          <div
-            role="alert"
-            className="mt-3 flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
-          >
-            <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-            <div className="min-w-0">
-              <p className="font-medium">Generation failed</p>
-              <p className="break-words opacity-90">{message.error}</p>
-            </div>
-          </div>
+          <AnswerFailed
+            error={message.error}
+            partial={Boolean(displayed)}
+            disabled={isBusy || readOnly}
+            {...(onRegenerate && !readOnly ? { onRetry: () => onRegenerate(message.id) } : {})}
+            {...(onDelete && !readOnly ? { onRemove: () => onDelete(message.id) } : {})}
+          />
         )}
 
         {message.truncated && !message.error && displayed && (
@@ -243,6 +272,66 @@ export const MessageItem = React.memo(function MessageItem({
     </article>
   )
 })
+
+/**
+ * One place for a failed answer: what happened, that the question is safe,
+ * and the two ways forward. The stream hook no longer raises a toast as well.
+ */
+function AnswerFailed({
+  error,
+  partial,
+  disabled,
+  onRetry,
+  onRemove,
+}: {
+  error: string
+  partial: boolean
+  disabled: boolean
+  onRetry?: () => void
+  onRemove?: () => void
+}) {
+  const reason = /[.!?]$/.test(error) ? error : `${error}.`
+
+  return (
+    <div
+      role="alert"
+      className="mt-3 flex items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/[0.05] px-4 py-3"
+    >
+      <AlertTriangle className="mt-0.5 size-4 shrink-0 text-destructive" aria-hidden="true" />
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium">
+          {partial ? 'The answer stopped partway' : 'No answer was generated'}
+        </p>
+        <p className="mt-0.5 break-words text-sm text-muted-foreground">
+          {reason} Your question is saved, so you can retry once the service is back.
+        </p>
+
+        {(onRetry || onRemove) && (
+          <div className="mt-2.5 flex flex-wrap items-center gap-2">
+            {onRetry && (
+              <Button size="sm" variant="outline" onClick={onRetry} disabled={disabled}>
+                <RefreshCw />
+                Retry
+              </Button>
+            )}
+            {onRemove && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={onRemove}
+                disabled={disabled}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <Trash2 />
+                Remove answer
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
 
 function MessageAvatar({
   isUser,
